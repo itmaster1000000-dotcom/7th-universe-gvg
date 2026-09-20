@@ -1,1 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+  <title>7TH UNIVERSE — FIRST BRANCH — GUILD VS GUILD</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Arial, sans-serif;
+      color: white;
+      background:
+        radial-gradient(circle at top left, #1769ff33, transparent 35%),
+        radial-gradient(circle at top right, #ff207733, transparent 35%),
+        #05060b;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .box {
+      width: 100%;
+      max-width: 650px;
+      padding: 35px;
+      border: 1px solid #ffffff18;
+      border-radius: 25px;
+      background: #0d1019ee;
+      box-shadow: 0 25px 70px #0009;
+      text-align: center;
+    }
+
+    .title {
+      font-size: 42px;
+      font-weight: 900;
+      letter-spacing: 3px;
+      margin: 0;
+      background: linear-gradient(90deg, #ffffff, #58a6ff, #ff4f91);
+      -webkit-background-clip: text;
+      color: transparent;
+    }
+
+    .sub {
+      margin-top: 8px;
+      color: #aab2c5;
+      font-size: 14px;
+      letter-spacing: 2px;
+    }
+
+    .branch {
+      margin-top: 28px;
+      font-size: 24px;
+      font-weight: 800;
+    }
+
+    .gvg {
+      margin-top: 6px;
+      color: #58a6ff;
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: 2px;
+    }
+
+    .status {
+      margin-top: 25px;
+      padding: 15px;
+      border-radius: 13px;
+      background: #ffffff08;
+      border: 1px solid #ffffff12;
+      color: #b8c1d4;
+      font-size: 13px;
+    }
+
+    .success {
+      color: #52e39a;
+      border-color: #52e39a30;
+      background: #52e39a0c;
+    }
+
+    .error {
+      color: #ff7d87;
+      border-color: #ff596430;
+      background: #ff59640c;
+    }
+
+    button {
+      margin-top: 18px;
+      width: 100%;
+      padding: 14px;
+      border: 0;
+      border-radius: 13px;
+      color: white;
+      font-size: 14px;
+      font-weight: 900;
+      background: linear-gradient(100deg, #318dff, #ff2f78);
+      cursor: pointer;
+    }
+
+    .small {
+      margin-top: 20px;
+      color: #68728a;
+      font-size: 10px;
+      line-height: 1.7;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="box">
+
+    <h1 class="title">7TH UNIVERSE</h1>
+
+    <div class="sub">FIRST BRANCH</div>
+
+    <div class="branch">GUILD VS GUILD</div>
+
+    <div class="gvg">
+      CHALLENGE CONTROL SYSTEM
+    </div>
+
+    <div id="status" class="status">
+      Checking Supabase connection...
+    </div>
+
+    <button onclick="testSupabase()">
+      TEST SUPABASE CONNECTION
+    </button>
+
+    <div class="small">
+      7TH UNIVERSE • FIRST BRANCH • GVG
+    </div>
+
+  </div>
+
+<script>
+
+  /*
+    ==========================================
+    7TH UNIVERSE SUPABASE CONNECTION
+    ==========================================
+  */
+
+  const SUPABASE_URL = "PASTE-YOUR-PROJECT-URL-HERE";
+
+  const SUPABASE_PUBLISHABLE_KEY =
+    "PASTE-YOUR-PUBLISHABLE-KEY-HERE";
+
+  const statusBox = document.getElementById("status");
+
+  let supabaseClient = null;
+
+  function setStatus(message, type = "") {
+    statusBox.textContent = message;
+    statusBox.className = "status " + type;
+  }
+
+  function createConnection() {
+
+    if (
+      SUPABASE_URL.includes("PASTE-") ||
+      SUPABASE_PUBLISHABLE_KEY.includes("PASTE-")
+    ) {
+
+      setStatus(
+        "Add your Supabase Project URL and Publishable Key first.",
+        "error"
+      );
+
+      return false;
+    }
+
+    supabaseClient = supabase.createClient(
+      SUPABASE_URL,
+      SUPABASE_PUBLISHABLE_KEY
+    );
+
+    return true;
+  }
+
+  async function testSupabase() {
+
+    if (!createConnection()) {
+      return;
+    }
+
+    try {
+
+      const { data, error } =
+        await supabaseClient.auth.getSession();
+
+      if (error) {
+        throw error;
+      }
+
+      setStatus(
+        "✅ SUPABASE CONNECTED SUCCESSFULLY",
+        "success"
+      );
+
+    } catch (error) {
+
+      setStatus(
+        "❌ CONNECTION ERROR: " + error.message,
+        "error"
+      );
+
+    }
+  }
+
+  createConnection();
+
+</script>
+
+</body>
+</html>
