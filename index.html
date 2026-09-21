@@ -315,4 +315,319 @@
       }
 
       .skills {
-        grid-template
+        grid-template-columns: 1fr;
+      }
+
+      .section {
+        padding: 16px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+
+    <div class="box">
+
+      <!-- HEADER -->
+      <div class="header">
+
+        <h1 class="title">7TH UNIVERSE</h1>
+
+        <div class="sub">
+          FIRST BRANCH
+        </div>
+
+        <div class="branch">
+          GUILD VS GUILD
+        </div>
+
+        <div class="gvg">
+          CHALLENGE CONTROL SYSTEM
+        </div>
+
+      </div>
+
+
+      <!-- SUPABASE STATUS -->
+      <div id="status" class="status">
+        Checking Supabase connection...
+      </div>
+
+
+      <!-- CREATE CHALLENGE -->
+      <div class="section">
+
+        <h2 class="section-title">
+          CREATE CHALLENGE
+        </h2>
+
+        <form id="challengeForm">
+
+          <!-- GUILD NAME -->
+          <div class="field">
+
+            <label for="guildName">
+              GUILD NAME
+            </label>
+
+            <input
+              type="text"
+              id="guildName"
+              name="guildName"
+              placeholder="Enter your guild name"
+              autocomplete="off"
+              required
+            >
+
+          </div>
+
+
+          <!-- TIME -->
+          <div class="field">
+
+            <label for="matchTime">
+              MATCH TIME
+            </label>
+
+            <input
+              type="time"
+              id="matchTime"
+              name="matchTime"
+              required
+            >
+
+          </div>
+
+
+          <!-- ACTIVE SKILLS -->
+          <div class="field">
+
+            <label>
+              ACTIVE SKILLS
+            </label>
+
+            <div class="skills">
+
+              <label class="skill-option">
+                <input
+                  type="checkbox"
+                  name="skills"
+                  value="DJ Alok"
+                >
+                <span>DJ ALOK</span>
+              </label>
+
+              <label class="skill-option">
+                <input
+                  type="checkbox"
+                  name="skills"
+                  value="Tatsuya"
+                >
+                <span>TATSUYA</span>
+              </label>
+
+              <label class="skill-option">
+                <input
+                  type="checkbox"
+                  name="skills"
+                  value="Koda"
+                >
+                <span>KODA</span>
+              </label>
+
+            </div>
+
+            <div class="hint">
+              You may select none, one, or multiple skills.
+            </div>
+
+          </div>
+
+
+          <!-- WEAPONS -->
+          <div class="field">
+
+            <label>
+              WEAPONS
+            </label>
+
+            <div class="skills">
+
+              <label class="skill-option">
+                <input
+                  type="checkbox"
+                  name="weapons"
+                  value="Desert Eagle"
+                >
+                <span>DESERT EAGLE</span>
+              </label>
+
+              <label class="skill-option">
+                <input
+                  type="checkbox"
+                  name="weapons"
+                  value="M1887"
+                >
+                <span>M1887</span>
+              </label>
+
+              <label class="skill-option">
+                <input
+                  type="checkbox"
+                  name="weapons"
+                  value="M1887X"
+                >
+                <span>M1887X</span>
+              </label>
+
+              <label class="skill-option">
+                <input
+                  type="checkbox"
+                  name="weapons"
+                  value="Woodpecker"
+                >
+                <span>WOODPECKER</span>
+              </label>
+
+              <label class="skill-option">
+                <input
+                  type="checkbox"
+                  name="weapons"
+                  value="M1014"
+                >
+                <span>M1014</span>
+              </label>
+
+            </div>
+
+            <div class="hint">
+              Select one or multiple weapons.
+            </div>
+
+          </div>
+
+
+          <!-- CONTACT -->
+          <div class="field">
+
+            <label for="contact">
+              CONTACT NUMBER
+            </label>
+
+            <input
+              type="tel"
+              id="contact"
+              name="contact"
+              placeholder="03XXXXXXXXX"
+              autocomplete="tel"
+              required
+            >
+
+          </div>
+
+
+          <!-- SUBMIT -->
+          <button
+            type="submit"
+            id="confirmChallenge"
+          >
+            CONFIRM CHALLENGE
+          </button>
+
+          <div id="formMessage"></div>
+
+        </form>
+
+      </div>
+
+
+      <!-- LIVE CHALLENGES -->
+      <div class="section">
+
+        <h2 class="section-title">
+          LIVE CHALLENGES
+        </h2>
+
+        <div id="challengeList">
+
+          <div class="loading">
+            Loading challenges...
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <div class="small">
+        7TH UNIVERSE • FIRST BRANCH • GVG
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <!-- SUPABASE -->
+  <script>
+
+    const SUPABASE_URL =
+      "https://ypnpeiglbiycbexpeibb.supabase.co";
+
+    const SUPABASE_ANON_KEY =
+      "sb_publishable_5ei0IhM1tQ15u5pAIIavhQ_alE9O3bl";
+
+    window.SUPABASE_URL = SUPABASE_URL;
+    window.SUPABASE_ANON_KEY = SUPABASE_ANON_KEY;
+
+    window.supabaseClient =
+      supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_ANON_KEY
+      );
+
+    async function testSupabase() {
+
+      const statusBox =
+        document.getElementById("status");
+
+      try {
+
+        const { error } =
+          await window.supabaseClient.auth.getSession();
+
+        if (error) {
+          throw error;
+        }
+
+        statusBox.textContent =
+          "✅ SUPABASE CONNECTED SUCCESSFULLY";
+
+        statusBox.className =
+          "status success";
+
+      } catch (error) {
+
+        statusBox.textContent =
+          "❌ CONNECTION ERROR: " +
+          (error?.message || "Unknown error");
+
+        statusBox.className =
+          "status error";
+
+      }
+
+    }
+
+    testSupabase();
+
+  </script>
+
+
+  <script src="script.js"></script>
+
+</body>
+                  </html>
