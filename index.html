@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>7TH UNIVERSE — FIRST BRANCH — GUILD VS GUILD</title>
+  <title>7TH UNIVERSE — GUILD VS GUILD</title>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -28,12 +28,11 @@
 
     .container {
       width: 100%;
-      max-width: 850px;
+      max-width: 900px;
       margin: 0 auto;
     }
 
     .box {
-      width: 100%;
       padding: 30px;
       border: 1px solid #ffffff18;
       border-radius: 25px;
@@ -48,11 +47,11 @@
     }
 
     .title {
-      font-size: clamp(34px, 7vw, 52px);
+      margin: 0;
+      font-size: clamp(34px, 8vw, 54px);
       font-weight: 900;
       letter-spacing: 3px;
-      margin: 0;
-      background: linear-gradient(90deg, #ffffff, #58a6ff, #ff4f91);
+      background: linear-gradient(90deg, #fff, #58a6ff, #ff4f91);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
@@ -66,7 +65,7 @@
     }
 
     .branch {
-      margin-top: 22px;
+      margin-top: 20px;
       font-size: 25px;
       font-weight: 900;
     }
@@ -80,7 +79,7 @@
     }
 
     .status {
-      margin-top: 24px;
+      margin-top: 20px;
       padding: 14px;
       border-radius: 13px;
       background: #ffffff08;
@@ -165,16 +164,16 @@
 
     .skill-option span {
       display: block;
-      text-align: center;
       padding: 13px 8px;
       border-radius: 12px;
       border: 1px solid #ffffff14;
       background: #080b12;
       color: #bfc8db;
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 800;
+      text-align: center;
       cursor: pointer;
-      transition: 0.2s ease;
+      transition: .2s;
     }
 
     .skill-option input:checked + span {
@@ -199,26 +198,26 @@
       color: #fff;
       font-size: 14px;
       font-weight: 900;
-      letter-spacing: 0.7px;
+      letter-spacing: .7px;
       background: linear-gradient(100deg, #318dff, #ff2f78);
       cursor: pointer;
-      transition: 0.2s ease;
+      transition: .2s;
     }
 
     button:hover {
-      transform: translateY(-1px);
       filter: brightness(1.08);
+      transform: translateY(-1px);
     }
 
     button:disabled {
-      opacity: 0.65;
+      opacity: .65;
       cursor: not-allowed;
       transform: none;
     }
 
-    #formMessage {
+    .message {
       display: none;
-      margin-top: 15px;
+      margin-top: 14px;
       padding: 13px;
       border-radius: 12px;
       font-size: 13px;
@@ -237,7 +236,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
     }
 
     .challenge-card-header h3 {
@@ -254,10 +253,6 @@
       font-size: 10px;
       font-weight: 900;
       letter-spacing: 1px;
-    }
-
-    .challenge-card-info {
-      margin-top: 14px;
     }
 
     .challenge-card-info p {
@@ -284,15 +279,11 @@
       border: 1px solid #ffffff12;
     }
 
-    .challenge-contact-btn:hover {
-      background: #ffffff14;
-    }
-
     .loading,
     .empty-state {
       padding: 22px;
-      text-align: center;
       color: #737e95;
+      text-align: center;
       font-size: 13px;
     }
 
@@ -300,7 +291,6 @@
       margin-top: 25px;
       color: #68728a;
       font-size: 10px;
-      line-height: 1.7;
       text-align: center;
     }
 
@@ -311,15 +301,10 @@
 
       .box {
         padding: 20px;
-        border-radius: 20px;
       }
 
       .skills {
         grid-template-columns: 1fr;
-      }
-
-      .section {
-        padding: 16px;
       }
     }
   </style>
@@ -327,307 +312,417 @@
 
 <body>
 
-  <div class="container">
+<div class="container">
 
-    <div class="box">
+  <div class="box">
 
-      <!-- HEADER -->
-      <div class="header">
+    <div class="header">
 
-        <h1 class="title">7TH UNIVERSE</h1>
+      <h1 class="title">7TH UNIVERSE</h1>
 
-        <div class="sub">
-          FIRST BRANCH
-        </div>
-
-        <div class="branch">
-          GUILD VS GUILD
-        </div>
-
-        <div class="gvg">
-          CHALLENGE CONTROL SYSTEM
-        </div>
-
+      <div class="sub">
+        FIRST BRANCH
       </div>
 
-
-      <!-- SUPABASE STATUS -->
-      <div id="status" class="status">
-        Checking Supabase connection...
+      <div class="branch">
+        GUILD VS GUILD
       </div>
 
-
-      <!-- CREATE CHALLENGE -->
-      <div class="section">
-
-        <h2 class="section-title">
-          CREATE CHALLENGE
-        </h2>
-
-        <form id="challengeForm">
-
-          <!-- GUILD NAME -->
-          <div class="field">
-
-            <label for="guildName">
-              GUILD NAME
-            </label>
-
-            <input
-              type="text"
-              id="guildName"
-              name="guildName"
-              placeholder="Enter your guild name"
-              autocomplete="off"
-              required
-            >
-
-          </div>
-
-
-          <!-- TIME -->
-          <div class="field">
-
-            <label for="matchTime">
-              MATCH TIME
-            </label>
-
-            <input
-              type="time"
-              id="matchTime"
-              name="matchTime"
-              required
-            >
-
-          </div>
-
-
-          <!-- ACTIVE SKILLS -->
-          <div class="field">
-
-            <label>
-              ACTIVE SKILLS
-            </label>
-
-            <div class="skills">
-
-              <label class="skill-option">
-                <input
-                  type="checkbox"
-                  name="skills"
-                  value="DJ Alok"
-                >
-                <span>DJ ALOK</span>
-              </label>
-
-              <label class="skill-option">
-                <input
-                  type="checkbox"
-                  name="skills"
-                  value="Tatsuya"
-                >
-                <span>TATSUYA</span>
-              </label>
-
-              <label class="skill-option">
-                <input
-                  type="checkbox"
-                  name="skills"
-                  value="Koda"
-                >
-                <span>KODA</span>
-              </label>
-
-            </div>
-
-            <div class="hint">
-              You may select none, one, or multiple skills.
-            </div>
-
-          </div>
-
-
-          <!-- WEAPONS -->
-          <div class="field">
-
-            <label>
-              WEAPONS
-            </label>
-
-            <div class="skills">
-
-              <label class="skill-option">
-                <input
-                  type="checkbox"
-                  name="weapons"
-                  value="Desert Eagle"
-                >
-                <span>DESERT EAGLE</span>
-              </label>
-
-              <label class="skill-option">
-                <input
-                  type="checkbox"
-                  name="weapons"
-                  value="M1887"
-                >
-                <span>M1887</span>
-              </label>
-
-              <label class="skill-option">
-                <input
-                  type="checkbox"
-                  name="weapons"
-                  value="M1887X"
-                >
-                <span>M1887X</span>
-              </label>
-
-              <label class="skill-option">
-                <input
-                  type="checkbox"
-                  name="weapons"
-                  value="Woodpecker"
-                >
-                <span>WOODPECKER</span>
-              </label>
-
-              <label class="skill-option">
-                <input
-                  type="checkbox"
-                  name="weapons"
-                  value="M1014"
-                >
-                <span>M1014</span>
-              </label>
-
-            </div>
-
-            <div class="hint">
-              Select one or multiple weapons.
-            </div>
-
-          </div>
-
-
-          <!-- CONTACT -->
-          <div class="field">
-
-            <label for="contact">
-              CONTACT NUMBER
-            </label>
-
-            <input
-              type="tel"
-              id="contact"
-              name="contact"
-              placeholder="03XXXXXXXXX"
-              autocomplete="tel"
-              required
-            >
-
-          </div>
-
-
-          <!-- SUBMIT -->
-          <button
-            type="submit"
-            id="confirmChallenge"
-          >
-            CONFIRM CHALLENGE
-          </button>
-
-          <div id="formMessage"></div>
-
-        </form>
-
-      </div>
-
-
-      <!-- LIVE CHALLENGES -->
-      <div class="section">
-
-        <h2 class="section-title">
-          LIVE CHALLENGES
-        </h2>
-
-        <div id="challengeList">
-
-          <div class="loading">
-            Loading challenges...
-          </div>
-
-        </div>
-
-      </div>
-
-
-      <div class="small">
-        7TH UNIVERSE • FIRST BRANCH • GVG
+      <div class="gvg">
+        CHALLENGE CONTROL SYSTEM
       </div>
 
     </div>
 
+
+    <!-- CONNECTION STATUS -->
+
+    <div id="status" class="status">
+      Connecting to Supabase...
+    </div>
+
+
+    <!-- =========================
+         GUILD REGISTRATION
+         ========================= -->
+
+    <div class="section">
+
+      <h2 class="section-title">
+        REGISTER GUILD & LEADER
+      </h2>
+
+      <form id="registrationForm">
+
+        <div class="field">
+
+          <label for="registerGuildName">
+            GUILD NAME
+          </label>
+
+          <input
+            type="text"
+            id="registerGuildName"
+            name="registerGuildName"
+            placeholder="Enter Guild Name"
+            autocomplete="off"
+            required
+          >
+
+        </div>
+
+
+        <div class="field">
+
+          <label for="leaderName">
+            LEADER NAME
+          </label>
+
+          <input
+            type="text"
+            id="leaderName"
+            name="leaderName"
+            placeholder="Enter Leader Name"
+            autocomplete="name"
+            required
+          >
+
+        </div>
+
+
+        <div class="field">
+
+          <label for="registerContact">
+            CONTACT NUMBER
+          </label>
+
+          <input
+            type="tel"
+            id="registerContact"
+            name="registerContact"
+            placeholder="03XXXXXXXXX"
+            autocomplete="tel"
+            required
+          >
+
+        </div>
+
+
+        <button
+          type="submit"
+          id="registerButton"
+        >
+          REGISTER GUILD
+        </button>
+
+
+        <div
+          id="registrationMessage"
+          class="message"
+        ></div>
+
+      </form>
+
+      <div class="hint">
+        Registration will be reviewed by 7TH UNIVERSE Admin.
+      </div>
+
+    </div>
+
+
+    <!-- =========================
+         CREATE CHALLENGE
+         ========================= -->
+
+    <div class="section">
+
+      <h2 class="section-title">
+        CREATE CHALLENGE
+      </h2>
+
+      <form id="challengeForm">
+
+        <div class="field">
+
+          <label for="guildName">
+            GUILD NAME
+          </label>
+
+          <input
+            type="text"
+            id="guildName"
+            name="guildName"
+            placeholder="Enter your registered Guild Name"
+            autocomplete="off"
+            required
+          >
+
+        </div>
+
+
+        <div class="field">
+
+          <label for="matchTime">
+            MATCH TIME
+          </label>
+
+          <input
+            type="time"
+            id="matchTime"
+            name="matchTime"
+            required
+          >
+
+        </div>
+
+
+        <!-- ACTIVE SKILLS -->
+
+        <div class="field">
+
+          <label>
+            ACTIVE SKILLS
+          </label>
+
+          <div class="skills">
+
+            <label class="skill-option">
+              <input
+                type="checkbox"
+                name="skills"
+                value="DJ Alok"
+              >
+              <span>DJ ALOK</span>
+            </label>
+
+            <label class="skill-option">
+              <input
+                type="checkbox"
+                name="skills"
+                value="Tatsuya"
+              >
+              <span>TATSUYA</span>
+            </label>
+
+            <label class="skill-option">
+              <input
+                type="checkbox"
+                name="skills"
+                value="Koda"
+              >
+              <span>KODA</span>
+            </label>
+
+          </div>
+
+          <div class="hint">
+            Select none, one, or multiple skills.
+          </div>
+
+        </div>
+
+
+        <!-- WEAPONS -->
+
+        <div class="field">
+
+          <label>
+            WEAPONS
+          </label>
+
+          <div class="skills">
+
+            <label class="skill-option">
+              <input
+                type="checkbox"
+                name="weapons"
+                value="Desert Eagle"
+              >
+              <span>DESERT EAGLE</span>
+            </label>
+
+            <label class="skill-option">
+              <input
+                type="checkbox"
+                name="weapons"
+                value="M1887"
+              >
+              <span>M1887</span>
+            </label>
+
+            <label class="skill-option">
+              <input
+                type="checkbox"
+                name="weapons"
+                value="M1887X"
+              >
+              <span>M1887X</span>
+            </label>
+
+            <label class="skill-option">
+              <input
+                type="checkbox"
+                name="weapons"
+                value="Woodpecker"
+              >
+              <span>WOODPECKER</span>
+            </label>
+
+            <label class="skill-option">
+              <input
+                type="checkbox"
+                name="weapons"
+                value="M1014"
+              >
+              <span>M1014</span>
+            </label>
+
+          </div>
+
+          <div class="hint">
+            Select one or multiple weapons.
+          </div>
+
+        </div>
+
+
+        <div class="field">
+
+          <label for="contact">
+            CONTACT NUMBER
+          </label>
+
+          <input
+            type="tel"
+            id="contact"
+            name="contact"
+            placeholder="03XXXXXXXXX"
+            autocomplete="tel"
+            required
+          >
+
+        </div>
+
+
+        <button
+          type="submit"
+          id="confirmChallenge"
+        >
+          CONFIRM CHALLENGE
+        </button>
+
+
+        <div
+          id="formMessage"
+          class="message"
+        ></div>
+
+      </form>
+
+    </div>
+
+
+    <!-- =========================
+         LIVE CHALLENGES
+         ========================= -->
+
+    <div class="section">
+
+      <h2 class="section-title">
+        LIVE CHALLENGES
+      </h2>
+
+      <div id="challengeList">
+
+        <div class="loading">
+          Loading challenges...
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <div class="small">
+      7TH UNIVERSE • FIRST BRANCH • GVG
+    </div>
+
   </div>
 
+</div>
 
-  <!-- SUPABASE -->
-  <script>
 
-    const SUPABASE_URL =
-      "https://ypnpeiglbiycbexpeibb.supabase.co";
+<script>
 
-    const SUPABASE_ANON_KEY =
-      "sb_publishable_5ei0IhM1tQ15u5pAIIavhQ_alE9O3bl";
+  const SUPABASE_URL =
+    "https://ypnpeiglbiycbexpeibb.supabase.co";
 
-    window.SUPABASE_URL = SUPABASE_URL;
-    window.SUPABASE_ANON_KEY = SUPABASE_ANON_KEY;
+  const SUPABASE_ANON_KEY =
+    "sb_publishable_5ei0IhM1tQ15u5pAIIavhQ_alE9O3bl";
 
-    window.supabaseClient =
-      supabase.createClient(
-        SUPABASE_URL,
-        SUPABASE_ANON_KEY
-      );
+  window.SUPABASE_URL =
+    SUPABASE_URL;
 
-    async function testSupabase() {
+  window.SUPABASE_ANON_KEY =
+    SUPABASE_ANON_KEY;
 
-      const statusBox =
-        document.getElementById("status");
+  window.supabaseClient =
+    supabase.createClient(
+      SUPABASE_URL,
+      SUPABASE_ANON_KEY
+    );
 
-      try {
+
+  async function startSupabase() {
+
+    const status =
+      document.getElementById("status");
+
+    try {
+
+      const { data: sessionData } =
+        await window.supabaseClient.auth.getSession();
+
+      if (!sessionData.session) {
 
         const { error } =
-          await window.supabaseClient.auth.getSession();
+          await window.supabaseClient.auth
+            .signInAnonymously();
 
         if (error) {
           throw error;
         }
-
-        statusBox.textContent =
-          "✅ SUPABASE CONNECTED SUCCESSFULLY";
-
-        statusBox.className =
-          "status success";
-
-      } catch (error) {
-
-        statusBox.textContent =
-          "❌ CONNECTION ERROR: " +
-          (error?.message || "Unknown error");
-
-        statusBox.className =
-          "status error";
-
       }
+
+      status.textContent =
+        "✅ SUPABASE CONNECTED SUCCESSFULLY";
+
+      status.className =
+        "status success";
+
+    } catch (error) {
+
+      console.error(error);
+
+      status.textContent =
+        "❌ " +
+        (error?.message ||
+         "Supabase connection error");
+
+      status.className =
+        "status error";
 
     }
 
-    testSupabase();
-
-  </script>
+  }
 
 
-  <script src="script.js"></script>
+  startSupabase();
+
+</script>
+
+
+<script src="script.js"></script>
 
 </body>
-                  </html>
+            </html>
