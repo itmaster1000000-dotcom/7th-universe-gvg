@@ -8,6 +8,7 @@ const db = window.supabaseClient;
 
 const DAILY_LIMIT = 10;
 
+
 /* =========================================================
    HELPERS
    ========================================================= */
@@ -17,8 +18,10 @@ function findElement(selectors) {
     const el = document.querySelector(selector);
     if (el) return el;
   }
+
   return null;
 }
+
 
 function getGuildInput() {
   return findElement([
@@ -29,6 +32,7 @@ function getGuildInput() {
     'input[name="guild_name"]'
   ]);
 }
+
 
 function getTimeInput() {
   return findElement([
@@ -41,6 +45,7 @@ function getTimeInput() {
   ]);
 }
 
+
 function getContactInput() {
   return findElement([
     "#contact",
@@ -52,6 +57,7 @@ function getContactInput() {
   ]);
 }
 
+
 function getChallengeForm() {
   return findElement([
     "#challengeForm",
@@ -59,6 +65,7 @@ function getChallengeForm() {
     "[data-challenge-form]"
   ]);
 }
+
 
 function getChallengeList() {
   return findElement([
@@ -69,6 +76,7 @@ function getChallengeList() {
   ]);
 }
 
+
 function getMessageBox() {
   return findElement([
     "#formMessage",
@@ -78,7 +86,9 @@ function getMessageBox() {
   ]);
 }
 
+
 function getSelectedSkills() {
+
   const inputs = document.querySelectorAll(
     'input[name="skills"]:checked,' +
     'input[name="activeSkills"]:checked,' +
@@ -86,18 +96,33 @@ function getSelectedSkills() {
   );
 
   return Array.from(inputs)
-    .map(input =>
-      (
-        input.value ||
-        input.dataset.skill ||
-        input.getAttribute("aria-label") ||
-        ""
-      ).trim()
-    )
+    .map(input => (
+      input.value ||
+      input.dataset.skill ||
+      input.getAttribute("aria-label") ||
+      ""
+    ).trim())
     .filter(Boolean);
 }
 
+
+function getSelectedWeapons() {
+
+  const inputs = document.querySelectorAll(
+    'input[name="weapons"]:checked'
+  );
+
+  return Array.from(inputs)
+    .map(input => (
+      input.value ||
+      ""
+    ).trim())
+    .filter(Boolean);
+}
+
+
 function showMessage(message, type = "info") {
+
   const box = getMessageBox();
 
   if (!box) {
@@ -107,11 +132,19 @@ function showMessage(message, type = "info") {
 
   box.textContent = message;
   box.style.display = "block";
-  box.classList.remove("success", "error", "info");
+
+  box.classList.remove(
+    "success",
+    "error",
+    "info"
+  );
+
   box.classList.add(type);
 }
 
+
 function hideMessage() {
+
   const box = getMessageBox();
 
   if (box) {
@@ -120,7 +153,9 @@ function hideMessage() {
   }
 }
 
+
 function escapeHtml(value) {
+
   return String(value ?? "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -129,67 +164,133 @@ function escapeHtml(value) {
     .replace(/'/g, "&#039;");
 }
 
+
 /* =========================================================
    SUPABASE
    ========================================================= */
 
 function checkSupabase() {
+
   if (!db) {
+
     showMessage(
       "Supabase connection is not available.",
       "error"
     );
+
     return false;
   }
 
   return true;
 }
 
+
 /* =========================================================
    SUBMIT CHALLENGE
    ========================================================= */
 
 async function submitChallenge(event) {
+
   event.preventDefault();
 
   hideMessage();
 
-  if (!checkSupabase()) return;
+  if (!checkSupabase()) {
+    return;
+  }
 
   const guildInput = getGuildInput();
   const timeInput = getTimeInput();
   const contactInput = getContactInput();
 
-  if (!guildInput || !timeInput || !contactInput) {
+  if (
+    !guildInput ||
+    !timeInput ||
+    !contactInput
+  ) {
+
     showMessage(
       "Challenge form fields are missing.",
       "error"
     );
+
     return;
   }
 
-  const guildName = guildInput.value.trim();
-  const matchTime = timeInput.value.trim();
-  const contact = contactInput.value.trim();
-  const activeSkills = getSelectedSkills();
+
+  const guildName =
+    guildInput.value.trim();
+
+  const matchTime =
+    timeInput.value.trim();
+
+  const contact =
+    contactInput.value.trim();
+
+  const activeSkills =
+    getSelectedSkills();
+
+  const weapons =
+    getSelectedWeapons();
+
+
+  /* -------------------------
+     VALIDATION
+     ------------------------- */
 
   if (!guildName) {
-    showMessage("Please enter Guild Name.", "error");
+
+    showMessage(
+      "Please enter Guild Name.",
+      "error"
+    );
+
     guildInput.focus();
+
     return;
   }
+
 
   if (!matchTime) {
-    showMessage("Please select Match Time.", "error");
+
+    showMessage(
+      "Please select Match Time.",
+      "error"
+    );
+
     timeInput.focus();
+
     return;
   }
 
-  if (!contact) {
-    showMessage("Please enter Contact Number.", "error");
-    contactInput.focus();
+
+  if (!weapons.length) {
+
+    showMessage(
+      "Please select at least one weapon.",
+      "error"
+    );
+
     return;
   }
+
+
+  if (!contact) {
+
+    showMessage(
+      "Please enter Contact Number.",
+      "error"
+    );
+
+    contactInput.focus();
+
+    return;
+  }
+
+
+  /* -------------------------
+     BUTTON
+     ------------------------- */
 
   const button = findElement([
     "#confirmChallenge",
@@ -198,26 +299,42 @@ async function submitChallenge(event) {
     'button[type="submit"]'
   ]);
 
+
   if (button) {
+
     button.disabled = true;
-    button.dataset.oldText = button.textContent;
-    button.textContent = "Submitting...";
+
+    button.dataset.oldText =
+      button.textContent;
+
+    button.textContent =
+      "SUBMITTING...";
   }
 
+
+  /* -------------------------
+     RPC
+     ------------------------- */
+
   try {
-    const { data, error } = await db.rpc(
-      "submit_gvg_challenge",
-      {
-        p_guild_name: guildName,
-        p_match_time: matchTime,
-        p_active_skills: activeSkills,
-        p_contact_number: contact
-      }
-    );
+
+    const { data, error } =
+      await db.rpc(
+        "submit_gvg_challenge",
+        {
+          p_guild_name: guildName,
+          p_match_time: matchTime,
+          p_active_skills: activeSkills,
+          p_weapons: weapons,
+          p_contact_number: contact
+        }
+      );
+
 
     if (error) {
       throw error;
     }
+
 
     showMessage(
       `Challenge submitted successfully. Code: ${
@@ -226,9 +343,15 @@ async function submitChallenge(event) {
       "success"
     );
 
+
+    /* -------------------------
+       RESET
+       ------------------------- */
+
     guildInput.value = "";
     timeInput.value = "";
     contactInput.value = "";
+
 
     document
       .querySelectorAll(
@@ -237,13 +360,33 @@ async function submitChallenge(event) {
         'input[name="active_skills"]'
       )
       .forEach(input => {
+
         input.checked = false;
+
       });
+
+
+    document
+      .querySelectorAll(
+        'input[name="weapons"]'
+      )
+      .forEach(input => {
+
+        input.checked = false;
+
+      });
+
 
     await loadChallenges();
 
+
   } catch (error) {
-    console.error(error);
+
+    console.error(
+      "Challenge submission error:",
+      error
+    );
+
 
     showMessage(
       error?.message ||
@@ -251,28 +394,45 @@ async function submitChallenge(event) {
       "error"
     );
 
+
   } finally {
+
     if (button) {
+
       button.disabled = false;
+
       button.textContent =
-        button.dataset.oldText || "Confirm";
+        button.dataset.oldText ||
+        "CONFIRM CHALLENGE";
     }
+
   }
 }
 
+
 /* =========================================================
-   LOAD CHALLENGES
+   LOAD LIVE CHALLENGES
    ========================================================= */
 
 async function loadChallenges() {
-  if (!checkSupabase()) return;
 
-  const list = getChallengeList();
-
-  if (!list) {
-    console.warn("Challenge list not found.");
+  if (!checkSupabase()) {
     return;
   }
+
+  const list =
+    getChallengeList();
+
+
+  if (!list) {
+
+    console.warn(
+      "Challenge list not found."
+    );
+
+    return;
+  }
+
 
   list.innerHTML = `
     <div class="loading">
@@ -280,87 +440,124 @@ async function loadChallenges() {
     </div>
   `;
 
+
   try {
-    const { data, error } = await db
-      .from("challenges")
-      .select(`
-        id,
-        challenge_code,
-        match_time,
-        active_skills,
-        contact_number,
-        status,
-        created_at,
-        guilds!challenges_challenger_guild_id_fkey (
-          guild_name
-        )
-      `)
-      .eq("status", "live")
-      .order("created_at", { ascending: false })
-      .limit(50);
+
+    const {
+      data,
+      error
+    } = await db.rpc(
+      "get_live_gvg_challenges"
+    );
+
 
     if (error) {
       throw error;
     }
 
+
     if (!data || data.length === 0) {
+
       list.innerHTML = `
         <div class="empty-state">
           No live challenges available.
         </div>
       `;
+
       return;
     }
 
+
     list.innerHTML = "";
 
+
     data.forEach(challenge => {
-      const card = document.createElement("div");
+
+      const card =
+        document.createElement("div");
+
 
       const guildName =
-        challenge.guilds?.guild_name ||
+        challenge.guild_name ||
         "Unknown Guild";
 
+
       const skills =
-        Array.isArray(challenge.active_skills) &&
+        Array.isArray(
+          challenge.active_skills
+        ) &&
         challenge.active_skills.length
           ? challenge.active_skills.join(", ")
           : "None";
 
-      card.className = "challenge-card";
+
+      const weapons =
+        Array.isArray(
+          challenge.weapons
+        ) &&
+        challenge.weapons.length
+          ? challenge.weapons.join(", ")
+          : "None";
+
+
+      card.className =
+        "challenge-card";
+
 
       card.innerHTML = `
+
         <div class="challenge-card-header">
-          <h3>${escapeHtml(guildName)}</h3>
+
+          <h3>
+            ${escapeHtml(guildName)}
+          </h3>
 
           <span class="challenge-status">
             LIVE
           </span>
+
         </div>
+
 
         <div class="challenge-card-info">
 
           <p>
             <strong>Challenge:</strong>
-            ${escapeHtml(challenge.challenge_code)}
+            ${escapeHtml(
+              challenge.challenge_code
+            )}
           </p>
+
 
           <p>
             <strong>Time:</strong>
-            ${escapeHtml(challenge.match_time)}
+            ${escapeHtml(
+              challenge.match_time
+            )}
           </p>
+
 
           <p>
             <strong>Active Skills:</strong>
             ${escapeHtml(skills)}
           </p>
 
+
+          <p>
+            <strong>Weapons:</strong>
+            ${escapeHtml(weapons)}
+          </p>
+
+
           <p>
             <strong>Contact:</strong>
-            ${escapeHtml(challenge.contact_number)}
+            ${escapeHtml(
+              challenge.contact_number
+            )}
           </p>
 
         </div>
+
 
         <a
           class="challenge-contact-btn"
@@ -370,21 +567,32 @@ async function loadChallenges() {
         >
           CONTACT GUILD
         </a>
+
       `;
 
+
       list.appendChild(card);
+
     });
 
+
   } catch (error) {
-    console.error(error);
+
+    console.error(
+      "Challenge loading error:",
+      error
+    );
+
 
     list.innerHTML = `
       <div class="empty-state">
         Challenges could not be loaded.
       </div>
     `;
+
   }
 }
+
 
 /* =========================================================
    START
@@ -398,23 +606,33 @@ document.addEventListener(
       "7TH UNIVERSE GvG started."
     );
 
+
     if (!checkSupabase()) {
       return;
     }
 
-    const form = getChallengeForm();
+
+    const form =
+      getChallengeForm();
+
 
     if (form) {
+
       form.addEventListener(
         "submit",
         submitChallenge
       );
+
     } else {
+
       console.warn(
         "Challenge form not found."
       );
+
     }
 
+
     await loadChallenges();
+
   }
 );
