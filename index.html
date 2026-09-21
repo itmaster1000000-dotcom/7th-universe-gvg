@@ -23,17 +23,18 @@
         radial-gradient(circle at 90% 10%, #ff207733, transparent 30%),
         radial-gradient(circle at 50% 100%, #7b2cff22, transparent 35%),
         #05060b;
-      padding: 20px;
+      padding: 18px;
     }
 
     .container {
       width: 100%;
-      max-width: 900px;
-      margin: 0 auto;
+      max-width: 950px;
+      margin: auto;
     }
 
     .box {
-      padding: 30px;
+      width: 100%;
+      padding: 28px;
       border: 1px solid #ffffff18;
       border-radius: 25px;
       background: #0d1019ee;
@@ -43,7 +44,7 @@
 
     .header {
       text-align: center;
-      margin-bottom: 28px;
+      margin-bottom: 25px;
     }
 
     .title {
@@ -79,7 +80,6 @@
     }
 
     .status {
-      margin-top: 20px;
       padding: 14px;
       border-radius: 13px;
       background: #ffffff08;
@@ -102,7 +102,7 @@
     }
 
     .section {
-      margin-top: 25px;
+      margin-top: 22px;
       padding: 22px;
       border-radius: 20px;
       background: #ffffff05;
@@ -129,6 +129,8 @@
     }
 
     input[type="text"],
+    input[type="email"],
+    input[type="password"],
     input[type="tel"],
     input[type="time"] {
       width: 100%;
@@ -224,6 +226,77 @@
       text-align: center;
     }
 
+    .admin-login-btn {
+      margin-top: 25px;
+      background: #ffffff0a;
+      border: 1px solid #ffffff14;
+    }
+
+    .admin-panel {
+      display: none;
+    }
+
+    .admin-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .admin-name {
+      color: #52e39a;
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    .logout-btn {
+      width: auto;
+      margin: 0;
+      padding: 10px 14px;
+      background: #ff596418;
+      border: 1px solid #ff596430;
+      font-size: 11px;
+    }
+
+    .pending-card {
+      margin-top: 14px;
+      padding: 17px;
+      border-radius: 16px;
+      background: #080b12;
+      border: 1px solid #ffffff12;
+    }
+
+    .pending-card h3 {
+      margin: 0 0 10px;
+      font-size: 17px;
+    }
+
+    .pending-card p {
+      margin: 7px 0;
+      color: #aeb8cc;
+      font-size: 13px;
+    }
+
+    .pending-card strong {
+      color: #fff;
+    }
+
+    .admin-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .approve-btn {
+      background: #16a66a;
+    }
+
+    .reject-btn {
+      background: #c83b4b;
+    }
+
     .challenge-card {
       margin-top: 14px;
       padding: 18px;
@@ -252,7 +325,6 @@
       color: #52e39a;
       font-size: 10px;
       font-weight: 900;
-      letter-spacing: 1px;
     }
 
     .challenge-card-info p {
@@ -288,22 +360,31 @@
     }
 
     .small {
-      margin-top: 25px;
+      margin-top: 24px;
       color: #68728a;
       font-size: 10px;
       text-align: center;
     }
 
     @media (max-width: 600px) {
-      body {
-        padding: 12px;
-      }
-
       .box {
-        padding: 20px;
+        padding: 18px;
       }
 
       .skills {
+        grid-template-columns: 1fr;
+      }
+
+      .admin-top {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .logout-btn {
+        width: 100%;
+      }
+
+      .admin-actions {
         grid-template-columns: 1fr;
       }
     }
@@ -316,9 +397,13 @@
 
   <div class="box">
 
+    <!-- HEADER -->
+
     <div class="header">
 
-      <h1 class="title">7TH UNIVERSE</h1>
+      <h1 class="title">
+        7TH UNIVERSE
+      </h1>
 
       <div class="sub">
         FIRST BRANCH
@@ -335,15 +420,18 @@
     </div>
 
 
-    <!-- CONNECTION STATUS -->
+    <!-- STATUS -->
 
-    <div id="status" class="status">
+    <div
+      id="status"
+      class="status"
+    >
       Connecting to Supabase...
     </div>
 
 
     <!-- =========================
-         GUILD REGISTRATION
+         REGISTRATION
          ========================= -->
 
     <div class="section">
@@ -365,7 +453,6 @@
             id="registerGuildName"
             name="registerGuildName"
             placeholder="Enter Guild Name"
-            autocomplete="off"
             required
           >
 
@@ -383,7 +470,6 @@
             id="leaderName"
             name="leaderName"
             placeholder="Enter Leader Name"
-            autocomplete="name"
             required
           >
 
@@ -401,7 +487,6 @@
             id="registerContact"
             name="registerContact"
             placeholder="03XXXXXXXXX"
-            autocomplete="tel"
             required
           >
 
@@ -431,7 +516,7 @@
 
 
     <!-- =========================
-         CREATE CHALLENGE
+         CHALLENGE
          ========================= -->
 
     <div class="section">
@@ -453,7 +538,6 @@
             id="guildName"
             name="guildName"
             placeholder="Enter your registered Guild Name"
-            autocomplete="off"
             required
           >
 
@@ -475,8 +559,6 @@
 
         </div>
 
-
-        <!-- ACTIVE SKILLS -->
 
         <div class="field">
 
@@ -515,14 +597,8 @@
 
           </div>
 
-          <div class="hint">
-            Select none, one, or multiple skills.
-          </div>
-
         </div>
 
-
-        <!-- WEAPONS -->
 
         <div class="field">
 
@@ -579,10 +655,6 @@
 
           </div>
 
-          <div class="hint">
-            Select one or multiple weapons.
-          </div>
-
         </div>
 
 
@@ -597,7 +669,6 @@
             id="contact"
             name="contact"
             placeholder="03XXXXXXXXX"
-            autocomplete="tel"
             required
           >
 
@@ -633,12 +704,146 @@
       </h2>
 
       <div id="challengeList">
-
         <div class="loading">
           Loading challenges...
         </div>
+      </div>
+
+    </div>
+
+
+    <!-- =========================
+         ADMIN LOGIN
+         ========================= -->
+
+    <div class="section">
+
+      <button
+        type="button"
+        id="showAdminLogin"
+        class="admin-login-btn"
+      >
+        ADMIN LOGIN
+      </button>
+
+    </div>
+
+
+    <div
+      id="adminLoginSection"
+      class="section"
+      style="display:none;"
+    >
+
+      <h2 class="section-title">
+        ADMIN LOGIN
+      </h2>
+
+      <form id="adminLoginForm">
+
+        <div class="field">
+
+          <label for="adminEmail">
+            ADMIN EMAIL
+          </label>
+
+          <input
+            type="email"
+            id="adminEmail"
+            placeholder="Admin email"
+            required
+          >
+
+        </div>
+
+
+        <div class="field">
+
+          <label for="adminPassword">
+            PASSWORD
+          </label>
+
+          <input
+            type="password"
+            id="adminPassword"
+            placeholder="Admin password"
+            required
+          >
+
+        </div>
+
+
+        <button
+          type="submit"
+          id="adminLoginButton"
+        >
+          LOGIN
+        </button>
+
+
+        <div
+          id="adminLoginMessage"
+          class="message"
+        ></div>
+
+      </form>
+
+    </div>
+
+
+    <!-- =========================
+         ADMIN PANEL
+         ========================= -->
+
+    <div
+      id="adminPanel"
+      class="section admin-panel"
+    >
+
+      <div class="admin-top">
+
+        <div>
+          <div class="section-title">
+            ADMIN DASHBOARD
+          </div>
+
+          <div
+            id="adminName"
+            class="admin-name"
+          >
+            ADMIN
+          </div>
+        </div>
+
+        <button
+          type="button"
+          id="adminLogout"
+          class="logout-btn"
+        >
+          LOGOUT
+        </button>
 
       </div>
+
+
+      <h3>
+        PENDING REGISTRATIONS
+      </h3>
+
+
+      <div id="pendingRegistrations">
+
+        <div class="loading">
+          Loading pending registrations...
+        </div>
+
+      </div>
+
+
+      <div
+        id="adminPanelMessage"
+        class="message"
+      ></div>
 
     </div>
 
@@ -651,6 +856,8 @@
 
 </div>
 
+
+<!-- SUPABASE -->
 
 <script>
 
@@ -680,19 +887,26 @@
 
     try {
 
-      const { data: sessionData } =
+      let {
+        data: sessionData
+      } =
         await window.supabaseClient.auth.getSession();
+
 
       if (!sessionData.session) {
 
-        const { error } =
+        const {
+          error
+        } =
           await window.supabaseClient.auth
             .signInAnonymously();
 
         if (error) {
           throw error;
         }
+
       }
+
 
       status.textContent =
         "✅ SUPABASE CONNECTED SUCCESSFULLY";
@@ -700,14 +914,17 @@
       status.className =
         "status success";
 
+
     } catch (error) {
 
       console.error(error);
 
       status.textContent =
         "❌ " +
-        (error?.message ||
-         "Supabase connection error");
+        (
+          error?.message ||
+          "Supabase connection error"
+        );
 
       status.className =
         "status error";
@@ -725,4 +942,4 @@
 <script src="script.js"></script>
 
 </body>
-            </html>
+</html>
