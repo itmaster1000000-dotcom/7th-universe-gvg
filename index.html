@@ -220,6 +220,24 @@
   createConnection();
 
 </script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+  const SUPABASE_URL = "https://ypnpeiglbiycbexpeibb.supabase.co";
+
+  const SUPABASE_ANON_KEY =
+    "sb_publishable_5ei0IhM1tQ15u5pAIIavhQ_alE9O3bl";
+
+  window.SUPABASE_URL = SUPABASE_URL;
+  window.SUPABASE_ANON_KEY = SUPABASE_ANON_KEY;
+
+  window.supabaseClient = supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY
+  );
+</script>
+
+<script src="script.js"></script>
 <script src="script.js"></script>
 </body>
 </html>
