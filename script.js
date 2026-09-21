@@ -1,41 +1,21 @@
-/* =========================================================
-   7TH UNIVERSE — GvG WEBSITE
-   Main JavaScript
-   ========================================================= */
-
 "use strict";
 
 /* =========================================================
-   SUPABASE
+   7TH UNIVERSE — GVG
    ========================================================= */
 
-const db =
-  window.supabaseClient ||
-  (window.SUPABASE_URL &&
-  window.SUPABASE_ANON_KEY &&
-  window.supabase
-    ? window.supabase.createClient(
-        window.SUPABASE_URL,
-        window.SUPABASE_ANON_KEY
-      )
-    : null);
-
-/* =========================================================
-   BASIC SETTINGS
-   ========================================================= */
+const db = window.supabaseClient;
 
 const DAILY_LIMIT = 10;
-const GUILD_COOLDOWN_MINUTES = 15;
-const TIME_ZONE = "Asia/Karachi";
 
 /* =========================================================
-   HELPER FUNCTIONS
+   HELPERS
    ========================================================= */
 
 function findElement(selectors) {
   for (const selector of selectors) {
-    const element = document.querySelector(selector);
-    if (element) return element;
+    const el = document.querySelector(selector);
+    if (el) return el;
   }
   return null;
 }
@@ -99,261 +79,70 @@ function getMessageBox() {
 }
 
 function getSelectedSkills() {
-  const checked = document.querySelectorAll(
-    'input[name="skills"]:checked, input[name="activeSkills"]:checked, input[name="active_skills"]:checked'
+  const inputs = document.querySelectorAll(
+    'input[name="skills"]:checked,' +
+    'input[name="activeSkills"]:checked,' +
+    'input[name="active_skills"]:checked'
   );
 
-  return Array.from(checked).map((input) => {
-    return (
-      input.value ||
-      input.dataset.skill ||
-      input.getAttribute("aria-label") ||
-      ""
-    ).trim();
-  }).filter(Boolean);
-}
-
-function cleanText(value) {
-  return String(value || "").trim();
-}
-
-function normalizeContact(value) {
-  return cleanText(value).replace(/[^\d+]/g, "");
-}
-
-function normalizeGuild(value) {
-  return cleanText(value).replace(/\s+/g, " ");
+  return Array.from(inputs)
+    .map(input =>
+      (
+        input.value ||
+        input.dataset.skill ||
+        input.getAttribute("aria-label") ||
+        ""
+      ).trim()
+    )
+    .filter(Boolean);
 }
 
 function showMessage(message, type = "info") {
   const box = getMessageBox();
 
   if (!box) {
-    console.log(`[${type}] ${message}`);
+    console.log(message);
     return;
   }
 
   box.textContent = message;
   box.style.display = "block";
-
-  box.dataset.type = type;
   box.classList.remove("success", "error", "info");
   box.classList.add(type);
 }
 
 function hideMessage() {
   const box = getMessageBox();
+
   if (box) {
     box.textContent = "";
     box.style.display = "none";
   }
 }
 
-function formatTime(dateString) {
-  const date = new Date(dateString);
-
-  return date.toLocaleString("en-PK", {
-    timeZone: TIME_ZONE,
-    dateStyle: "medium",
-    timeStyle: "short"
-  });
-}
-
-function getPakistanDayRange() {
-  const now = new Date();
-
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: TIME_ZONE,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit"
-  }).formatToParts(now);
-
-  const values = {};
-
-  for (const part of parts) {
-    if (part.type !== "literal") {
-      values[part.type] = part.value;
-    }
-  }
-
-  const day = `${values.year}-${values.month}-${values.day}`;
-
-  const start = new Date(`${day}T00:00:00+05:00`);
-  const end = new Date(`${day}T23:59:59.999+05:00`);
-
-  return {
-    start: start.toISOString(),
-    end: end.toISOString()
-  };
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 /* =========================================================
-   SUPABASE CHECK
+   SUPABASE
    ========================================================= */
 
 function checkSupabase() {
   if (!db) {
     showMessage(
-      "Supabase connection is not available. Check your Supabase configuration.",
+      "Supabase connection is not available.",
       "error"
     );
-
-    console.error(
-      "Supabase client not found. Expected window.supabaseClient."
-    );
-
     return false;
   }
 
   return true;
-}
-
-/* =========================================================
-   BLOCK CHECK
-   ========================================================= */
-
-async function checkBlocked(guildName, contact) {
-  if (!checkSupabase()) return true;
-
-  const cleanGuild = normalizeGuild(guildName);
-  const cleanContact = normalizeContact(contact);
-
-  try {
-    /* Check guild name */
-    const guildResult = await db
-      .from("blocked_guilds")
-      .select("id,guild_name,contact,blocked_until")
-      .eq("guild_name", cleanGuild)
-      .limit(1);
-
-    if (guildResult.error) {
-      throw guildResult.error;
-    }
-
-    /* Check contact number */
-    const contactResult = await db
-      .from("blocked_guilds")
-      .select("id,guild_name,contact,blocked_until")
-      .eq("contact", cleanContact)
-      .limit(1);
-
-    if (contactResult.error) {
-      throw contactResult.error;
-    }
-
-    const records = [
-      ...(guildResult.data || []),
-      ...(contactResult.data || [])
-    ];
-
-    const now = Date.now();
-
-    for (const record of records) {
-      if (!record.blocked_until) continue;
-
-      const blockedUntil = new Date(record.blocked_until).getTime();
-
-      if (blockedUntil > now) {
-        showMessage(
-          `This guild/account is blocked until ${formatTime(
-            record.blocked_until
-          )}.`,
-          "error"
-        );
-
-        return true;
-      }
-    }
-
-    return false;
-  } catch (error) {
-    console.error("Block check error:", error);
-
-    /*
-      We do not automatically allow submission when the
-      block system cannot be checked.
-    */
-    showMessage(
-      "Block status could not be checked. Please try again.",
-      "error"
-    );
-
-    return true;
-  }
-}
-
-/* =========================================================
-   DAILY LIMIT CHECK
-   ========================================================= */
-
-async function getTodayChallengeCount() {
-  if (!checkSupabase()) return DAILY_LIMIT;
-
-  const { start, end } = getPakistanDayRange();
-
-  const result = await db
-    .from("challenges")
-    .select("id", { count: "exact", head: true })
-    .gte("created_at", start)
-    .lte("created_at", end);
-
-  if (result.error) {
-    console.error("Daily count error:", result.error);
-    throw result.error;
-  }
-
-  return result.count || 0;
-}
-
-/* =========================================================
-   GUILD 15 MINUTE COOLDOWN
-   ========================================================= */
-
-async function checkGuildCooldown(guildName) {
-  const cleanGuild = normalizeGuild(guildName);
-
-  const result = await db
-    .from("challenges")
-    .select("id,guild_name,created_at")
-    .eq("guild_name", cleanGuild)
-    .order("created_at", { ascending: false })
-    .limit(1);
-
-  if (result.error) {
-    console.error("Cooldown check error:", result.error);
-    throw result.error;
-  }
-
-  const latest = result.data?.[0];
-
-  if (!latest) {
-    return {
-      blocked: false,
-      remainingMinutes: 0
-    };
-  }
-
-  const createdAt = new Date(latest.created_at).getTime();
-  const now = Date.now();
-
-  const elapsed = now - createdAt;
-  const cooldown = GUILD_COOLDOWN_MINUTES * 60 * 1000;
-
-  if (elapsed < cooldown) {
-    const remainingMs = cooldown - elapsed;
-    const remainingMinutes = Math.ceil(remainingMs / 60000);
-
-    return {
-      blocked: true,
-      remainingMinutes
-    };
-  }
-
-  return {
-    blocked: false,
-    remainingMinutes: 0
-  };
 }
 
 /* =========================================================
@@ -373,20 +162,16 @@ async function submitChallenge(event) {
 
   if (!guildInput || !timeInput || !contactInput) {
     showMessage(
-      "Some form fields could not be found. Check the HTML field IDs.",
+      "Challenge form fields are missing.",
       "error"
     );
     return;
   }
 
-  const guildName = normalizeGuild(guildInput.value);
-  const matchTime = cleanText(timeInput.value);
-  const contact = normalizeContact(contactInput.value);
+  const guildName = guildInput.value.trim();
+  const matchTime = timeInput.value.trim();
+  const contact = contactInput.value.trim();
   const activeSkills = getSelectedSkills();
-
-  /* =======================================================
-     VALIDATION
-     ======================================================= */
 
   if (!guildName) {
     showMessage("Please enter Guild Name.", "error");
@@ -406,140 +191,71 @@ async function submitChallenge(event) {
     return;
   }
 
-  /*
-    Active skills can be:
-    NONE
-    ONE
-    ALL
-  */
-
-  if (activeSkills.length > 3) {
-    showMessage("Maximum 3 active skills can be selected.", "error");
-    return;
-  }
-
-  /* =======================================================
-     BLOCK CHECK
-     ======================================================= */
-
-  const isBlocked = await checkBlocked(guildName, contact);
-
-  if (isBlocked) {
-    return;
-  }
-
-  /* =======================================================
-     DAILY 10 CHALLENGES
-     ======================================================= */
-
-  try {
-    const todayCount = await getTodayChallengeCount();
-
-    if (todayCount >= DAILY_LIMIT) {
-      showMessage(
-        "Today's 10 challenge limit has already been reached.",
-        "error"
-      );
-      return;
-    }
-  } catch (error) {
-    showMessage(
-      "Daily challenge limit could not be checked.",
-      "error"
-    );
-    return;
-  }
-
-  /* =======================================================
-     15 MINUTE GUILD COOLDOWN
-     ======================================================= */
-
-  try {
-    const cooldown = await checkGuildCooldown(guildName);
-
-    if (cooldown.blocked) {
-      showMessage(
-        `${guildName} must wait ${cooldown.remainingMinutes} minute(s) before giving another challenge.`,
-        "error"
-      );
-      return;
-    }
-  } catch (error) {
-    showMessage(
-      "Guild cooldown could not be checked.",
-      "error"
-    );
-    return;
-  }
-
-  /* =======================================================
-     SUBMIT TO SUPABASE
-     ======================================================= */
-
-  const submitButton = findElement([
+  const button = findElement([
     "#confirmChallenge",
     "#confirmBtn",
     "#submitChallenge",
     'button[type="submit"]'
   ]);
 
-  if (submitButton) {
-    submitButton.disabled = true;
-    submitButton.dataset.oldText = submitButton.textContent;
-    submitButton.textContent = "Submitting...";
+  if (button) {
+    button.disabled = true;
+    button.dataset.oldText = button.textContent;
+    button.textContent = "Submitting...";
   }
 
   try {
-    const payload = {
-      guild_name: guildName,
-      match_time: matchTime,
-      active_skills: activeSkills,
-      contact: contact
-    };
+    const { data, error } = await db.rpc(
+      "submit_gvg_challenge",
+      {
+        p_guild_name: guildName,
+        p_match_time: matchTime,
+        p_active_skills: activeSkills,
+        p_contact_number: contact
+      }
+    );
 
-    const result = await db
-      .from("challenges")
-      .insert([payload])
-      .select()
-      .single();
-
-    if (result.error) {
-      throw result.error;
+    if (error) {
+      throw error;
     }
 
     showMessage(
-      "Challenge submitted successfully.",
+      `Challenge submitted successfully. Code: ${
+        data?.challenge_code || "7U"
+      }`,
       "success"
     );
 
-    /* Clear form */
-    if (guildInput) guildInput.value = "";
-    if (timeInput) timeInput.value = "";
-    if (contactInput) contactInput.value = "";
+    guildInput.value = "";
+    timeInput.value = "";
+    contactInput.value = "";
 
     document
       .querySelectorAll(
-        'input[name="skills"], input[name="activeSkills"], input[name="active_skills"]'
+        'input[name="skills"],' +
+        'input[name="activeSkills"],' +
+        'input[name="active_skills"]'
       )
-      .forEach((input) => {
+      .forEach(input => {
         input.checked = false;
       });
 
-    /* Refresh challenge list */
     await loadChallenges();
 
   } catch (error) {
-    console.error("Challenge submission error:", error);
+    console.error(error);
 
     showMessage(
-      error.message || "Challenge could not be submitted.",
+      error?.message ||
+      "Challenge could not be submitted.",
       "error"
     );
+
   } finally {
-    if (submitButton) {
-      submitButton.disabled = false;
-      submitButton.textContent =
-        submitButton.dataset.oldText || "Confirm";
+    if (button) {
+      button.disabled = false;
+      button.textContent =
+        button.dataset.oldText || "Confirm";
     }
   }
 }
@@ -554,9 +270,7 @@ async function loadChallenges() {
   const list = getChallengeList();
 
   if (!list) {
-    console.warn(
-      "Challenge list container not found."
-    );
+    console.warn("Challenge list not found.");
     return;
   }
 
@@ -567,24 +281,32 @@ async function loadChallenges() {
   `;
 
   try {
-    const result = await db
+    const { data, error } = await db
       .from("challenges")
-      .select(
-        "id,guild_name,match_time,active_skills,contact,created_at,status"
-      )
+      .select(`
+        id,
+        challenge_code,
+        match_time,
+        active_skills,
+        contact_number,
+        status,
+        created_at,
+        guilds!challenges_challenger_guild_id_fkey (
+          guild_name
+        )
+      `)
+      .eq("status", "live")
       .order("created_at", { ascending: false })
       .limit(50);
 
-    if (result.error) {
-      throw result.error;
+    if (error) {
+      throw error;
     }
 
-    const challenges = result.data || [];
-
-    if (challenges.length === 0) {
+    if (!data || data.length === 0) {
       list.innerHTML = `
         <div class="empty-state">
-          No challenges available.
+          No live challenges available.
         </div>
       `;
       return;
@@ -592,10 +314,12 @@ async function loadChallenges() {
 
     list.innerHTML = "";
 
-    challenges.forEach((challenge) => {
+    data.forEach(challenge => {
       const card = document.createElement("div");
 
-      card.className = "challenge-card";
+      const guildName =
+        challenge.guilds?.guild_name ||
+        "Unknown Guild";
 
       const skills =
         Array.isArray(challenge.active_skills) &&
@@ -603,15 +327,24 @@ async function loadChallenges() {
           ? challenge.active_skills.join(", ")
           : "None";
 
+      card.className = "challenge-card";
+
       card.innerHTML = `
         <div class="challenge-card-header">
-          <h3>${escapeHtml(challenge.guild_name)}</h3>
+          <h3>${escapeHtml(guildName)}</h3>
+
           <span class="challenge-status">
-            ${escapeHtml(challenge.status || "OPEN")}
+            LIVE
           </span>
         </div>
 
         <div class="challenge-card-info">
+
+          <p>
+            <strong>Challenge:</strong>
+            ${escapeHtml(challenge.challenge_code)}
+          </p>
+
           <p>
             <strong>Time:</strong>
             ${escapeHtml(challenge.match_time)}
@@ -624,18 +357,16 @@ async function loadChallenges() {
 
           <p>
             <strong>Contact:</strong>
-            ${escapeHtml(challenge.contact)}
+            ${escapeHtml(challenge.contact_number)}
           </p>
 
-          <p>
-            <strong>Posted:</strong>
-            ${escapeHtml(formatTime(challenge.created_at))}
-          </p>
         </div>
 
         <a
           class="challenge-contact-btn"
-          href="tel:${encodeURIComponent(challenge.contact)}"
+          href="tel:${encodeURIComponent(
+            challenge.contact_number
+          )}"
         >
           CONTACT GUILD
         </a>
@@ -645,7 +376,7 @@ async function loadChallenges() {
     });
 
   } catch (error) {
-    console.error("Load challenges error:", error);
+    console.error(error);
 
     list.innerHTML = `
       <div class="empty-state">
@@ -656,51 +387,34 @@ async function loadChallenges() {
 }
 
 /* =========================================================
-   HTML ESCAPE
+   START
    ========================================================= */
 
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
+document.addEventListener(
+  "DOMContentLoaded",
+  async () => {
 
-/* =========================================================
-   FORM EVENTS
-   ========================================================= */
-
-function initializeChallengeForm() {
-  const form = getChallengeForm();
-
-  if (!form) {
-    console.warn(
-      "Challenge form not found."
+    console.log(
+      "7TH UNIVERSE GvG started."
     );
-    return;
+
+    if (!checkSupabase()) {
+      return;
+    }
+
+    const form = getChallengeForm();
+
+    if (form) {
+      form.addEventListener(
+        "submit",
+        submitChallenge
+      );
+    } else {
+      console.warn(
+        "Challenge form not found."
+      );
+    }
+
+    await loadChallenges();
   }
-
-  form.addEventListener("submit", submitChallenge);
-}
-
-/* =========================================================
-   INITIALIZATION
-   ========================================================= */
-
-document.addEventListener("DOMContentLoaded", async () => {
-  console.log("7TH UNIVERSE GvG system starting...");
-
-  if (!checkSupabase()) {
-    return;
-  }
-
-  initializeChallengeForm();
-
-  await loadChallenges();
-
-  console.log(
-    "7TH UNIVERSE GvG system initialized successfully."
-  );
-});
+);
