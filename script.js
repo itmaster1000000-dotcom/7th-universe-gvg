@@ -6,16 +6,18 @@
 
 const db = window.supabaseClient;
 
-const DAILY_LIMIT = 10;
-
 
 /* =========================================================
    HELPERS
    ========================================================= */
 
 function findElement(selectors) {
+
   for (const selector of selectors) {
-    const el = document.querySelector(selector);
+
+    const el =
+      document.querySelector(selector);
+
     if (el) return el;
   }
 
@@ -23,134 +25,60 @@ function findElement(selectors) {
 }
 
 
-function getGuildInput() {
-  return findElement([
-    "#guildName",
-    "#guild-name",
-    "#guild_name",
-    'input[name="guildName"]',
-    'input[name="guild_name"]'
-  ]);
-}
-
-
-function getTimeInput() {
-  return findElement([
-    "#matchTime",
-    "#time",
-    "#match-time",
-    'input[name="time"]',
-    'input[name="matchTime"]',
-    'input[name="match_time"]'
-  ]);
-}
-
-
-function getContactInput() {
-  return findElement([
-    "#contact",
-    "#contactNumber",
-    "#contact-number",
-    'input[name="contact"]',
-    'input[name="contactNumber"]',
-    'input[name="contact_number"]'
-  ]);
-}
-
-
-function getChallengeForm() {
-  return findElement([
-    "#challengeForm",
-    "#gvgChallengeForm",
-    "[data-challenge-form]"
-  ]);
-}
-
-
-function getChallengeList() {
-  return findElement([
-    "#challengeList",
-    "#challengesList",
-    "#gvgChallengeList",
-    "[data-challenge-list]"
-  ]);
-}
-
-
-function getMessageBox() {
-  return findElement([
-    "#formMessage",
-    "#message",
-    "#statusMessage",
-    "[data-form-message]"
-  ]);
-}
-
-
 function getSelectedSkills() {
 
-  const inputs = document.querySelectorAll(
-    'input[name="skills"]:checked,' +
-    'input[name="activeSkills"]:checked,' +
-    'input[name="active_skills"]:checked'
-  );
+  const inputs =
+    document.querySelectorAll(
+      'input[name="skills"]:checked'
+    );
 
   return Array.from(inputs)
-    .map(input => (
-      input.value ||
-      input.dataset.skill ||
-      input.getAttribute("aria-label") ||
-      ""
-    ).trim())
+    .map(input =>
+      (input.value || "").trim()
+    )
     .filter(Boolean);
 }
 
 
 function getSelectedWeapons() {
 
-  const inputs = document.querySelectorAll(
-    'input[name="weapons"]:checked'
-  );
+  const inputs =
+    document.querySelectorAll(
+      'input[name="weapons"]:checked'
+    );
 
   return Array.from(inputs)
-    .map(input => (
-      input.value ||
-      ""
-    ).trim())
+    .map(input =>
+      (input.value || "").trim()
+    )
     .filter(Boolean);
 }
 
 
-function showMessage(message, type = "info") {
+function showMessage(
+  element,
+  message,
+  type = "info"
+) {
 
-  const box = getMessageBox();
+  if (!element) return;
 
-  if (!box) {
-    console.log(message);
-    return;
-  }
+  element.textContent = message;
 
-  box.textContent = message;
-  box.style.display = "block";
+  element.style.display = "block";
 
-  box.classList.remove(
-    "success",
-    "error",
-    "info"
-  );
-
-  box.classList.add(type);
+  element.className =
+    "message " + type;
 }
 
 
-function hideMessage() {
+function hideMessage(element) {
 
-  const box = getMessageBox();
+  if (!element) return;
 
-  if (box) {
-    box.textContent = "";
-    box.style.display = "none";
-  }
+  element.textContent = "";
+
+  element.style.display = "none";
 }
 
 
@@ -166,51 +94,255 @@ function escapeHtml(value) {
 
 
 /* =========================================================
-   SUPABASE
+   REGISTRATION
    ========================================================= */
 
-function checkSupabase() {
+async function registerGuild(event) {
+
+  event.preventDefault();
+
+
+  const form =
+    document.getElementById(
+      "registrationForm"
+    );
+
+  const message =
+    document.getElementById(
+      "registrationMessage"
+    );
+
+  const button =
+    document.getElementById(
+      "registerButton"
+    );
+
+
+  hideMessage(message);
+
+
+  const guildName =
+    document.getElementById(
+      "registerGuildName"
+    )?.value.trim();
+
+
+  const leaderName =
+    document.getElementById(
+      "leaderName"
+    )?.value.trim();
+
+
+  const contact =
+    document.getElementById(
+      "registerContact"
+    )?.value.trim();
+
+
+  if (!guildName) {
+
+    showMessage(
+      message,
+      "Please enter Guild Name.",
+      "error"
+    );
+
+    return;
+  }
+
+
+  if (!leaderName) {
+
+    showMessage(
+      message,
+      "Please enter Leader Name.",
+      "error"
+    );
+
+    return;
+  }
+
+
+  if (!contact) {
+
+    showMessage(
+      message,
+      "Please enter Contact Number.",
+      "error"
+    );
+
+    return;
+  }
+
 
   if (!db) {
 
     showMessage(
-      "Supabase connection is not available.",
+      message,
+      "Supabase is not connected.",
       "error"
     );
 
-    return false;
+    return;
   }
 
-  return true;
+
+  if (button) {
+
+    button.disabled = true;
+
+    button.textContent =
+      "REGISTERING...";
+  }
+
+
+  try {
+
+    /* Make sure user has an auth session */
+
+    let {
+      data: sessionData
+    } = await db.auth.getSession();
+
+
+    if (!sessionData.session) {
+
+      const {
+        data,
+        error
+      } =
+        await db.auth.signInAnonymously();
+
+      if (error) {
+        throw error;
+      }
+
+      sessionData = data;
+    }
+
+
+    const {
+      data,
+      error
+    } = await db.rpc(
+      "register_guild_leader",
+      {
+        p_guild_name:
+          guildName,
+
+        p_leader_name:
+          leaderName,
+
+        p_contact_number:
+          contact
+      }
+    );
+
+
+    if (error) {
+      throw error;
+    }
+
+
+    localStorage.setItem(
+      "7u_guild_name",
+      guildName
+    );
+
+    localStorage.setItem(
+      "7u_contact",
+      contact
+    );
+
+
+    const challengeGuild =
+      document.getElementById(
+        "guildName"
+      );
+
+    const challengeContact =
+      document.getElementById(
+        "contact"
+      );
+
+
+    if (challengeGuild) {
+      challengeGuild.value =
+        guildName;
+    }
+
+    if (challengeContact) {
+      challengeContact.value =
+        contact;
+    }
+
+
+    showMessage(
+      message,
+      data?.message ||
+      "Registration submitted successfully. Waiting for Admin approval.",
+      "success"
+    );
+
+
+    form.reset();
+
+
+  } catch (error) {
+
+    console.error(
+      "Registration error:",
+      error
+    );
+
+
+    showMessage(
+      message,
+      error?.message ||
+      "Registration failed.",
+      "error"
+    );
+
+
+  } finally {
+
+    if (button) {
+
+      button.disabled = false;
+
+      button.textContent =
+        "REGISTER GUILD";
+
+    }
+
+  }
+
 }
 
 
 /* =========================================================
-   SUBMIT CHALLENGE
+   CHALLENGE SUBMISSION
    ========================================================= */
 
 async function submitChallenge(event) {
 
   event.preventDefault();
 
-  hideMessage();
 
-  if (!checkSupabase()) {
-    return;
-  }
+  const message =
+    document.getElementById(
+      "formMessage"
+    );
 
-  const guildInput = getGuildInput();
-  const timeInput = getTimeInput();
-  const contactInput = getContactInput();
 
-  if (
-    !guildInput ||
-    !timeInput ||
-    !contactInput
-  ) {
+  hideMessage(message);
+
+
+  if (!db) {
 
     showMessage(
-      "Challenge form fields are missing.",
+      message,
+      "Supabase is not connected.",
       "error"
     );
 
@@ -218,14 +350,31 @@ async function submitChallenge(event) {
   }
 
 
+  const guildInput =
+    document.getElementById(
+      "guildName"
+    );
+
+  const timeInput =
+    document.getElementById(
+      "matchTime"
+    );
+
+  const contactInput =
+    document.getElementById(
+      "contact"
+    );
+
+
   const guildName =
-    guildInput.value.trim();
+    guildInput?.value.trim();
 
   const matchTime =
-    timeInput.value.trim();
+    timeInput?.value.trim();
 
   const contact =
-    contactInput.value.trim();
+    contactInput?.value.trim();
+
 
   const activeSkills =
     getSelectedSkills();
@@ -234,18 +383,13 @@ async function submitChallenge(event) {
     getSelectedWeapons();
 
 
-  /* -------------------------
-     VALIDATION
-     ------------------------- */
-
   if (!guildName) {
 
     showMessage(
+      message,
       "Please enter Guild Name.",
       "error"
     );
-
-    guildInput.focus();
 
     return;
   }
@@ -254,11 +398,10 @@ async function submitChallenge(event) {
   if (!matchTime) {
 
     showMessage(
+      message,
       "Please select Match Time.",
       "error"
     );
-
-    timeInput.focus();
 
     return;
   }
@@ -267,6 +410,7 @@ async function submitChallenge(event) {
   if (!weapons.length) {
 
     showMessage(
+      message,
       "Please select at least one weapon.",
       "error"
     );
@@ -278,57 +422,73 @@ async function submitChallenge(event) {
   if (!contact) {
 
     showMessage(
+      message,
       "Please enter Contact Number.",
       "error"
     );
-
-    contactInput.focus();
 
     return;
   }
 
 
-  /* -------------------------
-     BUTTON
-     ------------------------- */
-
-  const button = findElement([
-    "#confirmChallenge",
-    "#confirmBtn",
-    "#submitChallenge",
-    'button[type="submit"]'
-  ]);
+  const button =
+    document.getElementById(
+      "confirmChallenge"
+    );
 
 
   if (button) {
 
     button.disabled = true;
 
-    button.dataset.oldText =
-      button.textContent;
-
     button.textContent =
       "SUBMITTING...";
+
   }
 
 
-  /* -------------------------
-     RPC
-     ------------------------- */
-
   try {
 
-    const { data, error } =
-      await db.rpc(
-        "submit_gvg_challenge",
-        {
-          p_guild_name: guildName,
-          p_match_time: matchTime,
-          p_active_skills: activeSkills,
-          p_weapons: weapons,
-          p_contact_number: contact
-        }
-      );
+    let {
+      data: sessionData
+    } = await db.auth.getSession();
+
+
+    if (!sessionData.session) {
+
+      const {
+        error
+      } =
+        await db.auth.signInAnonymously();
+
+      if (error) {
+        throw error;
+      }
+    }
+
+
+    const {
+      data,
+      error
+    } = await db.rpc(
+      "submit_gvg_challenge",
+      {
+        p_guild_name:
+          guildName,
+
+        p_match_time:
+          matchTime,
+
+        p_active_skills:
+          activeSkills,
+
+        p_weapons:
+          weapons,
+
+        p_contact_number:
+          contact
+      }
+    );
 
 
     if (error) {
@@ -337,16 +497,13 @@ async function submitChallenge(event) {
 
 
     showMessage(
+      message,
       `Challenge submitted successfully. Code: ${
         data?.challenge_code || "7U"
       }`,
       "success"
     );
 
-
-    /* -------------------------
-       RESET
-       ------------------------- */
 
     guildInput.value = "";
     timeInput.value = "";
@@ -355,9 +512,7 @@ async function submitChallenge(event) {
 
     document
       .querySelectorAll(
-        'input[name="skills"],' +
-        'input[name="activeSkills"],' +
-        'input[name="active_skills"]'
+        'input[name="skills"]'
       )
       .forEach(input => {
 
@@ -389,6 +544,7 @@ async function submitChallenge(event) {
 
 
     showMessage(
+      message,
       error?.message ||
       "Challenge could not be submitted.",
       "error"
@@ -402,36 +558,28 @@ async function submitChallenge(event) {
       button.disabled = false;
 
       button.textContent =
-        button.dataset.oldText ||
         "CONFIRM CHALLENGE";
+
     }
 
   }
+
 }
 
 
 /* =========================================================
-   LOAD LIVE CHALLENGES
+   LIVE CHALLENGES
    ========================================================= */
 
 async function loadChallenges() {
 
-  if (!checkSupabase()) {
-    return;
-  }
-
   const list =
-    getChallengeList();
-
-
-  if (!list) {
-
-    console.warn(
-      "Challenge list not found."
+    document.getElementById(
+      "challengeList"
     );
 
-    return;
-  }
+
+  if (!list || !db) return;
 
 
   list.innerHTML = `
@@ -474,12 +622,9 @@ async function loadChallenges() {
     data.forEach(challenge => {
 
       const card =
-        document.createElement("div");
-
-
-      const guildName =
-        challenge.guild_name ||
-        "Unknown Guild";
+        document.createElement(
+          "div"
+        );
 
 
       const skills =
@@ -509,7 +654,9 @@ async function loadChallenges() {
         <div class="challenge-card-header">
 
           <h3>
-            ${escapeHtml(guildName)}
+            ${escapeHtml(
+              challenge.guild_name
+            )}
           </h3>
 
           <span class="challenge-status">
@@ -528,7 +675,6 @@ async function loadChallenges() {
             )}
           </p>
 
-
           <p>
             <strong>Time:</strong>
             ${escapeHtml(
@@ -536,18 +682,15 @@ async function loadChallenges() {
             )}
           </p>
 
-
           <p>
             <strong>Active Skills:</strong>
             ${escapeHtml(skills)}
           </p>
 
-
           <p>
             <strong>Weapons:</strong>
             ${escapeHtml(weapons)}
           </p>
-
 
           <p>
             <strong>Contact:</strong>
@@ -591,6 +734,7 @@ async function loadChallenges() {
     `;
 
   }
+
 }
 
 
@@ -602,37 +746,88 @@ document.addEventListener(
   "DOMContentLoaded",
   async () => {
 
-    console.log(
-      "7TH UNIVERSE GvG started."
-    );
+    const registrationForm =
+      document.getElementById(
+        "registrationForm"
+      );
 
 
-    if (!checkSupabase()) {
-      return;
+    const challengeForm =
+      document.getElementById(
+        "challengeForm"
+      );
+
+
+    if (registrationForm) {
+
+      registrationForm.addEventListener(
+        "submit",
+        registerGuild
+      );
+
     }
 
 
-    const form =
-      getChallengeForm();
+    if (challengeForm) {
 
-
-    if (form) {
-
-      form.addEventListener(
+      challengeForm.addEventListener(
         "submit",
         submitChallenge
       );
 
-    } else {
+    }
 
-      console.warn(
-        "Challenge form not found."
+
+    /* Restore previously entered guild/contact */
+
+    const savedGuild =
+      localStorage.getItem(
+        "7u_guild_name"
       );
+
+    const savedContact =
+      localStorage.getItem(
+        "7u_contact"
+      );
+
+
+    if (savedGuild) {
+
+      const input =
+        document.getElementById(
+          "guildName"
+        );
+
+      if (input) {
+        input.value =
+          savedGuild;
+      }
+
+    }
+
+
+    if (savedContact) {
+
+      const input =
+        document.getElementById(
+          "contact"
+        );
+
+      if (input) {
+        input.value =
+          savedContact;
+      }
 
     }
 
 
     await loadChallenges();
+
+
+    setInterval(
+      loadChallenges,
+      15000
+    );
 
   }
 );
