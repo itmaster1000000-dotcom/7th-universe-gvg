@@ -1,86 +1,13 @@
 "use strict";
 
-/* =========================================================
-   7TH UNIVERSE — GVG
-   ========================================================= */
 
-const db = window.supabaseClient;
+const db =
+  window.supabaseClient;
 
 
 /* =========================================================
    HELPERS
    ========================================================= */
-
-function findElement(selectors) {
-
-  for (const selector of selectors) {
-
-    const el =
-      document.querySelector(selector);
-
-    if (el) return el;
-  }
-
-  return null;
-}
-
-
-function getSelectedSkills() {
-
-  const inputs =
-    document.querySelectorAll(
-      'input[name="skills"]:checked'
-    );
-
-  return Array.from(inputs)
-    .map(input =>
-      (input.value || "").trim()
-    )
-    .filter(Boolean);
-}
-
-
-function getSelectedWeapons() {
-
-  const inputs =
-    document.querySelectorAll(
-      'input[name="weapons"]:checked'
-    );
-
-  return Array.from(inputs)
-    .map(input =>
-      (input.value || "").trim()
-    )
-    .filter(Boolean);
-}
-
-
-function showMessage(
-  element,
-  message,
-  type = "info"
-) {
-
-  if (!element) return;
-
-  element.textContent = message;
-
-  element.style.display = "block";
-
-  element.className =
-    "message " + type;
-}
-
-
-function hideMessage(element) {
-
-  if (!element) return;
-
-  element.textContent = "";
-
-  element.style.display = "none";
-}
-
 
 function escapeHtml(value) {
 
@@ -93,6 +20,85 @@ function escapeHtml(value) {
 }
 
 
+function getSelectedSkills() {
+
+  return Array.from(
+    document.querySelectorAll(
+      'input[name="skills"]:checked'
+    )
+  )
+    .map(input => input.value.trim())
+    .filter(Boolean);
+}
+
+
+function getSelectedWeapons() {
+
+  return Array.from(
+    document.querySelectorAll(
+      'input[name="weapons"]:checked'
+    )
+  )
+    .map(input => input.value.trim())
+    .filter(Boolean);
+}
+
+
+function showMessage(
+  element,
+  message,
+  type = "info"
+) {
+
+  if (!element) return;
+
+  element.textContent =
+    message;
+
+  element.style.display =
+    "block";
+
+  element.className =
+    "message " + type;
+}
+
+
+function hideMessage(element) {
+
+  if (!element) return;
+
+  element.textContent =
+    "";
+
+  element.style.display =
+    "none";
+}
+
+
+async function ensureSession() {
+
+  let {
+    data: sessionData
+  } =
+    await db.auth.getSession();
+
+
+  if (!sessionData.session) {
+
+    const {
+      error
+    } =
+      await db.auth.signInAnonymously();
+
+    if (error) {
+      throw error;
+    }
+
+  }
+
+}
+
+
 /* =========================================================
    REGISTRATION
    ========================================================= */
@@ -101,11 +107,6 @@ async function registerGuild(event) {
 
   event.preventDefault();
 
-
-  const form =
-    document.getElementById(
-      "registrationForm"
-    );
 
   const message =
     document.getElementById(
@@ -139,47 +140,13 @@ async function registerGuild(event) {
     )?.value.trim();
 
 
-  if (!guildName) {
+  if (!guildName ||
+      !leaderName ||
+      !contact) {
 
     showMessage(
       message,
-      "Please enter Guild Name.",
-      "error"
-    );
-
-    return;
-  }
-
-
-  if (!leaderName) {
-
-    showMessage(
-      message,
-      "Please enter Leader Name.",
-      "error"
-    );
-
-    return;
-  }
-
-
-  if (!contact) {
-
-    showMessage(
-      message,
-      "Please enter Contact Number.",
-      "error"
-    );
-
-    return;
-  }
-
-
-  if (!db) {
-
-    showMessage(
-      message,
-      "Supabase is not connected.",
+      "Please complete all registration fields.",
       "error"
     );
 
@@ -193,50 +160,32 @@ async function registerGuild(event) {
 
     button.textContent =
       "REGISTERING...";
+
   }
 
 
   try {
 
-    /* Make sure user has an auth session */
-
-    let {
-      data: sessionData
-    } = await db.auth.getSession();
-
-
-    if (!sessionData.session) {
-
-      const {
-        data,
-        error
-      } =
-        await db.auth.signInAnonymously();
-
-      if (error) {
-        throw error;
-      }
-
-      sessionData = data;
-    }
+    await ensureSession();
 
 
     const {
       data,
       error
-    } = await db.rpc(
-      "register_guild_leader",
-      {
-        p_guild_name:
-          guildName,
+    } =
+      await db.rpc(
+        "register_guild_leader",
+        {
+          p_guild_name:
+            guildName,
 
-        p_leader_name:
-          leaderName,
+          p_leader_name:
+            leaderName,
 
-        p_contact_number:
-          contact
-      }
-    );
+          p_contact_number:
+            contact
+        }
+      );
 
 
     if (error) {
@@ -255,37 +204,29 @@ async function registerGuild(event) {
     );
 
 
-    const challengeGuild =
-      document.getElementById(
-        "guildName"
-      );
-
-    const challengeContact =
-      document.getElementById(
-        "contact"
-      );
+    document.getElementById(
+      "guildName"
+    ).value = guildName;
 
 
-    if (challengeGuild) {
-      challengeGuild.value =
-        guildName;
-    }
-
-    if (challengeContact) {
-      challengeContact.value =
-        contact;
-    }
+    document.getElementById(
+      "contact"
+    ).value = contact;
 
 
     showMessage(
       message,
       data?.message ||
-      "Registration submitted successfully. Waiting for Admin approval.",
+      "Registration submitted. Waiting for Admin approval.",
       "success"
     );
 
 
-    form.reset();
+    document
+      .getElementById(
+        "registrationForm"
+      )
+      .reset();
 
 
   } catch (error) {
@@ -321,7 +262,7 @@ async function registerGuild(event) {
 
 
 /* =========================================================
-   CHALLENGE SUBMISSION
+   SUBMIT CHALLENGE
    ========================================================= */
 
 async function submitChallenge(event) {
@@ -338,46 +279,27 @@ async function submitChallenge(event) {
   hideMessage(message);
 
 
-  if (!db) {
-
-    showMessage(
-      message,
-      "Supabase is not connected.",
-      "error"
-    );
-
-    return;
-  }
-
-
-  const guildInput =
+  const guildName =
     document.getElementById(
       "guildName"
-    );
+    )?.value.trim();
 
-  const timeInput =
-    document.getElementById(
-      "matchTime"
-    );
-
-  const contactInput =
-    document.getElementById(
-      "contact"
-    );
-
-
-  const guildName =
-    guildInput?.value.trim();
 
   const matchTime =
-    timeInput?.value.trim();
+    document.getElementById(
+      "matchTime"
+    )?.value.trim();
+
 
   const contact =
-    contactInput?.value.trim();
+    document.getElementById(
+      "contact"
+    )?.value.trim();
 
 
   const activeSkills =
     getSelectedSkills();
+
 
   const weapons =
     getSelectedWeapons();
@@ -449,46 +371,32 @@ async function submitChallenge(event) {
 
   try {
 
-    let {
-      data: sessionData
-    } = await db.auth.getSession();
-
-
-    if (!sessionData.session) {
-
-      const {
-        error
-      } =
-        await db.auth.signInAnonymously();
-
-      if (error) {
-        throw error;
-      }
-    }
+    await ensureSession();
 
 
     const {
       data,
       error
-    } = await db.rpc(
-      "submit_gvg_challenge",
-      {
-        p_guild_name:
-          guildName,
+    } =
+      await db.rpc(
+        "submit_gvg_challenge",
+        {
+          p_guild_name:
+            guildName,
 
-        p_match_time:
-          matchTime,
+          p_match_time:
+            matchTime,
 
-        p_active_skills:
-          activeSkills,
+          p_active_skills:
+            activeSkills,
 
-        p_weapons:
-          weapons,
+          p_weapons:
+            weapons,
 
-        p_contact_number:
-          contact
-      }
-    );
+          p_contact_number:
+            contact
+        }
+      );
 
 
     if (error) {
@@ -505,31 +413,39 @@ async function submitChallenge(event) {
     );
 
 
-    guildInput.value = "";
-    timeInput.value = "";
-    contactInput.value = "";
+    document.getElementById(
+      "guildName"
+    ).value = "";
+
+
+    document.getElementById(
+      "matchTime"
+    ).value = "";
+
+
+    document.getElementById(
+      "contact"
+    ).value = "";
 
 
     document
       .querySelectorAll(
         'input[name="skills"]'
       )
-      .forEach(input => {
-
-        input.checked = false;
-
-      });
+      .forEach(
+        input =>
+          input.checked = false
+      );
 
 
     document
       .querySelectorAll(
         'input[name="weapons"]'
       )
-      .forEach(input => {
-
-        input.checked = false;
-
-      });
+      .forEach(
+        input =>
+          input.checked = false
+      );
 
 
     await loadChallenges();
@@ -538,7 +454,7 @@ async function submitChallenge(event) {
   } catch (error) {
 
     console.error(
-      "Challenge submission error:",
+      "Challenge error:",
       error
     );
 
@@ -579,14 +495,7 @@ async function loadChallenges() {
     );
 
 
-  if (!list || !db) return;
-
-
-  list.innerHTML = `
-    <div class="loading">
-      Loading challenges...
-    </div>
-  `;
+  if (!list) return;
 
 
   try {
@@ -594,9 +503,10 @@ async function loadChallenges() {
     const {
       data,
       error
-    } = await db.rpc(
-      "get_live_gvg_challenges"
-    );
+    } =
+      await db.rpc(
+        "get_live_gvg_challenges"
+      );
 
 
     if (error) {
@@ -621,12 +531,6 @@ async function loadChallenges() {
 
     data.forEach(challenge => {
 
-      const card =
-        document.createElement(
-          "div"
-        );
-
-
       const skills =
         Array.isArray(
           challenge.active_skills
@@ -643,6 +547,12 @@ async function loadChallenges() {
         challenge.weapons.length
           ? challenge.weapons.join(", ")
           : "None";
+
+
+      const card =
+        document.createElement(
+          "div"
+        );
 
 
       card.className =
@@ -664,7 +574,6 @@ async function loadChallenges() {
           </span>
 
         </div>
-
 
         <div class="challenge-card-info">
 
@@ -700,7 +609,6 @@ async function loadChallenges() {
           </p>
 
         </div>
-
 
         <a
           class="challenge-contact-btn"
@@ -739,6 +647,465 @@ async function loadChallenges() {
 
 
 /* =========================================================
+   ADMIN LOGIN
+   ========================================================= */
+
+async function loginAdmin(event) {
+
+  event.preventDefault();
+
+
+  const email =
+    document.getElementById(
+      "adminEmail"
+    )?.value.trim();
+
+
+  const password =
+    document.getElementById(
+      "adminPassword"
+    )?.value;
+
+
+  const message =
+    document.getElementById(
+      "adminLoginMessage"
+    );
+
+
+  const button =
+    document.getElementById(
+      "adminLoginButton"
+    );
+
+
+  hideMessage(message);
+
+
+  if (!email || !password) {
+
+    showMessage(
+      message,
+      "Enter admin email and password.",
+      "error"
+    );
+
+    return;
+  }
+
+
+  if (button) {
+
+    button.disabled = true;
+
+    button.textContent =
+      "LOGGING IN...";
+
+  }
+
+
+  try {
+
+    const {
+      data,
+      error
+    } =
+      await db.auth.signInWithPassword({
+        email,
+        password
+      });
+
+
+    if (error) {
+      throw error;
+    }
+
+
+    await checkAdmin();
+
+
+  } catch (error) {
+
+    console.error(
+      "Admin login error:",
+      error
+    );
+
+
+    showMessage(
+      message,
+      error?.message ||
+      "Admin login failed.",
+      "error"
+    );
+
+
+  } finally {
+
+    if (button) {
+
+      button.disabled = false;
+
+      button.textContent =
+        "LOGIN";
+
+    }
+
+  }
+
+}
+
+
+/* =========================================================
+   CHECK ADMIN
+   ========================================================= */
+
+async function checkAdmin() {
+
+  try {
+
+    const {
+      data,
+      error
+    } =
+      await db.rpc(
+        "get_admin_status"
+      );
+
+
+    if (error) {
+      throw error;
+    }
+
+
+    if (
+      data?.is_admin === true
+    ) {
+
+      document.getElementById(
+        "adminLoginSection"
+      ).style.display =
+        "none";
+
+
+      document.getElementById(
+        "adminPanel"
+      ).style.display =
+        "block";
+
+
+      document.getElementById(
+        "showAdminLogin"
+      ).style.display =
+        "none";
+
+
+      document.getElementById(
+        "adminName"
+      ).textContent =
+        data.admin_name ||
+        "7TH UNIVERSE ADMIN";
+
+
+      await loadPendingRegistrations();
+
+    }
+
+  } catch (error) {
+
+    console.error(
+      "Admin check error:",
+      error
+    );
+
+  }
+
+}
+
+
+/* =========================================================
+   LOAD PENDING REGISTRATIONS
+   ========================================================= */
+
+async function loadPendingRegistrations() {
+
+  const box =
+    document.getElementById(
+      "pendingRegistrations"
+    );
+
+
+  if (!box) return;
+
+
+  box.innerHTML = `
+    <div class="loading">
+      Loading...
+    </div>
+  `;
+
+
+  try {
+
+    const {
+      data,
+      error
+    } =
+      await db.rpc(
+        "get_pending_registrations"
+      );
+
+
+    if (error) {
+      throw error;
+    }
+
+
+    if (!data || data.length === 0) {
+
+      box.innerHTML = `
+        <div class="empty-state">
+          No pending registrations.
+        </div>
+      `;
+
+      return;
+    }
+
+
+    box.innerHTML = "";
+
+
+    data.forEach(item => {
+
+      const card =
+        document.createElement(
+          "div"
+        );
+
+
+      card.className =
+        "pending-card";
+
+
+      card.innerHTML = `
+
+        <h3>
+          ${escapeHtml(
+            item.guild_name
+          )}
+        </h3>
+
+        <p>
+          <strong>Leader:</strong>
+          ${escapeHtml(
+            item.leader_name
+          )}
+        </p>
+
+        <p>
+          <strong>Contact:</strong>
+          ${escapeHtml(
+            item.phone || "-"
+          )}
+        </p>
+
+        <p>
+          <strong>Status:</strong>
+          ${escapeHtml(
+            item.approval_status
+          )}
+        </p>
+
+        <p>
+          <strong>Submitted:</strong>
+          ${escapeHtml(
+            item.created_at
+          )}
+        </p>
+
+        <div class="admin-actions">
+
+          <button
+            class="approve-btn"
+            data-leader-id="${escapeHtml(
+              item.leader_id
+            )}"
+            data-status="approved"
+          >
+            APPROVE
+          </button>
+
+          <button
+            class="reject-btn"
+            data-leader-id="${escapeHtml(
+              item.leader_id
+            )}"
+            data-status="rejected"
+          >
+            REJECT
+          </button>
+
+        </div>
+
+      `;
+
+
+      box.appendChild(card);
+
+    });
+
+
+    box
+      .querySelectorAll(
+        "[data-leader-id]"
+      )
+      .forEach(button => {
+
+        button.addEventListener(
+          "click",
+          async () => {
+
+            await updateLeaderStatus(
+              button.dataset.leaderId,
+              button.dataset.status
+            );
+
+          }
+        );
+
+      });
+
+
+  } catch (error) {
+
+    console.error(
+      "Pending registrations error:",
+      error
+    );
+
+
+    box.innerHTML = `
+      <div class="empty-state">
+        Could not load registrations.
+      </div>
+    `;
+
+  }
+
+}
+
+
+/* =========================================================
+   APPROVE / REJECT
+   ========================================================= */
+
+async function updateLeaderStatus(
+  leaderId,
+  status
+) {
+
+  const message =
+    document.getElementById(
+      "adminPanelMessage"
+    );
+
+
+  hideMessage(message);
+
+
+  try {
+
+    const {
+      data,
+      error
+    } =
+      await db.rpc(
+        "set_leader_approval",
+        {
+          p_leader_id:
+            leaderId,
+
+          p_status:
+            status
+        }
+      );
+
+
+    if (error) {
+      throw error;
+    }
+
+
+    showMessage(
+      message,
+      data?.message ||
+      `Leader ${status} successfully.`,
+      "success"
+    );
+
+
+    await loadPendingRegistrations();
+
+
+  } catch (error) {
+
+    console.error(error);
+
+
+    showMessage(
+      message,
+      error?.message ||
+      "Could not update leader.",
+      "error"
+    );
+
+  }
+
+}
+
+
+/* =========================================================
+   LOGOUT
+   ========================================================= */
+
+async function logoutAdmin() {
+
+  try {
+
+    await db.auth.signOut();
+
+    document.getElementById(
+      "adminPanel"
+    ).style.display =
+      "none";
+
+
+    document.getElementById(
+      "showAdminLogin"
+    ).style.display =
+      "block";
+
+
+    document.getElementById(
+      "adminLoginSection"
+    ).style.display =
+      "none";
+
+
+  } catch (error) {
+
+    console.error(
+      "Logout error:",
+      error
+    );
+
+  }
+
+}
+
+
+/* =========================================================
    START
    ========================================================= */
 
@@ -755,6 +1122,12 @@ document.addEventListener(
     const challengeForm =
       document.getElementById(
         "challengeForm"
+      );
+
+
+    const adminLoginForm =
+      document.getElementById(
+        "adminLoginForm"
       );
 
 
@@ -778,56 +1151,47 @@ document.addEventListener(
     }
 
 
-    /* Restore previously entered guild/contact */
+    if (adminLoginForm) {
 
-    const savedGuild =
-      localStorage.getItem(
-        "7u_guild_name"
+      adminLoginForm.addEventListener(
+        "submit",
+        loginAdmin
       );
-
-    const savedContact =
-      localStorage.getItem(
-        "7u_contact"
-      );
-
-
-    if (savedGuild) {
-
-      const input =
-        document.getElementById(
-          "guildName"
-        );
-
-      if (input) {
-        input.value =
-          savedGuild;
-      }
 
     }
 
 
-    if (savedContact) {
+    document
+      .getElementById(
+        "showAdminLogin"
+      )
+      ?.addEventListener(
+        "click",
+        () => {
 
-      const input =
-        document.getElementById(
-          "contact"
-        );
+          document.getElementById(
+            "adminLoginSection"
+          ).style.display =
+            "block";
 
-      if (input) {
-        input.value =
-          savedContact;
-      }
+        }
+      );
 
-    }
+
+    document
+      .getElementById(
+        "adminLogout"
+      )
+      ?.addEventListener(
+        "click",
+        logoutAdmin
+      );
 
 
     await loadChallenges();
 
 
-    setInterval(
-      loadChallenges,
-      15000
-    );
+    await checkAdmin();
 
   }
 );
