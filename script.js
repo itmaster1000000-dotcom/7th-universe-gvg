@@ -1,8 +1,6 @@
 "use strict";
 
-
-const db =
-  window.supabaseClient;
+const db = window.supabaseClient;
 
 
 /* =========================================================
@@ -10,7 +8,6 @@ const db =
    ========================================================= */
 
 function escapeHtml(value) {
-
   return String(value ?? "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -21,7 +18,6 @@ function escapeHtml(value) {
 
 
 function getSelectedSkills() {
-
   return Array.from(
     document.querySelectorAll(
       'input[name="skills"]:checked'
@@ -33,7 +29,6 @@ function getSelectedSkills() {
 
 
 function getSelectedWeapons() {
-
   return Array.from(
     document.querySelectorAll(
       'input[name="weapons"]:checked'
@@ -44,69 +39,49 @@ function getSelectedWeapons() {
 }
 
 
-function showMessage(
-  element,
-  message,
-  type = "info"
-) {
-
+function showMessage(element, message, type = "info") {
   if (!element) return;
 
-  element.textContent =
-    message;
-
-  element.style.display =
-    "block";
-
-  element.className =
-    "message " + type;
+  element.textContent = message;
+  element.style.display = "block";
+  element.className = "message " + type;
 }
 
 
 function hideMessage(element) {
-
   if (!element) return;
 
-  element.textContent =
-    "";
-
-  element.style.display =
-    "none";
+  element.textContent = "";
+  element.style.display = "none";
 }
 
 
 async function ensureSession() {
 
-  let {
+  const {
     data: sessionData
-  } =
-    await db.auth.getSession();
-
+  } = await db.auth.getSession();
 
   if (!sessionData.session) {
 
     const {
       error
-    } =
-      await db.auth.signInAnonymously();
+    } = await db.auth.signInAnonymously();
 
     if (error) {
       throw error;
     }
-
   }
-
 }
 
 
 /* =========================================================
-   REGISTRATION
+   REGISTER GUILD + LEADER
    ========================================================= */
 
 async function registerGuild(event) {
 
   event.preventDefault();
-
 
   const message =
     document.getElementById(
@@ -118,27 +93,22 @@ async function registerGuild(event) {
       "registerButton"
     );
 
-
   hideMessage(message);
-
 
   const guildName =
     document.getElementById(
       "registerGuildName"
     )?.value.trim();
 
-
   const leaderName =
     document.getElementById(
       "leaderName"
     )?.value.trim();
 
-
   const contact =
     document.getElementById(
       "registerContact"
     )?.value.trim();
-
 
   if (!guildName ||
       !leaderName ||
@@ -153,45 +123,30 @@ async function registerGuild(event) {
     return;
   }
 
-
   if (button) {
-
     button.disabled = true;
-
-    button.textContent =
-      "REGISTERING...";
-
+    button.textContent = "REGISTERING...";
   }
-
 
   try {
 
     await ensureSession();
 
-
     const {
       data,
       error
-    } =
-      await db.rpc(
-        "register_guild_leader",
-        {
-          p_guild_name:
-            guildName,
-
-          p_leader_name:
-            leaderName,
-
-          p_contact_number:
-            contact
-        }
-      );
-
+    } = await db.rpc(
+      "register_guild_leader",
+      {
+        p_guild_name: guildName,
+        p_leader_name: leaderName,
+        p_contact_number: contact
+      }
+    );
 
     if (error) {
       throw error;
     }
-
 
     localStorage.setItem(
       "7u_guild_name",
@@ -203,31 +158,36 @@ async function registerGuild(event) {
       contact
     );
 
+    const guildInput =
+      document.getElementById(
+        "guildName"
+      );
 
-    document.getElementById(
-      "guildName"
-    ).value = guildName;
+    const contactInput =
+      document.getElementById(
+        "contact"
+      );
 
+    if (guildInput) {
+      guildInput.value = guildName;
+    }
 
-    document.getElementById(
-      "contact"
-    ).value = contact;
-
+    if (contactInput) {
+      contactInput.value = contact;
+    }
 
     showMessage(
       message,
       data?.message ||
-      "Registration submitted. Waiting for Admin approval.",
+        "Registration submitted. Waiting for Admin approval.",
       "success"
     );
-
 
     document
       .getElementById(
         "registrationForm"
       )
       .reset();
-
 
   } catch (error) {
 
@@ -236,28 +196,20 @@ async function registerGuild(event) {
       error
     );
 
-
     showMessage(
       message,
       error?.message ||
-      "Registration failed.",
+        "Registration failed.",
       "error"
     );
-
 
   } finally {
 
     if (button) {
-
       button.disabled = false;
-
-      button.textContent =
-        "REGISTER GUILD";
-
+      button.textContent = "REGISTER GUILD";
     }
-
   }
-
 }
 
 
@@ -269,140 +221,101 @@ async function submitChallenge(event) {
 
   event.preventDefault();
 
-
   const message =
     document.getElementById(
       "formMessage"
     );
 
-
   hideMessage(message);
-
 
   const guildName =
     document.getElementById(
       "guildName"
     )?.value.trim();
 
-
   const matchTime =
     document.getElementById(
       "matchTime"
     )?.value.trim();
-
 
   const contact =
     document.getElementById(
       "contact"
     )?.value.trim();
 
-
   const activeSkills =
     getSelectedSkills();
-
 
   const weapons =
     getSelectedWeapons();
 
-
   if (!guildName) {
-
     showMessage(
       message,
       "Please enter Guild Name.",
       "error"
     );
-
     return;
   }
 
-
   if (!matchTime) {
-
     showMessage(
       message,
       "Please select Match Time.",
       "error"
     );
-
     return;
   }
 
-
   if (!weapons.length) {
-
     showMessage(
       message,
       "Please select at least one weapon.",
       "error"
     );
-
     return;
   }
 
-
   if (!contact) {
-
     showMessage(
       message,
       "Please enter Contact Number.",
       "error"
     );
-
     return;
   }
-
 
   const button =
     document.getElementById(
       "confirmChallenge"
     );
 
-
   if (button) {
-
     button.disabled = true;
-
-    button.textContent =
-      "SUBMITTING...";
-
+    button.textContent = "SUBMITTING...";
   }
-
 
   try {
 
     await ensureSession();
 
-
     const {
       data,
       error
-    } =
-      await db.rpc(
-        "submit_gvg_challenge",
-        {
-          p_guild_name:
-            guildName,
-
-          p_match_time:
-            matchTime,
-
-          p_active_skills:
-            activeSkills,
-
-          p_weapons:
-            weapons,
-
-          p_contact_number:
-            contact
-        }
-      );
-
+    } = await db.rpc(
+      "submit_gvg_challenge",
+      {
+        p_guild_name: guildName,
+        p_match_time: matchTime,
+        p_active_skills: activeSkills,
+        p_weapons: weapons,
+        p_contact_number: contact
+      }
+    );
 
     if (error) {
       throw error;
     }
-
 
     showMessage(
       message,
@@ -412,44 +325,35 @@ async function submitChallenge(event) {
       "success"
     );
 
-
     document.getElementById(
       "guildName"
     ).value = "";
-
 
     document.getElementById(
       "matchTime"
     ).value = "";
 
-
     document.getElementById(
       "contact"
     ).value = "";
-
 
     document
       .querySelectorAll(
         'input[name="skills"]'
       )
-      .forEach(
-        input =>
-          input.checked = false
-      );
-
+      .forEach(input => {
+        input.checked = false;
+      });
 
     document
       .querySelectorAll(
         'input[name="weapons"]'
       )
-      .forEach(
-        input =>
-          input.checked = false
-      );
-
+      .forEach(input => {
+        input.checked = false;
+      });
 
     await loadChallenges();
-
 
   } catch (error) {
 
@@ -458,28 +362,70 @@ async function submitChallenge(event) {
       error
     );
 
-
     showMessage(
       message,
       error?.message ||
-      "Challenge could not be submitted.",
+        "Challenge could not be submitted.",
       "error"
     );
-
 
   } finally {
 
     if (button) {
-
       button.disabled = false;
-
-      button.textContent =
-        "CONFIRM CHALLENGE";
-
+      button.textContent = "CONFIRM CHALLENGE";
     }
+  }
+}
 
+
+/* =========================================================
+   ACCEPT CHALLENGE
+   ========================================================= */
+
+async function acceptChallenge(challengeId) {
+
+  if (!challengeId) {
+    return;
   }
 
+  try {
+
+    await ensureSession();
+
+    const {
+      data,
+      error
+    } = await db.rpc(
+      "accept_gvg_challenge",
+      {
+        p_challenge_id: challengeId
+      }
+    );
+
+    if (error) {
+      throw error;
+    }
+
+    alert(
+      data?.message ||
+        "Challenge accepted successfully."
+    );
+
+    await loadChallenges();
+
+  } catch (error) {
+
+    console.error(
+      "Accept challenge error:",
+      error
+    );
+
+    alert(
+      error?.message ||
+        "Challenge could not be accepted."
+    );
+  }
 }
 
 
@@ -494,25 +440,28 @@ async function loadChallenges() {
       "challengeList"
     );
 
+  if (!list || !db) {
+    return;
+  }
 
-  if (!list) return;
-
+  list.innerHTML = `
+    <div class="loading">
+      Loading challenges...
+    </div>
+  `;
 
   try {
 
     const {
       data,
       error
-    } =
-      await db.rpc(
-        "get_live_gvg_challenges"
-      );
-
+    } = await db.rpc(
+      "get_live_gvg_challenges"
+    );
 
     if (error) {
       throw error;
     }
-
 
     if (!data || data.length === 0) {
 
@@ -525,9 +474,7 @@ async function loadChallenges() {
       return;
     }
 
-
     list.innerHTML = "";
-
 
     data.forEach(challenge => {
 
@@ -539,7 +486,6 @@ async function loadChallenges() {
           ? challenge.active_skills.join(", ")
           : "None";
 
-
       const weapons =
         Array.isArray(
           challenge.weapons
@@ -548,16 +494,13 @@ async function loadChallenges() {
           ? challenge.weapons.join(", ")
           : "None";
 
-
       const card =
         document.createElement(
           "div"
         );
 
-
       card.className =
         "challenge-card";
-
 
       card.innerHTML = `
 
@@ -619,12 +562,55 @@ async function loadChallenges() {
           CONTACT GUILD
         </a>
 
+        <button
+          type="button"
+          class="accept-challenge-btn"
+          data-challenge-id="${escapeHtml(
+            challenge.id
+          )}"
+        >
+          ACCEPT CHALLENGE
+        </button>
+
       `;
 
-
       list.appendChild(card);
-
     });
+
+
+    /* Add click events */
+
+    list
+      .querySelectorAll(
+        ".accept-challenge-btn"
+      )
+      .forEach(button => {
+
+        button.addEventListener(
+          "click",
+          async () => {
+
+            const challengeId =
+              button.dataset.challengeId;
+
+            button.disabled = true;
+
+            button.textContent =
+              "ACCEPTING...";
+
+            await acceptChallenge(
+              challengeId
+            );
+
+            button.disabled = false;
+
+            button.textContent =
+              "ACCEPT CHALLENGE";
+
+          }
+        );
+
+      });
 
 
   } catch (error) {
@@ -634,15 +620,12 @@ async function loadChallenges() {
       error
     );
 
-
     list.innerHTML = `
       <div class="empty-state">
         Challenges could not be loaded.
       </div>
     `;
-
   }
-
 }
 
 
@@ -654,33 +637,27 @@ async function loginAdmin(event) {
 
   event.preventDefault();
 
-
   const email =
     document.getElementById(
       "adminEmail"
     )?.value.trim();
-
 
   const password =
     document.getElementById(
       "adminPassword"
     )?.value;
 
-
   const message =
     document.getElementById(
       "adminLoginMessage"
     );
-
 
   const button =
     document.getElementById(
       "adminLoginButton"
     );
 
-
   hideMessage(message);
-
 
   if (!email || !password) {
 
@@ -693,21 +670,14 @@ async function loginAdmin(event) {
     return;
   }
 
-
   if (button) {
-
     button.disabled = true;
-
-    button.textContent =
-      "LOGGING IN...";
-
+    button.textContent = "LOGGING IN...";
   }
-
 
   try {
 
     const {
-      data,
       error
     } =
       await db.auth.signInWithPassword({
@@ -715,14 +685,11 @@ async function loginAdmin(event) {
         password
       });
 
-
     if (error) {
       throw error;
     }
 
-
     await checkAdmin();
-
 
   } catch (error) {
 
@@ -731,28 +698,20 @@ async function loginAdmin(event) {
       error
     );
 
-
     showMessage(
       message,
       error?.message ||
-      "Admin login failed.",
+        "Admin login failed.",
       "error"
     );
-
 
   } finally {
 
     if (button) {
-
       button.disabled = false;
-
-      button.textContent =
-        "LOGIN";
-
+      button.textContent = "LOGIN";
     }
-
   }
-
 }
 
 
@@ -772,33 +731,23 @@ async function checkAdmin() {
         "get_admin_status"
       );
 
-
     if (error) {
       throw error;
     }
 
-
-    if (
-      data?.is_admin === true
-    ) {
+    if (data?.is_admin === true) {
 
       document.getElementById(
         "adminLoginSection"
-      ).style.display =
-        "none";
-
+      ).style.display = "none";
 
       document.getElementById(
         "adminPanel"
-      ).style.display =
-        "block";
-
+      ).style.display = "block";
 
       document.getElementById(
         "showAdminLogin"
-      ).style.display =
-        "none";
-
+      ).style.display = "none";
 
       document.getElementById(
         "adminName"
@@ -806,9 +755,7 @@ async function checkAdmin() {
         data.admin_name ||
         "7TH UNIVERSE ADMIN";
 
-
       await loadPendingRegistrations();
-
     }
 
   } catch (error) {
@@ -817,14 +764,12 @@ async function checkAdmin() {
       "Admin check error:",
       error
     );
-
   }
-
 }
 
 
 /* =========================================================
-   LOAD PENDING REGISTRATIONS
+   PENDING REGISTRATIONS
    ========================================================= */
 
 async function loadPendingRegistrations() {
@@ -834,16 +779,15 @@ async function loadPendingRegistrations() {
       "pendingRegistrations"
     );
 
-
-  if (!box) return;
-
+  if (!box) {
+    return;
+  }
 
   box.innerHTML = `
     <div class="loading">
       Loading...
     </div>
   `;
-
 
   try {
 
@@ -855,11 +799,9 @@ async function loadPendingRegistrations() {
         "get_pending_registrations"
       );
 
-
     if (error) {
       throw error;
     }
-
 
     if (!data || data.length === 0) {
 
@@ -872,9 +814,7 @@ async function loadPendingRegistrations() {
       return;
     }
 
-
     box.innerHTML = "";
-
 
     data.forEach(item => {
 
@@ -883,10 +823,8 @@ async function loadPendingRegistrations() {
           "div"
         );
 
-
       card.className =
         "pending-card";
-
 
       card.innerHTML = `
 
@@ -917,13 +855,6 @@ async function loadPendingRegistrations() {
           )}
         </p>
 
-        <p>
-          <strong>Submitted:</strong>
-          ${escapeHtml(
-            item.created_at
-          )}
-        </p>
-
         <div class="admin-actions">
 
           <button
@@ -947,14 +878,10 @@ async function loadPendingRegistrations() {
           </button>
 
         </div>
-
       `;
 
-
       box.appendChild(card);
-
     });
-
 
     box
       .querySelectorAll(
@@ -976,7 +903,6 @@ async function loadPendingRegistrations() {
 
       });
 
-
   } catch (error) {
 
     console.error(
@@ -984,20 +910,17 @@ async function loadPendingRegistrations() {
       error
     );
 
-
     box.innerHTML = `
       <div class="empty-state">
         Could not load registrations.
       </div>
     `;
-
   }
-
 }
 
 
 /* =========================================================
-   APPROVE / REJECT
+   UPDATE LEADER STATUS
    ========================================================= */
 
 async function updateLeaderStatus(
@@ -1010,9 +933,7 @@ async function updateLeaderStatus(
       "adminPanelMessage"
     );
 
-
   hideMessage(message);
-
 
   try {
 
@@ -1023,45 +944,35 @@ async function updateLeaderStatus(
       await db.rpc(
         "set_leader_approval",
         {
-          p_leader_id:
-            leaderId,
-
-          p_status:
-            status
+          p_leader_id: leaderId,
+          p_status: status
         }
       );
-
 
     if (error) {
       throw error;
     }
 
-
     showMessage(
       message,
       data?.message ||
-      `Leader ${status} successfully.`,
+        `Leader ${status} successfully.`,
       "success"
     );
 
-
     await loadPendingRegistrations();
-
 
   } catch (error) {
 
     console.error(error);
 
-
     showMessage(
       message,
       error?.message ||
-      "Could not update leader.",
+        "Could not update leader.",
       "error"
     );
-
   }
-
 }
 
 
@@ -1077,21 +988,15 @@ async function logoutAdmin() {
 
     document.getElementById(
       "adminPanel"
-    ).style.display =
-      "none";
-
+    ).style.display = "none";
 
     document.getElementById(
       "showAdminLogin"
-    ).style.display =
-      "block";
-
+    ).style.display = "block";
 
     document.getElementById(
       "adminLoginSection"
-    ).style.display =
-      "none";
-
+    ).style.display = "none";
 
   } catch (error) {
 
@@ -1099,9 +1004,7 @@ async function logoutAdmin() {
       "Logout error:",
       error
     );
-
   }
-
 }
 
 
@@ -1118,12 +1021,10 @@ document.addEventListener(
         "registrationForm"
       );
 
-
     const challengeForm =
       document.getElementById(
         "challengeForm"
       );
-
 
     const adminLoginForm =
       document.getElementById(
@@ -1171,8 +1072,7 @@ document.addEventListener(
 
           document.getElementById(
             "adminLoginSection"
-          ).style.display =
-            "block";
+          ).style.display = "block";
 
         }
       );
@@ -1189,7 +1089,6 @@ document.addEventListener(
 
 
     await loadChallenges();
-
 
     await checkAdmin();
 
