@@ -397,7 +397,7 @@ async function acceptChallenge(challengeId) {
       data,
       error
     } = await db.rpc(
-      "accept_gvg_challenge",
+      "accept_gvg_challenge_v2",
       {
         p_challenge_id: challengeId
       }
