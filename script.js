@@ -68,9 +68,9 @@ challenge_results
 ============================================================
 */
 
-const SUPABASE_URL = 'PASTE_YOUR_SUPABASE_PROJECT_URL_HERE';
+const SUPABASE_URL = 'https://ypnpeiglbiycbexpeibb.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY =
-  'PASTE_YOUR_SUPABASE_PUBLISHABLE_OR_ANON_KEY_HERE';
+  'sb_publishable_5ei0IhM1tQ15u5pAIIavhQ_alE9O3bl';
 
 const WHATSAPP_NOTIFY_ENDPOINT = '';
 
