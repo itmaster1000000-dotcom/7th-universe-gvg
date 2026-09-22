@@ -1,44 +1,19 @@
 /*
   7TH UNIVERSE GVG
-  Frontend for current index.html + current Supabase schema.
-
-  IMPORTANT:
-  1) ONLY use Supabase Project URL + publishable/anon key here.
-  2) NEVER put a service_role / secret key in this file.
-  3) Existing logged-in Auth users can register a guild.
+  Public frontend + Supabase JS v2.
+  NEVER put a service_role/secret key here.
 */
 
-const SUPABASE_URL =
-  'https://ypnpeiglbiycbexpeibb.supabase.co';
-
-const SUPABASE_PUBLISHABLE_KEY =
-  'sb_publishable_5ei0IhM1tQ15u5pAIIavhQ_alE9O3bl';
-
+const SUPABASE_URL = 'PASTE_YOUR_SUPABASE_PROJECT_URL_HERE';
+const SUPABASE_PUBLISHABLE_KEY = 'PASTE_YOUR_SUPABASE_PUBLISHABLE_OR_ANON_KEY_HERE';
 const WHATSAPP_NOTIFY_ENDPOINT = '';
 
 const { createClient } = window.supabase;
-
-const db = createClient(
-  SUPABASE_URL,
-  SUPABASE_PUBLISHABLE_KEY
-);
+const db = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
 const TZ = 'Asia/Karachi';
-
-const WEAPONS = [
-  'Desert',
-  'M1887',
-  'M1887X',
-  'M1014',
-  'Woodpecker'
-];
-
-const SKILLS = [
-  'DJ Alok',
-  'Tatsuya',
-  'Koda'
-];
-
+const WEAPONS = ['Desert', 'M1887', 'M1887X', 'M1014', 'Woodpecker'];
+const SKILLS = ['DJ Alok', 'Tatsuya', 'Koda'];
 const BUCKET = 'result-images';
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
@@ -53,12 +28,7 @@ const state = {
   adminResults: []
 };
 
-const $ = (id) =>
-  document.getElementById(id);
-
-/* ============================================================
-   GENERAL HELPERS
-   ============================================================ */
+const $ = (id) => document.getElementById(id);
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -70,8 +40,7 @@ function escapeHtml(value) {
 }
 
 function normalizeContact(raw) {
-  let n = String(raw || '')
-    .replace(/\D/g, '');
+  let n = String(raw || '').replace(/\D/g, '');
 
   if (n.startsWith('00')) {
     n = n.slice(2);
@@ -91,114 +60,62 @@ function normalizeGuild(raw) {
     .toLowerCase();
 }
 
-function displayGuildName(raw) {
-  const value = String(raw || '').trim();
-
-  if (!value) {
-    return 'Unknown Guild';
-  }
-
-  return value.toUpperCase();
-}
-
 function waNumber(raw) {
   return normalizeContact(raw);
 }
 
 function formatTime(value) {
-  if (!value) {
-    return '--:--';
-  }
+  if (!value) return '--:--';
 
-  const parts =
-    String(value).split(':');
+  const [h, m] = String(value).split(':');
 
-  const hour24 =
-    Number(parts[0] || 0);
+  let hour = Number(h);
+  hour = hour % 12 || 12;
 
-  const minute =
-    String(parts[1] || '00');
-
-  const hour12 =
-    hour24 % 12 || 12;
-
-  const suffix =
-    hour24 >= 12 ? 'PM' : 'AM';
-
-  return `${hour12}:${minute} ${suffix}`;
+  return `${hour}:${m || '00'} ${Number(h) >= 12 ? 'PM' : 'AM'}`;
 }
 
 function formatDateTime(value) {
-  if (!value) {
-    return '-';
-  }
+  if (!value) return '-';
 
-  try {
-    return new Intl.DateTimeFormat(
-      'en-PK',
-      {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-        timeZone: TZ
-      }
-    ).format(new Date(value));
-  } catch {
-    return String(value);
-  }
+  return new Intl.DateTimeFormat('en-PK', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+    timeZone: TZ
+  }).format(new Date(value));
 }
 
-function showStatus(
-  id,
-  type,
-  message
-) {
+function showStatus(id, type, message) {
   const el = $(id);
 
-  if (!el) {
-    return;
-  }
+  if (!el) return;
 
-  el.className =
-    `status show ${type}`;
-
-  el.textContent =
-    message;
+  el.className = `status show ${type}`;
+  el.textContent = message;
 }
 
 function clearStatus(id) {
   const el = $(id);
 
-  if (!el) {
-    return;
+  if (el) {
+    el.className = 'status';
+    el.textContent = '';
   }
-
-  el.className = 'status';
-  el.textContent = '';
 }
 
 function currentPakistanParts() {
-  const formatter =
-    new Intl.DateTimeFormat(
-      'en-GB',
-      {
-        timeZone: TZ,
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
-      }
-    );
+  const fmt = new Intl.DateTimeFormat('en-GB', {
+    timeZone: TZ,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
 
-  const parts =
-    Object.fromEntries(
-      formatter
-        .formatToParts(new Date())
-        .map(
-          (part) => [
-            part.type,
-            part.value
-          ]
-        )
-    );
+  const parts = Object.fromEntries(
+    fmt
+      .formatToParts(new Date())
+      .map((p) => [p.type, p.value])
+  );
 
   return {
     hour: Number(parts.hour),
@@ -207,318 +124,166 @@ function currentPakistanParts() {
 }
 
 function postingWindowOpen() {
-  const {
-    hour,
-    minute
-  } = currentPakistanParts();
+  const { hour, minute } = currentPakistanParts();
 
-  const totalMinutes =
-    hour * 60 + minute;
+  const mins = hour * 60 + minute;
 
-  return (
-    totalMinutes >= 600 &&
-    totalMinutes < 1380
-  );
+  return mins >= 600 && mins < 1380;
 }
 
 function selectedValues(selector) {
   return [
-    ...document.querySelectorAll(
-      `${selector}:checked`
-    )
-  ].map(
-    (input) => input.value
-  );
+    ...document.querySelectorAll(selector + ':checked')
+  ].map((x) => x.value);
 }
 
-function setButtonBusy(
-  id,
-  busy,
-  text
-) {
-  const button = $(id);
+function setButtonBusy(id, busy, text) {
+  const b = $(id);
 
-  if (!button) {
-    return;
-  }
+  if (!b) return;
 
-  button.disabled = busy;
+  b.disabled = busy;
 
   if (busy) {
-    button.dataset.oldText =
-      button.textContent;
-
-    button.innerHTML =
-      '<span class="loader"></span>';
+    b.dataset.oldText = b.textContent;
+    b.innerHTML = '<span class="loader"></span>';
   } else {
-    button.textContent =
+    b.textContent =
       text ||
-      button.dataset.oldText ||
+      b.dataset.oldText ||
       'Submit';
   }
 }
 
-/* ============================================================
-   TIME PICKER
-   ============================================================ */
-
 function initTimePicker() {
-  const hour =
-    $('time-hour');
+  $('time-hour').innerHTML = Array.from(
+    { length: 12 },
+    (_, i) =>
+      `<option value="${i + 1}">
+        ${String(i + 1).padStart(2, '0')}
+      </option>`
+  ).join('');
 
-  const minute =
-    $('time-minute');
+  $('time-minute').innerHTML = Array.from(
+    { length: 60 },
+    (_, i) =>
+      `<option value="${String(i).padStart(2, '0')}">
+        ${String(i).padStart(2, '0')}
+      </option>`
+  ).join('');
 
-  const ampm =
-    $('time-ampm');
+  const now = currentPakistanParts();
 
-  if (!hour || !minute || !ampm) {
-    return;
-  }
+  let h = now.hour % 12 || 12;
 
-  hour.innerHTML =
-    Array.from(
-      { length: 12 },
-      (_, index) => {
-        const value =
-          index + 1;
+  $('time-hour').value = String(h);
 
-        return `
-          <option value="${value}">
-            ${String(value).padStart(2, '0')}
-          </option>
-        `;
-      }
-    ).join('');
+  $('time-minute').value =
+    String(now.minute).padStart(2, '0');
 
-  minute.innerHTML =
-    Array.from(
-      { length: 60 },
-      (_, index) => {
-        const value =
-          String(index).padStart(
-            2,
-            '0'
-          );
-
-        return `
-          <option value="${value}">
-            ${value}
-          </option>
-        `;
-      }
-    ).join('');
-
-  const now =
-    currentPakistanParts();
-
-  const hour12 =
-    now.hour % 12 || 12;
-
-  hour.value =
-    String(hour12);
-
-  minute.value =
-    String(now.minute)
-      .padStart(
-        2,
-        '0'
-      );
-
-  ampm.value =
-    now.hour >= 12
-      ? 'PM'
-      : 'AM';
+  $('time-ampm').value =
+    now.hour >= 12 ? 'PM' : 'AM';
 }
 
 function getTime24() {
-  let hour =
-    Number(
-      $('time-hour')?.value ||
-      12
-    );
-
-  const minute =
-    Number(
-      $('time-minute')?.value ||
-      0
-    );
-
-  const ampm =
-    $('time-ampm')?.value ||
-    'AM';
-
-  if (
-    ampm === 'PM' &&
-    hour !== 12
-  ) {
-    hour += 12;
-  }
-
-  if (
-    ampm === 'AM' &&
-    hour === 12
-  ) {
-    hour = 0;
-  }
-
-  return (
-    `${String(hour).padStart(2, '0')}:` +
-    `${String(minute).padStart(2, '0')}:00`
+  let h = Number(
+    $('time-hour').value || 12
   );
+
+  const m = Number(
+    $('time-minute').value || 0
+  );
+
+  const ap = $('time-ampm').value;
+
+  if (ap === 'PM' && h !== 12) {
+    h += 12;
+  }
+
+  if (ap === 'AM' && h === 12) {
+    h = 0;
+  }
+
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`;
 }
 
-/* ============================================================
-   CHALLENGE DISPLAY
-   ============================================================ */
-
-function challengeMessage(challenge) {
+function challengeMessage(ch) {
   const weapons =
-    Array.isArray(
-      challenge.weapons
-    ) &&
-    challenge.weapons.length
-      ? challenge.weapons.join(', ')
+    Array.isArray(ch.weapons) && ch.weapons.length
+      ? ch.weapons.join(', ')
       : 'Not specified';
 
   const skills =
-    Array.isArray(
-      challenge.active_skills
-    ) &&
-    challenge.active_skills.length
-      ? challenge.active_skills.join(', ')
+    Array.isArray(ch.active_skills) &&
+    ch.active_skills.length
+      ? ch.active_skills.join(', ')
       : 'None';
 
   return [
     '7TH UNIVERSE GVG',
     '',
-    `Guild: ${
-      challenge.guild_name ||
-      'Unknown Guild'
-    }`,
-    `Time: ${
-      formatTime(
-        challenge.challenge_time
-      )
-    }`,
+    `Guild: ${ch.guild_name}`,
+    `Time: ${formatTime(ch.challenge_time)}`,
     `Weapons: ${weapons}`,
     `Active Skills: ${skills}`,
-    `Contact: ${
-      challenge.contact ||
-      'Not available'
-    }`
+    `Contact: ${ch.contact}`
   ].join('\n');
 }
 
-function openWhatsApp(challenge) {
-  const number =
-    waNumber(
-      challenge?.contact
-    );
-
-  if (!number) {
-    alert(
-      'No valid contact number is available.'
-    );
-    return;
-  }
-
-  const url =
-    `https://wa.me/${number}` +
-    `?text=${encodeURIComponent(
-      challengeMessage(challenge)
-    )}`;
-
+function openWhatsApp(ch) {
   window.open(
-    url,
+    `https://wa.me/${waNumber(ch.contact)}?text=${encodeURIComponent(
+      challengeMessage(ch)
+    )}`,
     '_blank',
     'noopener,noreferrer'
   );
 }
 
-async function notifyWhatsApp(
-  challenge
-) {
-  if (!WHATSAPP_NOTIFY_ENDPOINT) {
-    return;
-  }
+async function notifyWhatsApp(ch) {
+  if (!WHATSAPP_NOTIFY_ENDPOINT) return;
 
   try {
-    await fetch(
-      WHATSAPP_NOTIFY_ENDPOINT,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type':
-            'application/json'
-        },
-        body: JSON.stringify({
-          type: 'new_challenge',
-          challenge
-        })
-      }
-    );
-  } catch (error) {
+    await fetch(WHATSAPP_NOTIFY_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        type: 'new_challenge',
+        challenge: ch
+      })
+    });
+  } catch (err) {
     console.warn(
-      'WhatsApp notification failed:',
-      error
+      'WhatsApp notification failed',
+      err
     );
   }
 }
 
-function renderChallengeCard(
-  challenge
-) {
+function renderChallengeCard(ch) {
   const weapons =
-    Array.isArray(
-      challenge.weapons
-    ) &&
-    challenge.weapons.length
-      ? challenge.weapons
+    Array.isArray(ch.weapons) &&
+    ch.weapons.length
+      ? ch.weapons
           .map(
-            (weapon) =>
-              `<span class="pill">${escapeHtml(
-                weapon
-              )}</span>`
+            (w) =>
+              `<span class="pill">${escapeHtml(w)}</span>`
           )
           .join('')
-      : `
-          <span class="pill">
-            Not specified
-          </span>
-        `;
+      : '<span class="pill">Not specified</span>';
 
   const skills =
-    Array.isArray(
-      challenge.active_skills
-    ) &&
-    challenge.active_skills.length
-      ? challenge.active_skills
+    Array.isArray(ch.active_skills) &&
+    ch.active_skills.length
+      ? ch.active_skills
           .map(
-            (skill) =>
-              `<span class="pill">${escapeHtml(
-                skill
-              )}</span>`
+            (s) =>
+              `<span class="pill">${escapeHtml(s)}</span>`
           )
           .join('')
-      : `
-          <span class="pill">
-            None
-          </span>
-        `;
-
-  const safeChallenge =
-    JSON.stringify(
-      challenge
-    )
-      .replace(
-        /\\/g,
-        '\\\\'
-      )
-      .replace(
-        /'/g,
-        '&#039;'
-      );
+      : '<span class="pill">None</span>';
 
   return `
     <div class="card">
@@ -526,17 +291,13 @@ function renderChallengeCard(
       <div class="row">
 
         <div>
-
           <div class="challenge-name">
-            ${escapeHtml(
-              challenge.guild_name
-            )}
+            ${escapeHtml(ch.guild_name)}
           </div>
 
           <div class="challenge-meta">
             Open challenge • no date
           </div>
-
         </div>
 
         <span class="badge badge-open">
@@ -551,28 +312,22 @@ function renderChallengeCard(
           MATCH TIME
         </span>
 
-        <div
-          style="
-            font-size:19px;
-            font-weight:900;
-            margin-top:2px
-          "
-        >
+        <div style="
+          font-size:19px;
+          font-weight:900;
+          margin-top:2px
+        ">
           ${escapeHtml(
-            formatTime(
-              challenge.challenge_time
-            )
+            formatTime(ch.challenge_time)
           )}
         </div>
 
       </div>
 
       <div class="pill-wrap">
-
         <strong class="small">
           WEAPONS
         </strong>
-
       </div>
 
       <div
@@ -583,11 +338,9 @@ function renderChallengeCard(
       </div>
 
       <div class="pill-wrap">
-
         <strong class="small">
           SKILLS
         </strong>
-
       </div>
 
       <div
@@ -602,35 +355,25 @@ function renderChallengeCard(
         <a
           class="contact"
           href="tel:+${escapeHtml(
-            waNumber(
-              challenge.contact
-            )
+            waNumber(ch.contact)
           )}"
         >
-          ${escapeHtml(
-            challenge.contact
-          )}
+          ${escapeHtml(ch.contact)}
         </a>
 
         <button
           class="btn btn-small"
-          onclick='openWhatsApp(
-            ${safeChallenge}
-          )'
+          onclick='openWhatsApp(${JSON.stringify(ch).replace(
+            /'/g,
+            '&#039;'
+          )})'
         >
           WhatsApp
         </button>
 
         <button
           class="btn btn-small btn-primary"
-          onclick='copyText(
-            ${JSON.stringify(
-              String(
-                challenge.contact ||
-                ''
-              )
-            )}
-          )'
+          onclick='copyText(${JSON.stringify(ch.contact)})'
         >
           Copy Number
         </button>
@@ -642,975 +385,822 @@ function renderChallengeCard(
 }
 
 function renderChallengeLists() {
-  const searchA =
-    $('challenge-search')
-      ?.value
-      ?.trim()
-      .toLowerCase() ||
+  const a =
+    $('challenge-search')?.value?.trim().toLowerCase() ||
+    $('challenge-search-2')?.value?.trim().toLowerCase() ||
     '';
 
-  const searchB =
-    $('challenge-search-2')
-      ?.value
-      ?.trim()
-      .toLowerCase() ||
-    '';
+  const list = state.challenges.filter(
+    (ch) =>
+      !a ||
+      String(ch.guild_name || '')
+        .toLowerCase()
+        .includes(a)
+  );
 
-  const search =
-    searchA || searchB;
+  const html = list.length
+    ? list.map(renderChallengeCard).join('')
+    : '<div class="empty">No open challenges found.</div>';
 
-  const list =
-    state.challenges.filter(
-      (challenge) => {
-        const name =
-          String(
-            challenge.guild_name ||
-            ''
-          ).toLowerCase();
-
-        return (
-          !search ||
-          name.includes(search)
-        );
-      }
-    );
-
-  const html =
-    list.length
-      ? list
-          .map(
-            renderChallengeCard
-          )
-          .join('')
-      : `
-          <div class="empty">
-            No open challenges found.
-          </div>
-        `;
-
-  if (
-    $('home-challenge-list')
-  ) {
-    $('home-challenge-list')
-      .innerHTML = html;
+  if ($('home-challenge-list')) {
+    $('home-challenge-list').innerHTML = html;
   }
 
-  if (
-    $('challenge-list')
-  ) {
-    $('challenge-list')
-      .innerHTML = html;
+  if ($('challenge-list')) {
+    $('challenge-list').innerHTML = html;
   }
 }
 
 async function copyText(text) {
-  const value =
-    String(text || '');
-
   try {
-    await navigator.clipboard
-      .writeText(value);
-
-    alert(
-      'Contact number copied.'
+    await navigator.clipboard.writeText(
+      String(text)
     );
+
+    alert('Contact number copied.');
   } catch {
-    alert(value);
+    alert(String(text));
   }
 }
-
-/* ============================================================
-   CHALLENGE DATABASE MAPPING
-   ============================================================ */
-
-async function buildChallengeDisplayRows(
-  rows
-) {
-  const sourceRows =
-    Array.isArray(rows)
-      ? rows
-      : [];
-
-  const guildIds =
-    [
-      ...new Set(
-        sourceRows
-          .map(
-            (row) =>
-              row.challenger_guild_id
-          )
-          .filter(Boolean)
-      )
-    ];
-
-  const guildMap =
-    new Map();
-
-  if (guildIds.length) {
-    const {
-      data,
-      error
-    } =
-      await db
-        .from(
-          'guild_registry'
-        )
-        .select(
-          `
-            id,
-            guild_name,
-            contact,
-            approval_status,
-            is_banned,
-            ban_until
-          `
-        )
-        .in(
-          'id',
-          guildIds
-        );
-
-    if (
-      !error &&
-      Array.isArray(data)
-    ) {
-      for (
-        const guild of data
-      ) {
-        guildMap.set(
-          guild.id,
-          guild
-        );
-      }
-    }
-  }
-
-  return sourceRows.map(
-    (row) => {
-      const registryGuild =
-        row.challenger_guild_id
-          ? guildMap.get(
-              row.challenger_guild_id
-            )
-          : null;
-
-      const fallbackName =
-        row.guild_name_normalized
-          ? displayGuildName(
-              row.guild_name_normalized
-            )
-          : 'Unknown Guild';
-
-      const fallbackContact =
-        row.contact_number ||
-        row.contact_normalized ||
-        registryGuild?.contact ||
-        '';
-
-      return {
-
-        id:
-          row.id,
-
-        challenge_code:
-          row.challenge_code ||
-          '',
-
-        challenger_leader_id:
-          row.challenger_leader_id ||
-          null,
-
-        challenger_guild_id:
-          row.challenger_guild_id ||
-          null,
-
-        opponent_guild_id:
-          row.opponent_guild_id ||
-          null,
-
-        challenge_everyone:
-          row.challenge_everyone ??
-          true,
-
-        match_time:
-          row.match_time ||
-          null,
-
-        weapons:
-          Array.isArray(
-            row.weapons
-          )
-            ? row.weapons
-            : [],
-
-        active_skills:
-          Array.isArray(
-            row.active_skills
-          )
-            ? row.active_skills
-            : [],
-
-        contact_number:
-          row.contact_number ||
-          '',
-
-        status:
-          row.status ||
-          'open',
-
-        created_at:
-          row.created_at ||
-          null,
-
-        accepted_by_leader_id:
-          row.accepted_by_leader_id ||
-          null,
-
-        accepted_by_guild_id:
-          row.accepted_by_guild_id ||
-          null,
-
-        accepted_at:
-          row.accepted_at ||
-          null,
-
-        user_id:
-          row.user_id ||
-          null,
-
-        guild_name_normalized:
-          row.guild_name_normalized ||
-          '',
-
-        contact_normalized:
-          row.contact_normalized ||
-          '',
-
-        completed_at:
-          row.completed_at ||
-          null,
-
-        /* UI aliases */
-
-        guild_name:
-          registryGuild?.guild_name ||
-          fallbackName,
-
-        challenge_time:
-          row.match_time ||
-          null,
-
-        contact:
-          registryGuild?.contact ||
-          fallbackContact
-
-      };
-    }
-  );
-}
-
-/* ============================================================
-   LOAD CHALLENGES
-   ============================================================ */
 
 async function loadChallenges() {
   try {
     const {
       data,
       error
-    } =
-      await db
-        .from(
-          'challenges'
-        )
-        .select(
-          `
-            id,
-            challenge_code,
-            challenger_leader_id,
-            challenger_guild_id,
-            opponent_guild_id,
-            challenge_everyone,
-            match_time,
-            weapons,
-            active_skills,
-            contact_number,
-            status,
-            created_at,
-            accepted_by_leader_id,
-            accepted_by_guild_id,
-            accepted_at,
-            user_id,
-            guild_name_normalized,
-            contact_normalized,
-            completed_at
-          `
-        )
-        .in(
-          'status',
-          [
-            'open',
-            'result_pending',
-            'completed'
-          ]
-        )
-        .order(
-          'created_at',
-          {
-            ascending:
-              false
-          }
-        )
-        .limit(100);
+    } = await db
+      .from('challenges')
+      .select(
+        'id,guild_name,challenge_time,weapons,active_skills,contact,status,created_at'
+      )
+      .eq('status', 'open')
+      .order('created_at', {
+        ascending: false
+      })
+      .limit(100);
 
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
 
-    state.challenges =
-      await buildChallengeDisplayRows(
-        data || []
-      );
+    state.challenges = data || [];
 
     renderChallengeLists();
-
     fillResultChallenges();
-
     updateStats();
+  } catch (err) {
+    console.error(err);
 
-  } catch (error) {
-
-    console.error(
-      'Challenge load failed:',
-      error
-    );
-
-    state.challenges = [];
-
-    if (
-      $('challenge-list')
-    ) {
-      $('challenge-list')
-        .innerHTML = `
-          <div class="empty">
-            Could not load challenges.
-          </div>
-        `;
-    }
-
-    if (
-      $('home-challenge-list')
-    ) {
-      $('home-challenge-list')
-        .innerHTML = `
-          <div class="empty">
-            Could not load challenges.
-          </div>
-        `;
+    if ($('challenge-list')) {
+      $('challenge-list').innerHTML =
+        '<div class="empty">Could not load challenges.</div>';
     }
   }
 }
 
-/* ============================================================
-   RESULTS
-   ============================================================ */
-
 async function loadResults() {
   try {
-
     const {
       data,
       error
-    } =
-      await db
-        .from(
-          'challenge_results'
-        )
-        .select(
-          `
-            id,
-            challenge_id,
-            winner_guild,
-            loser_guild,
-            score,
-            image_urls,
-            status,
-            created_at
-          `
-        )
-        .eq(
-          'status',
-          'approved'
-        )
-        .order(
-          'created_at',
-          {
-            ascending:
-              false
-          }
-        )
-        .limit(100);
+    } = await db
+      .from('challenge_results')
+      .select(
+        'id,challenge_id,winner_guild,loser_guild,score,image_urls,status,created_at'
+      )
+      .eq('status', 'approved')
+      .order('created_at', {
+        ascending: false
+      })
+      .limit(100);
 
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
 
-    state.results =
-      data || [];
+    state.results = data || [];
 
     renderResults();
-
     updateStats();
+  } catch (err) {
+    console.error(err);
 
-  } catch (error) {
-
-    console.error(
-      'Result load failed:',
-      error
-    );
-
-    if (
-      $('result-list')
-    ) {
-      $('result-list')
-        .innerHTML = `
-          <div class="empty">
-            Could not load results.
-          </div>
-        `;
+    if ($('result-list')) {
+      $('result-list').innerHTML =
+        '<div class="empty">Could not load results.</div>';
     }
   }
 }
 
 function renderResults() {
+  const html = state.results.length
+    ? state.results
+        .map(
+          (r) => `
+            <div class="card">
 
-  const html =
-    state.results.length
+              <div class="row">
 
-      ? state.results
-          .map(
-            (result) => `
-              <div class="card">
+                <div>
 
-                <div class="row">
-
-                  <div>
-
-                    <div class="challenge-name">
-
-                      ${escapeHtml(
-                        result.winner_guild
-                      )}
-
-                      <span class="muted">
-                        def.
-                      </span>
-
-                      ${escapeHtml(
-                        result.loser_guild
-                      )}
-
-                    </div>
-
-                    <div class="challenge-meta">
-                      ${escapeHtml(
-                        result.score
-                      )}
-                    </div>
-
+                  <div class="challenge-name">
+                    ${escapeHtml(r.winner_guild)}
+                    <span class="muted">def.</span>
+                    ${escapeHtml(r.loser_guild)}
                   </div>
 
-                  <span class="badge badge-approved">
-                    APPROVED
-                  </span>
+                  <div class="challenge-meta">
+                    ${escapeHtml(r.score)}
+                  </div>
 
                 </div>
 
-                ${
-                  Array.isArray(
-                    result.image_urls
-                  ) &&
-                  result.image_urls.length
+                <span class="badge badge-approved">
+                  APPROVED
+                </span>
 
-                    ? `
-  
-<div class="image-grid">
+              </div>
 
-  ${result.image_urls
-    .slice(0, 2)
-    .map(
-      (url) => `
-        <a
-          href="${escapeHtml(
-            url
-          )}"
-          target="_blank"
-          rel="noopener"
-        >
+              ${
+                Array.isArray(r.image_urls) &&
+                r.image_urls.length
+                  ? `
+                    <div class="image-grid">
 
-          <img
-            src="${escapeHtml(
-              url
-            )}"
-            alt="Result proof"
-          >
+                      ${r.image_urls
+                        .slice(0, 2)
+                        .map(
+                          (u) => `
+                            <a
+                              href="${escapeHtml(u)}"
+                              target="_blank"
+                              rel="noopener"
+                            >
+                              <img
+                                src="${escapeHtml(u)}"
+                                alt="Result proof"
+                              >
+                            </a>
+                          `
+                        )
+                        .join('')}
 
-        </a>
-      `
-    )
-    .join('')}
+                    </div>
+                  `
+                  : ''
+              }
 
-</div>
-`
+            </div>
+          `
+        )
+        .join('')
+    : '<div class="empty">No approved results yet.</div>';
 
-: ''
+  $('result-list').innerHTML = html;
 }
 
-</div>
-`
-)
-.join('')
+function fillResultChallenges() {
+  const sel = $('result-challenge');
 
-: `
-    <div class="empty">
-      No approved results yet.
-    </div>
-  `;
+  if (!sel) return;
 
-if (
-  $('result-list')
-) {
-  $('result-list')
-    .innerHTML = html;
+  const current = sel.value;
+
+  const open = state.challenges.filter(
+    (c) => c.status === 'open'
+  );
+
+  sel.innerHTML =
+    '<option value="">Select an open challenge</option>' +
+    open
+      .map(
+        (c) =>
+          `<option value="${c.id}">
+            ${escapeHtml(c.guild_name)}
+            — ${escapeHtml(formatTime(c.challenge_time))}
+          </option>`
+      )
+      .join('');
+
+  if (open.some((c) => c.id === current)) {
+    sel.value = current;
+  }
 }
-
-/* ============================================================
-   STATS
-   ============================================================ */
 
 async function updateStats() {
-
   try {
-
     const {
       data,
       error
-    } =
-      await db.rpc(
-        'get_gvg_stats'
+    } = await db.rpc('get_gvg_stats');
+
+    if (error) throw error;
+
+    const s = data?.[0] || {};
+
+    $('stat-open').textContent = String(
+      s.open_challenges ??
+      state.challenges.length ??
+      0
+    );
+
+    $('stat-results').textContent = String(
+      s.today_result_submissions ?? 0
+    );
+
+    $('stat-approved-results').textContent =
+      String(
+        s.today_approved_results ?? 0
       );
 
-    if (error) {
-      throw error;
-    }
-
-    const stats =
-      data?.[0] || {};
-
-    if (
-      $('stat-open')
-    ) {
-      $('stat-open')
-        .textContent =
-        String(
-          stats.open_challenges ??
-          state.challenges.length ??
-          0
-        );
-    }
-
-    if (
-      $('stat-results')
-    ) {
-      $('stat-results')
-        .textContent =
-        String(
-          stats.today_result_submissions ??
-          0
-        );
-    }
-
-    if (
-      $('stat-approved-results')
-    ) {
-      $('stat-approved-results')
-        .textContent =
-        String(
-          stats.today_approved_results ??
-          0
-        );
-    }
-
-    if (
-      $('stat-guilds')
-    ) {
-      $('stat-guilds')
-        .textContent =
-        String(
-          stats.approved_guilds ??
-          0
-        );
-    }
-
-  } catch (error) {
-
+    $('stat-guilds').textContent = String(
+      s.approved_guilds ?? 0
+    );
+  } catch (err) {
     console.warn(
-      'Stats failed:',
-      error
+      'Stats failed',
+      err
     );
   }
 }
 
-/* ============================================================
-   GUILD STATUS
-   ============================================================ */
+async function handleChallengeSubmit(e) {
+  e.preventDefault();
 
-function guildIsApproved() {
+  clearStatus('challenge-status');
 
-  const guild =
-    state.guild;
+  if (!postingWindowOpen()) {
+    showStatus(
+      'challenge-status',
+      'error',
+      'Challenges can only be posted from 10:00 AM until before 11:00 PM Pakistan time.'
+    );
+
+    return;
+  }
+
+  if (!guildIsApproved()) {
+    showStatus(
+      'challenge-status',
+      'error',
+      'Only an admin-approved, non-banned guild account can post challenges.'
+    );
+
+    navigate('auth', true);
+
+    return;
+  }
+
+  const weapons = selectedValues(
+    '#weapon-options input'
+  );
+
+  const skills = selectedValues(
+    '#skill-options input'
+  );
+
+  if (!weapons.length) {
+    showStatus(
+      'challenge-status',
+      'error',
+      'Select at least one weapon.'
+    );
+
+    return;
+  }
+
+  setButtonBusy(
+    'challenge-submit',
+    true
+  );
+
+  try {
+    const {
+      data,
+      error
+    } = await db.rpc(
+      'submit_gvg_challenge',
+      {
+        p_challenge_time:
+          getTime24(),
+
+        p_weapons:
+          weapons,
+
+        p_active_skills:
+          skills
+      }
+    );
+
+    if (error) throw error;
+
+    const ch = Array.isArray(data)
+      ? data[0]
+      : data;
+
+    showStatus(
+      'challenge-status',
+      'ok',
+      'Challenge submitted successfully.'
+    );
+
+    e.target.reset();
+
+    initTimePicker();
+
+    await loadChallenges();
+
+    await notifyWhatsApp(ch);
+
+  } catch (err) {
+    console.error(err);
+
+    showStatus(
+      'challenge-status',
+      'error',
+      humanizeDbError(err)
+    );
+
+  } finally {
+    setButtonBusy(
+      'challenge-submit',
+      false,
+      'Confirm Challenge'
+    );
+  }
+}
+
+function humanizeDbError(err) {
+  const msg = String(
+    err?.message ||
+    err ||
+    'Request failed.'
+  );
 
   if (
-    !state.user ||
-    !guild
+    msg.includes('LOGIN_REQUIRED')
   ) {
+    return 'Please login to continue.';
+  }
+
+  if (
+    msg.includes('REGISTRATION')
+  ) {
+    return 'Register your guild first.';
+  }
+
+  if (
+    msg.includes('ALREADY_REGISTERED')
+  ) {
+    return 'This account already has a registered guild.';
+  }
+
+  if (
+    msg.includes('DUPLICATE_REGISTRATION')
+  ) {
+    return 'This guild name or contact number is already registered.';
+  }
+
+  if (
+    msg.includes('RESULT_ACTOR')
+  ) {
+    return 'Your logged-in guild must be one of the two guilds in the result.';
+  }
+
+  if (
+    msg.includes('APPROVAL')
+  ) {
+    return 'This guild is not approved yet. Ask an admin to approve/register it.';
+  }
+
+  if (
+    msg.includes('BAN_ACTIVE')
+  ) {
+    return 'This guild is currently banned.';
+  }
+
+  if (
+    msg.includes('BLOCKED')
+  ) {
+    return 'This guild or contact number is currently blocked.';
+  }
+
+  if (
+    msg.includes('DAILY_CHALLENGE_LIMIT')
+  ) {
+    return 'This guild has reached its 10-challenge daily limit.';
+  }
+
+  if (
+    msg.includes('COOLDOWN')
+  ) {
+    return 'Please wait 15 minutes before posting another challenge for this guild.';
+  }
+
+  if (
+    msg.includes('TIME_WINDOW')
+  ) {
+    return 'Challenge posting is open only from 10:00 AM to before 11:00 PM Pakistan time.';
+  }
+
+  if (
+    msg.includes('DAILY_RESULT_LIMIT')
+  ) {
+    return 'This guild has reached the 5-result daily limit.';
+  }
+
+  if (
+    msg.includes('IMAGE_LIMIT')
+  ) {
+    return 'Maximum 2 pictures are allowed per result.';
+  }
+
+  if (
+    msg.includes('RESULT_MATCH')
+  ) {
+    return 'The selected challenge must belong to one of the two guilds in the result.';
+  }
+
+  if (
+    msg.includes('RESULT_GUILD')
+  ) {
+    return 'Both result guilds must be approved and not banned.';
+  }
+
+  if (
+    msg.includes('RESULT_EXISTS')
+  ) {
+    return 'This challenge already has a result submission.';
+  }
+
+  return (
+    msg
+      .replace(/^.*?P0001.*?:/, '')
+      .trim() ||
+    msg
+  );
+}
+
+async function uploadResultImages(files) {
+  const selected = [...files].filter(Boolean);
+
+  if (selected.length > 2) {
+    throw new Error(
+      'IMAGE_LIMIT: Maximum 2 pictures are allowed.'
+    );
+  }
+
+  const urls = [];
+
+  for (const file of selected) {
+
+    if (file.size > MAX_IMAGE_BYTES) {
+      throw new Error(
+        'Each image must be 5 MB or smaller.'
+      );
+    }
+
+    const ext = (
+      file.name.split('.').pop() ||
+      'jpg'
+    ).toLowerCase();
+
+    const uid = state.user?.id;
+
+    if (!uid) {
+      throw new Error(
+        'LOGIN_REQUIRED: Please login to upload result pictures.'
+      );
+    }
+
+    const path =
+      `results/${uid}/${crypto.randomUUID()}.${ext}`;
+
+    const {
+      error
+    } = await db.storage
+      .from(BUCKET)
+      .upload(
+        path,
+        file,
+        {
+          upsert: false,
+          contentType: file.type
+        }
+      );
+
+    if (error) throw error;
+
+    const {
+      data
+    } = db.storage
+      .from(BUCKET)
+      .getPublicUrl(path);
+
+    urls.push(data.publicUrl);
+  }
+
+  return urls;
+}
+
+async function handleResultSubmit(e) {
+  e.preventDefault();
+
+  clearStatus('result-status');
+
+  if (!guildIsApproved()) {
+    showStatus(
+      'result-status',
+      'error',
+      'Only an admin-approved, non-banned guild account can submit results.'
+    );
+
+    navigate('auth', true);
+
+    return;
+  }
+
+  setButtonBusy(
+    'result-submit',
+    true
+  );
+
+  try {
+
+    const files = [
+      $('result-image-1').files[0],
+      $('result-image-2').files[0]
+    ].filter(Boolean);
+
+    if (files.length > 2) {
+      throw new Error(
+        'IMAGE_LIMIT: Maximum 2 pictures are allowed.'
+      );
+    }
+
+    const challengeId =
+      $('result-challenge').value;
+
+    if (!challengeId) {
+      throw new Error(
+        'Select an open challenge.'
+      );
+    }
+
+    const winner =
+      $('winner-guild').value.trim();
+
+    const loser =
+      $('loser-guild').value.trim();
+
+    const score =
+      $('score').value.trim();
+
+    if (!winner || !loser || !score) {
+      throw new Error(
+        'Winner guild, loser guild and score are required.'
+      );
+    }
+
+    const imageUrls =
+      await uploadResultImages(files);
+
+    const {
+      error
+    } = await db.rpc(
+      'submit_gvg_result',
+      {
+        p_challenge_id:
+          challengeId,
+
+        p_winner_guild:
+          winner,
+
+        p_loser_guild:
+          loser,
+
+        p_score:
+          score,
+
+        p_image_urls:
+          imageUrls
+      }
+    );
+
+    if (error) throw error;
+
+    showStatus(
+      'result-status',
+      'ok',
+      'Result submitted. It will be published after admin approval.'
+    );
+
+    e.target.reset();
+
+    await loadChallenges();
+    await loadResults();
+
+  } catch (err) {
+    console.error(err);
+
+    showStatus(
+      'result-status',
+      'error',
+      humanizeDbError(err)
+    );
+
+  } finally {
+    setButtonBusy(
+      'result-submit',
+      false,
+      'Submit Result for Approval'
+    );
+  }
+}
+
+function guildIsApproved() {
+  const g = state.guild;
+
+  if (!state.user || !g) {
     return false;
   }
 
   const banActive =
-    guild.is_banned === true ||
-    (
-      guild.ban_until &&
-      new Date(
-        guild.ban_until
-      ) > new Date()
+    !!(
+      g.is_banned ||
+      (
+        g.ban_until &&
+        new Date(g.ban_until) > new Date()
+      )
     );
 
   return (
-    guild.approval_status ===
-      'approved' &&
+    g.approval_status === 'approved' &&
     !banActive
   );
 }
 
-function guildStatusText(
-  guild
-) {
-
-  if (!guild) {
-    return (
-      'No guild is registered with this account. ' +
-      'Complete Guild Registration below.'
-    );
+function guildStatusText(g) {
+  if (!g) {
+    return 'No guild is registered with this account.';
   }
 
-  const banned =
-    guild.is_banned === true ||
-    (
-      guild.ban_until &&
-      new Date(
-        guild.ban_until
-      ) > new Date()
+    const banned =
+    !!(
+      g.is_banned ||
+      (
+        g.ban_until &&
+        new Date(g.ban_until) > new Date()
+      )
     );
 
   if (banned) {
-
-    return guild.ban_until
-
-      ? `BANNED until ${
-          formatDateTime(
-            guild.ban_until
-          )
-        }.`
-
+    return g.ban_until
+      ? `BANNED until ${formatDateTime(g.ban_until)}.`
       : 'BANNED permanently.';
   }
 
   if (
-    guild.approval_status ===
-    'approved'
+    g.approval_status === 'approved'
   ) {
-    return (
-      'Your guild is approved. ' +
-      'Challenge and Results are unlocked.'
-    );
+    return 'Your guild is approved. Challenge and Results are unlocked.';
   }
 
   if (
-    guild.approval_status ===
-    'rejected'
+    g.approval_status === 'rejected'
   ) {
-    return (
-      'Your guild registration was rejected by an admin.'
-    );
+    return 'Your guild registration was rejected by an admin.';
   }
 
-  return (
-    'Your guild registration is pending admin approval.'
-  );
+  return 'Your guild registration is pending admin approval.';
 }
 
 function updateChallengeIdentity() {
-
-  const name =
-    $('guild-name');
-
-  const contact =
-    $('contact');
+  const name = $('guild-name');
+  const contact = $('contact');
 
   if (name) {
     name.value =
-      state.guild?.guild_name ||
-      '';
+      state.guild?.guild_name || '';
   }
 
   if (contact) {
     contact.value =
-      state.guild?.contact ||
-      '';
-  }
-}
-
-function syncRegistrationForm() {
-
-  const email =
-    $('guild-register-email');
-
-  const password =
-    $('guild-register-password');
-
-  if (!email) {
-    return;
-  }
-
-  if (state.user) {
-
-    email.value =
-      state.user.email ||
-      '';
-
-    email.readOnly =
-      true;
-
-    if (password) {
-
-      password.required =
-        false;
-
-      password.placeholder =
-        'Password not required when already logged in';
-
-    }
-
-  } else {
-
-    email.readOnly =
-      false;
-
-    if (password) {
-
-      password.required =
-        true;
-
-      password.placeholder =
-        'Minimum 8 characters';
-    }
+      state.guild?.contact || '';
   }
 }
 
 function applyAuthUI() {
-
   const approved =
     guildIsApproved();
 
   document
-    .querySelectorAll(
-      '.auth-required'
-    )
-    .forEach(
-      (element) => {
-        element.classList.toggle(
-          'hidden',
-          !approved
-        );
-      }
+    .querySelectorAll('.auth-required')
+    .forEach((el) =>
+      el.classList.toggle(
+        'hidden',
+        !approved
+      )
     );
 
-  if (
-    $('nav-auth')
-  ) {
-    $('nav-auth')
-      .classList.toggle(
-        'hidden',
-        !!state.user
-      );
+  $('nav-auth')?.classList.toggle(
+    'hidden',
+    !!state.user
+  );
+
+  $('nav-logout')?.classList.toggle(
+    'hidden',
+    !state.user
+  );
+
+  $('guild-account-card')?.classList.toggle(
+    'hidden',
+    !state.user
+  );
+
+  if ($('guild-account-info')) {
+    $('guild-account-info').textContent =
+      state.user?.email || '';
   }
 
-  if (
-    $('nav-logout')
-  ) {
-    $('nav-logout')
-      .classList.toggle(
-        'hidden',
-        !state.user
-      );
-  }
-
-  if (
-    $('guild-account-card')
-  ) {
-    $('guild-account-card')
-      .classList.toggle(
-        'hidden',
-        !state.user
-      );
-  }
-
-  if (
-    $('guild-account-info')
-  ) {
-    $('guild-account-info')
-      .textContent =
-      state.user?.email ||
-      '';
-  }
-
-  if (
-    $('guild-account-badge')
-  ) {
-
-    const badge =
-      $('guild-account-badge');
-
-    badge.textContent =
+  if ($('guild-account-badge')) {
+    $('guild-account-badge').textContent =
       state.guild
-
         ? String(
-            state.guild
-              .approval_status ||
+            state.guild.approval_status ||
             ''
           ).toUpperCase()
-
         : 'NOT REGISTERED';
 
-    badge.className =
+    $('guild-account-badge').className =
       `badge ${
         approved
-
           ? 'badge-approved'
-
-          : state.guild
-              ?.approval_status ===
+          : state.guild?.approval_status ===
             'rejected'
-
           ? 'badge-rejected'
-
           : 'badge-pending'
       }`;
   }
 
-  if (
-    $('guild-account-message')
-  ) {
-    $('guild-account-message')
-      .textContent =
-      guildStatusText(
-        state.guild
+  if ($('guild-account-message')) {
+    $('guild-account-message').innerHTML =
+      escapeHtml(
+        guildStatusText(
+          state.guild
+        )
       );
   }
 
   updateChallengeIdentity();
 
-  syncRegistrationForm();
-
-  const activePage =
+  const active =
     document
-      .querySelector(
-        '.page.active'
-      )
+      .querySelector('.page.active')
       ?.id
-      ?.replace(
-        'page-',
-        ''
-      );
+      ?.replace('page-', '');
 
   if (
-    ['challenge', 'results']
-      .includes(activePage) &&
+    ['challenge', 'results'].includes(
+      active
+    ) &&
     !approved
   ) {
-    navigate(
-      'auth',
-      true
-    );
+    navigate('auth', true);
   }
 }
 
-/* ============================================================
-   LOAD MY GUILD
-   ============================================================ */
-
 async function loadMyGuild() {
-
   state.guild = null;
 
   if (!state.user) {
-    syncRegistrationForm();
+    applyAuthUI();
     return null;
   }
 
   const {
     data,
     error
-  } =
-    await db
-      .from(
-        'guild_registry'
-      )
-      .select(
-        `
-          id,
-          user_id,
-          guild_name,
-          contact,
-          approval_status,
-          is_banned,
-          ban_until,
-          ban_reason,
-          created_at,
-          updated_at
-        `
-      )
-      .eq(
-        'user_id',
-        state.user.id
-      )
-      .maybeSingle();
+  } = await db
+    .from('guild_registry')
+    .select(
+      'id,user_id,guild_name,contact,approval_status,is_banned,ban_until,ban_reason,created_at,updated_at'
+    )
+    .eq(
+      'user_id',
+      state.user.id
+    )
+    .maybeSingle();
 
-  if (error) {
-    throw error;
-  }
+  if (error) throw error;
 
-  state.guild =
-    data || null;
+  state.guild = data || null;
 
   return state.guild;
 }
 
-/* ============================================================
-   REFRESH AUTH
-   ============================================================ */
-
 async function refreshGuildAuth() {
-
   try {
 
     const {
-      data: {
-        user
-      }
-    } =
-      await db.auth.getUser();
+      data: { user }
+    } = await db.auth.getUser();
 
     state.user =
       user || null;
@@ -1619,11 +1209,10 @@ async function refreshGuildAuth() {
 
     applyAuthUI();
 
-  } catch (error) {
-
+  } catch (err) {
     console.error(
-      'Auth refresh failed:',
-      error
+      'Auth refresh failed',
+      err
     );
 
     state.user = null;
@@ -1633,15 +1222,8 @@ async function refreshGuildAuth() {
   }
 }
 
-/* ============================================================
-   GUILD LOGIN
-   ============================================================ */
-
-async function handleGuildLogin(
-  event
-) {
-
-  event.preventDefault();
+async function handleGuildLogin(e) {
+  e.preventDefault();
 
   clearStatus(
     'guild-auth-status'
@@ -1649,62 +1231,39 @@ async function handleGuildLogin(
 
   const email =
     $('guild-login-email')
-      ?.value
-      ?.trim();
+      .value
+      .trim();
 
   const password =
     $('guild-login-password')
-      ?.value ||
-    '';
-
-  if (
-    !email ||
-    !password
-  ) {
-
-    showStatus(
-      'guild-auth-status',
-      'error',
-      'Email and password are required.'
-    );
-
-    return;
-  }
+      .value;
 
   try {
 
     const {
       error
-    } =
-      await db.auth
-        .signInWithPassword({
-          email,
-          password
-        });
+    } = await db.auth.signInWithPassword(
+      {
+        email,
+        password
+      }
+    );
 
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
 
     await refreshGuildAuth();
 
     if (!state.guild) {
-
       showStatus(
         'guild-auth-status',
-        'info',
-        'Login successful. This account has no registered guild yet. Complete Guild Registration below.'
+        'error',
+        'This account has no active guild registry. Register your guild again below.'
       );
-
-      syncRegistrationForm();
 
       return;
     }
 
-    if (
-      !guildIsApproved()
-    ) {
-
+    if (!guildIsApproved()) {
       showStatus(
         'guild-auth-status',
         'info',
@@ -1732,31 +1291,19 @@ async function handleGuildLogin(
       true
     );
 
-  } catch (error) {
-
-    console.error(
-      'Guild login failed:',
-      error
-    );
+  } catch (err) {
 
     showStatus(
       'guild-auth-status',
       'error',
-      error.message ||
-        'Login failed.'
+      err.message ||
+      'Login failed.'
     );
   }
 }
 
-/* ============================================================
-   GUILD REGISTRATION
-   ============================================================ */
-
-async function handleGuildRegister(
-  event
-) {
-
-  event.preventDefault();
+async function handleGuildRegister(e) {
+  e.preventDefault();
 
   clearStatus(
     'guild-auth-status'
@@ -1764,44 +1311,39 @@ async function handleGuildRegister(
 
   const guild =
     $('guild-register-name')
-      ?.value
-      ?.trim();
+      .value
+      .trim();
 
   const contact =
     $('guild-register-contact')
-      ?.value
-      ?.trim();
+      .value
+      .trim();
 
   const email =
     $('guild-register-email')
-      ?.value
-      ?.trim();
+      .value
+      .trim();
 
   const password =
     $('guild-register-password')
-      ?.value ||
-    '';
+      .value;
 
   if (
     !guild ||
     !contact ||
-    !email
+    !email ||
+    !password
   ) {
-
     showStatus(
       'guild-auth-status',
       'error',
-      'Guild name, contact and email are required.'
+      'Guild name, contact, email and password are required.'
     );
 
     return;
   }
 
-  if (
-    !state.user &&
-    password.length < 8
-  ) {
-
+  if (password.length < 8) {
     showStatus(
       'guild-auth-status',
       'error',
@@ -1813,300 +1355,115 @@ async function handleGuildRegister(
 
   try {
 
-    /* --------------------------------------------------------
-       ALREADY LOGGED IN
-       -------------------------------------------------------- */
-
-    if (state.user) {
-
-      const loggedInEmail =
-        String(
-          state.user.email ||
-          ''
-        )
-          .trim()
-          .toLowerCase();
-
-      if (
-        loggedInEmail !==
-        email.toLowerCase()
-      ) {
-
-        showStatus(
-          'guild-auth-status',
-          'error',
-          'Registration email must match the currently logged-in account.'
-        );
-
-        return;
-      }
-
-      if (state.guild) {
-
-        showStatus(
-          'guild-auth-status',
-          'info',
-          guildStatusText(
-            state.guild
-          )
-        );
-
-        return;
-      }
-
-      const {
-        data,
-        error
-      } =
-        await db.rpc(
-          'register_gvg_guild',
-          {
-            p_guild_name:
-              guild,
-
-            p_contact:
-              contact
-          }
-        );
-
-      if (error) {
-        throw error;
-      }
-
-      state.guild =
-        Array.isArray(data)
-          ? data[0]
-          : data;
-
-      await refreshGuildAuth();
-
-      showStatus(
-        'guild-auth-status',
-        'ok',
-        'Guild registered successfully. Your guild is now PENDING admin approval.'
-      );
-
-      return;
-    }
-
-    /* --------------------------------------------------------
-       NOT LOGGED IN:
-       TRY LOGIN FIRST
-       -------------------------------------------------------- */
-
-    let existingLogin =
-      null;
-
-    try {
-
-      existingLogin =
-        await db.auth
-          .signInWithPassword({
-            email,
-            password
-          });
-
-    } catch {
-
-      existingLogin =
-        null;
-    }
-
-    if (
-      existingLogin &&
-      !existingLogin.error
-    ) {
-
-      await refreshGuildAuth();
-
-      if (state.guild) {
-
-        showStatus(
-          'guild-auth-status',
-          'info',
-          guildStatusText(
-            state.guild
-          )
-        );
-
-        return;
-      }
-
-      const {
-        data,
-        error
-      } =
-        await db.rpc(
-          'register_gvg_guild',
-          {
-            p_guild_name:
-              guild,
-
-            p_contact:
-              contact
-          }
-        );
-
-      if (error) {
-        throw error;
-      }
-
-      state.guild =
-        Array.isArray(data)
-          ? data[0]
-          : data;
-
-      await refreshGuildAuth();
-
-      showStatus(
-        'guild-auth-status',
-        'ok',
-        'Guild registered successfully. Your guild is now PENDING admin approval.'
-      );
-
-      return;
-    }
-
-    /* --------------------------------------------------------
-       NEW ACCOUNT
-       -------------------------------------------------------- */
+    let signupError = null;
 
     const {
       data,
       error
-    } =
-      await db.auth.signUp({
+    } = await db.auth.signUp(
+      {
         email,
         password,
+
         options: {
           data: {
-            account_type:
-              'guild',
-
-            guild_name:
-              guild,
-
-            contact:
-              contact
+            account_type: 'guild',
+            guild_name: guild,
+            contact: contact
           }
         }
-      });
+      }
+    );
 
-    if (error) {
+    signupError = error;
 
-      const message =
+    if (
+      signupError &&
+      /already registered|already exists|user already/i.test(
         String(
-          error.message ||
-          ''
-        );
-
-      if (
-        /already registered|already exists|user already|email.*exists/i.test(
-          message
+          signupError.message || ''
         )
-      ) {
+      )
+    ) {
 
-        throw new Error(
-          'This email already has an account. Login first, then complete Guild Registration.'
+      const login =
+        await db.auth.signInWithPassword(
+          {
+            email,
+            password
+          }
         );
+
+      if (login.error) {
+        throw signupError;
       }
 
-      throw error;
-    }
+      const {
+        error: regError
+      } = await db.rpc(
+        'register_gvg_guild',
+        {
+          p_guild_name:
+            guild,
 
-    if (data?.session) {
+          p_contact:
+            contact
+        }
+      );
+
+      if (regError) {
+        throw regError;
+      }
 
       await refreshGuildAuth();
-
-      if (!state.guild) {
-
-        const {
-          data: guildData,
-          error: guildError
-        } =
-          await db.rpc(
-            'register_gvg_guild',
-            {
-              p_guild_name:
-                guild,
-
-              p_contact:
-                contact
-            }
-          );
-
-        if (guildError) {
-          throw guildError;
-        }
-
-        state.guild =
-          Array.isArray(
-            guildData
-          )
-            ? guildData[0]
-            : guildData;
-
-        await refreshGuildAuth();
-      }
 
       showStatus(
         'guild-auth-status',
         'ok',
-        'Guild registered successfully. Your guild is now PENDING admin approval.'
+        'Guild registered again and is pending admin approval.'
       );
 
       return;
     }
 
-    showStatus(
-      'guild-auth-status',
-      'info',
-      'Account created. Confirm your email, then login and complete Guild Registration.'
-    );
+    if (signupError) {
+      throw signupError;
+    }
 
-  } catch (error) {
+    await refreshGuildAuth();
 
-    console.error(
-      'Guild registration failed:',
-      error
-    );
+    if (data.session) {
+
+      showStatus(
+        'guild-auth-status',
+        'ok',
+        'Guild registered. Your account is pending admin approval.'
+      );
+
+    } else {
+
+      showStatus(
+        'guild-auth-status',
+        'info',
+        'Registration created. Check your email to confirm the account, then login. Admin approval is still required before Challenge and Results unlock.'
+      );
+    }
+
+  } catch (err) {
 
     showStatus(
       'guild-auth-status',
       'error',
-      humanizeDbError(error)
+      humanizeDbError(err)
     );
   }
 }
 
-/* ============================================================
-   GUILD LOGOUT
-   ============================================================ */
-
 async function handleGuildLogout() {
-
-  try {
-
-    const {
-      error
-    } =
-      await db.auth.signOut();
-
-    if (error) {
-      throw error;
-    }
-
-  } catch (error) {
-
-    console.error(
-      'Logout failed:',
-      error
-    );
-  }
+  await db.auth.signOut();
 
   state.user = null;
   state.guild = null;
-  state.admin = null;
 
   applyAuthUI();
 
@@ -2122,125 +1479,73 @@ async function handleGuildLogout() {
   );
 }
 
-/* ============================================================
-   ADMIN AUTH
-   ============================================================ */
-
 async function isCurrentUserAdmin() {
-
   const {
-    data: {
-      user
-    }
-  } =
-    await db.auth.getUser();
+    data: { user }
+  } = await db.auth.getUser();
 
   if (!user) {
-
     state.admin = null;
-
     return false;
   }
 
   const {
     data,
     error
-  } =
-    await db
-      .from(
-        'admins'
-      )
-      .select(
-        `
-          id,
-          admin_name,
-          is_active,
-          created_at
-        `
-      )
-      .eq(
-        'id',
-        user.id
-      )
-      .eq(
-        'is_active',
-        true
-      )
-      .maybeSingle();
+  } = await db
+    .from('admins')
+    .select(
+      'user_id,email'
+    )
+    .eq(
+      'user_id',
+      user.id
+    )
+    .maybeSingle();
 
   if (error) {
-
-    console.warn(
-      'Admin check failed:',
-      error
-    );
-
-    state.admin = null;
-
+    console.warn(error);
     return false;
   }
 
-  state.admin =
-    data || null;
+  state.admin = data || null;
 
   return !!data;
 }
 
 async function restoreAdmin() {
-
-  const isAdmin =
+  const ok =
     await isCurrentUserAdmin();
 
-  if (
-    $('admin-login-panel')
-  ) {
+  $('admin-login-panel')
+    .classList
+    .toggle(
+      'hidden',
+      ok
+    );
 
-    $('admin-login-panel')
-      .classList.toggle(
-        'hidden',
-        isAdmin
-      );
-  }
+  $('admin-dashboard')
+    .classList
+    .toggle(
+      'hidden',
+      !ok
+    );
 
-  if (
-    $('admin-dashboard')
-  ) {
-
-    $('admin-dashboard')
-      .classList.toggle(
-        'hidden',
-        !isAdmin
-      );
-  }
-
-  if (isAdmin) {
+  if (ok) {
 
     const {
-      data: {
-        user
-      }
-    } =
-      await db.auth.getUser();
+      data: { user }
+    } = await db.auth.getUser();
 
-    if (
-      $('admin-user-label')
-    ) {
-
-      $('admin-user-label')
-        .textContent =
-        user?.email ||
-        '';
-    }
+    $('admin-user-label').textContent =
+      user?.email || '';
 
     await refreshAdmin();
   }
 }
 
-async function handleAdminLogin(
-  event
-) {
-
-  event.preventDefault();
+async function handleAdminLogin(e) {
+  e.preventDefault();
 
   clearStatus(
     'admin-login-status'
@@ -2248,161 +1553,95 @@ async function handleAdminLogin(
 
   const email =
     $('admin-email')
-      ?.value
-      ?.trim();
+      .value
+      .trim();
 
   const password =
     $('admin-password')
-      ?.value ||
-    '';
+      .value;
 
   try {
 
     const {
       error
-    } =
-      await db.auth
-        .signInWithPassword({
-          email,
-          password
-        });
+    } = await db.auth.signInWithPassword(
+      {
+        email,
+        password
+      }
+    );
 
-    if (error) {
-      throw error;
-    }
-
-    const isAdmin =
-      await isCurrentUserAdmin();
-
-    if (!isAdmin) {
-
-      await db.auth.signOut();
-
-      throw new Error(
-        'This Auth account is not linked as an active 7TH UNIVERSE admin.'
-      );
-    }
+    if (error) throw error;
 
     await restoreAdmin();
 
     showStatus(
       'admin-login-status',
       'ok',
-      'Admin login successful.'
+      'Logged in.'
     );
 
-  } catch (error) {
-
-    console.error(
-      'Admin login failed:',
-      error
-    );
+  } catch (err) {
 
     showStatus(
       'admin-login-status',
       'error',
-      error.message ||
-        'Admin login failed.'
+      err.message ||
+      'Login failed.'
     );
   }
 }
 
 async function handleAdminLogout() {
-
-  try {
-    await db.auth.signOut();
-  } catch (error) {
-    console.error(
-      'Admin logout failed:',
-      error
-    );
-  }
+  await db.auth.signOut();
 
   state.admin = null;
-  state.user = null;
-  state.guild = null;
 
-  if (
-    $('admin-login-panel')
-  ) {
+  $('admin-login-panel')
+    .classList
+    .remove('hidden');
 
-    $('admin-login-panel')
-      .classList.remove(
-        'hidden'
-      );
-  }
-
-  if (
-    $('admin-dashboard')
-  ) {
-
-    $('admin-dashboard')
-      .classList.add(
-        'hidden'
-      );
-  }
-
-  if (
-    $('guild-account-card')
-  ) {
-
-    $('guild-account-card')
-      .classList.add(
-        'hidden'
-      );
-  }
+  $('admin-dashboard')
+    .classList
+    .add('hidden');
 }
 
-/* ============================================================
-   ADMIN GUILD REGISTRY
-   ============================================================ */
+async function handleGuildSave(e) {
+  e.preventDefault();
 
-async function handleGuildSave(
-  event
-) {
-
-  event.preventDefault();
-
-  clearStatus(
-    'admin-status'
-  );
+  clearStatus('admin-status');
 
   try {
 
     const guild =
       $('reg-guild-name')
-        ?.value
-        ?.trim();
+        .value
+        .trim();
 
     const contact =
       $('reg-contact')
-        ?.value
-        ?.trim();
+        .value
+        .trim();
 
     const status =
       $('reg-status')
-        ?.value;
+        .value;
 
     const banUntil =
       $('reg-ban-until')
-        ?.value
+        .value
         ? new Date(
-            $('reg-ban-until')
-              .value
+            $('reg-ban-until').value
           ).toISOString()
         : null;
 
     const reason =
       $('reg-ban-reason')
-        ?.value
-        ?.trim() ||
+        .value
+        .trim() ||
       null;
 
-    if (
-      !guild ||
-      !contact
-    ) {
-
+    if (!guild || !contact) {
       throw new Error(
         'Guild name and contact are required.'
       );
@@ -2410,32 +1649,35 @@ async function handleGuildSave(
 
     const {
       error
-    } =
-      await db.rpc(
-        'admin_upsert_guild',
-        {
-          p_guild_name:
-            guild,
+    } = await db.rpc(
+      'admin_upsert_guild',
+      {
+        p_guild_name:
+          guild,
 
-          p_contact:
-            contact,
+        p_contact:
+          contact,
 
-          p_approval_status:
-            status,
+        p_approval_status:
+          status,
 
-          p_ban_until:
-            banUntil,
+        p_ban_until:
+          banUntil,
 
-          p_ban_reason:
-            reason
-        }
-      );
+        p_ban_reason:
+          reason
+      }
+    );
 
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
 
-    event.target.reset();
+    e.target.reset();
+
+    $('reg-status').value =
+      'approved';
+
+    $('reg-ban-reason').value =
+      'Rule violation';
 
     showStatus(
       'admin-status',
@@ -2445,164 +1687,118 @@ async function handleGuildSave(
 
     await loadGuilds();
 
-  } catch (error) {
+  } catch (err) {
 
-    console.error(
-      'Guild admin save failed:',
-      error
-    );
+    console.error(err);
 
     showStatus(
       'admin-status',
       'error',
-      humanizeDbError(error)
+      humanizeDbError(err)
     );
   }
 }
 
 async function loadGuilds() {
-
   try {
 
     const {
       data,
       error
-    } =
-      await db
-        .from(
-          'guild_registry'
-        )
-        .select(
-          `
-            id,
-            user_id,
-            guild_name,
-            contact,
-            approval_status,
-            is_banned,
-            ban_until,
-            ban_reason,
-            created_at
-          `
-        )
-        .order(
-          'guild_name',
-          {
-            ascending:
-              true
-          }
-        );
+    } = await db
+      .from('guild_registry')
+      .select(
+        'id,guild_name,contact,approval_status,ban_until,ban_reason,created_at'
+      )
+      .order(
+        'guild_name',
+        {
+          ascending: true
+        }
+      );
 
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
 
     state.guilds =
       data || [];
 
-    if (
-      $('guild-table')
-    ) {
+    $('guild-table').innerHTML =
+      state.guilds.length
+        ? state.guilds
+            .map(
+              (g) => `
+                <tr>
 
-      $('guild-table')
-        .innerHTML =
-        state.guilds.length
+                  <td>
+                    ${escapeHtml(
+                      g.guild_name
+                    )}
+                  </td>
 
-          ? state.guilds
-              .map(
-                (guild) => `
-                  <tr>
+                  <td>
+                    ${escapeHtml(
+                      g.approval_status
+                    )}
+                  </td>
 
-                    <td>
-                      ${escapeHtml(
-                        guild.guild_name
-                      )}
-                    </td>
-
-                    <td>
-                      ${escapeHtml(
-                        guild.approval_status
-                      )}
-                    </td>
-
-                    <td>
-                      ${
-                        guild.ban_until &&
-                        new Date(
-                          guild.ban_until
-                        ) > new Date()
-
-                          ? escapeHtml(
-                              formatDateTime(
-                                guild.ban_until
-                              )
+                  <td>
+                    ${
+                      g.ban_until &&
+                      new Date(
+                        g.ban_until
+                      ) > new Date()
+                        ? escapeHtml(
+                            formatDateTime(
+                              g.ban_until
                             )
+                          )
+                        : '—'
+                    }
+                  </td>
 
-                          : '—'
-                      }
-                    </td>
+                  <td>
 
-                    <td>
+                    <button
+                      class="btn btn-small btn-success"
+                      onclick="quickGuildBan('${g.id}')"
+                    >
+                      Ban
+                    </button>
 
-                      <button
-                        class="btn btn-small btn-success"
-                        onclick="quickGuildBan('${guild.id}')"
-                      >
-                        Ban
-                      </button>
+                    <button
+                      class="btn btn-small btn-danger"
+                      onclick="removeGuild('${g.id}')"
+                    >
+                      Remove
+                    </button>
 
-                      <button
-                        class="btn btn-small btn-danger"
-                        onclick="removeGuild('${guild.id}')"
-                      >
-                        Remove
-                      </button>
+                  </td>
 
-                    </td>
+                </tr>
+              `
+            )
+            .join('')
+        : '<tr><td colspan="4">No guilds.</td></tr>';
 
-                  </tr>
-                `
-              )
-              .join('')
-
-          : `
-              <tr>
-
-                <td colspan="4">
-                  No guilds.
-                </td>
-
-              </tr>
-            `;
-    }
-
-  } catch (error) {
-
-    console.error(
-      'Guild list load failed:',
-      error
-    );
+  } catch (err) {
 
     showStatus(
       'admin-status',
       'error',
-      error.message ||
-        'Guild load failed.'
+      err.message ||
+      'Guild load failed.'
     );
   }
 }
 
-async function quickGuildBan(
-  id
-) {
-
-  const input =
+async function quickGuildBan(id) {
+  const until =
     prompt(
       'Enter ban end as YYYY-MM-DD HH:MM (Pakistan time), or leave blank for permanent:',
       ''
     );
 
-  if (input === null) {
+  if (until === null) {
     return;
   }
 
@@ -2610,13 +1806,11 @@ async function quickGuildBan(
 
     let iso = null;
 
-    if (
-      input.trim()
-    ) {
+    if (until.trim()) {
 
       const parsed =
         new Date(
-          input
+          until
             .trim()
             .replace(
               ' ',
@@ -2630,7 +1824,6 @@ async function quickGuildBan(
           parsed.getTime()
         )
       ) {
-
         throw new Error(
           'Invalid ban date/time.'
         );
@@ -2642,57 +1835,45 @@ async function quickGuildBan(
 
     const {
       error
-    } =
-      await db.rpc(
-        'admin_set_guild_ban',
-        {
-          p_guild_id:
-            id,
+    } = await db.rpc(
+      'admin_set_guild_ban',
+      {
+        p_guild_id:
+          id,
 
-          p_ban_until:
-            iso,
+        p_ban_until:
+          iso,
 
-          p_reason:
-            'Admin ban'
-        }
-      );
+        p_reason:
+          'Admin ban'
+      }
+    );
 
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
 
     showStatus(
       'admin-status',
       'ok',
-      iso
-        ? 'Temporary ban applied.'
-        : 'Permanent ban applied.'
+      'Ban updated.'
     );
 
     await loadGuilds();
 
-  } catch (error) {
-
-    console.error(
-      'Ban failed:',
-      error
-    );
+  } catch (err) {
 
     showStatus(
       'admin-status',
       'error',
-      humanizeDbError(error)
+      err.message ||
+      'Ban failed.'
     );
   }
 }
 
-async function removeGuild(
-  id
-) {
-
+async function removeGuild(id) {
   if (
     !confirm(
-      'Remove this guild from the registry? It can register again later.'
+      'Remove this guild from the registry? It can be registered again later.'
     )
   ) {
     return;
@@ -2702,60 +1883,37 @@ async function removeGuild(
 
     const {
       error
-    } =
-      await db.rpc(
-        'admin_remove_guild',
-        {
-          p_guild_id:
-            id
-        }
-      );
+    } = await db.rpc(
+      'admin_remove_guild',
+      {
+        p_guild_id:
+          id
+      }
+    );
 
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
 
     showStatus(
       'admin-status',
       'ok',
-      'Guild removed from registry. It can register again later.'
+      'Guild removed from registry.'
     );
-
-    if (
-      state.guild?.id === id
-    ) {
-
-      state.guild =
-        null;
-
-      applyAuthUI();
-    }
 
     await loadGuilds();
 
-  } catch (error) {
-
-    console.error(
-      'Guild removal failed:',
-      error
-    );
+  } catch (err) {
 
     showStatus(
       'admin-status',
       'error',
-      humanizeDbError(error)
+      err.message ||
+      'Remove failed.'
     );
   }
-    }
-  /* ============================================================
-   ADMIN BLOCKS
-   ============================================================ */
+}
 
-async function handleBlock(
-  event
-) {
-
-  event.preventDefault();
+async function handleBlock(e) {
+  e.preventDefault();
 
   clearStatus(
     'admin-status'
@@ -2765,36 +1923,31 @@ async function handleBlock(
 
     const guild =
       $('block-guild')
-        ?.value
-        ?.trim() ||
+        .value
+        .trim() ||
       null;
 
     const contact =
       $('block-number')
-        ?.value
-        ?.trim() ||
+        .value
+        .trim() ||
       null;
 
     const until =
       $('block-until')
-        ?.value
+        .value
         ? new Date(
-            $('block-until')
-              .value
+            $('block-until').value
           ).toISOString()
         : null;
 
     const reason =
       $('block-reason')
-        ?.value
-        ?.trim() ||
+        .value
+        .trim() ||
       'Rule violation';
 
-    if (
-      !guild &&
-      !contact
-    ) {
-
+    if (!guild && !contact) {
       throw new Error(
         'Enter a guild name or a contact number.'
       );
@@ -2802,29 +1955,29 @@ async function handleBlock(
 
     const {
       error
-    } =
-      await db.rpc(
-        'admin_create_block',
-        {
-          p_guild_name:
-            guild,
+    } = await db.rpc(
+      'admin_create_block',
+      {
+        p_guild_name:
+          guild,
 
-          p_contact:
-            contact,
+        p_contact:
+          contact,
 
-          p_blocked_until:
-            until,
+        p_blocked_until:
+          until,
 
-          p_reason:
-            reason
-        }
-      );
+        p_reason:
+          reason
+      }
+    );
 
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
 
-    event.target.reset();
+    e.target.reset();
+
+    $('block-reason').value =
+      'Rule violation';
 
     showStatus(
       'admin-status',
@@ -2834,173 +1987,117 @@ async function handleBlock(
 
     await loadBlocks();
 
-  } catch (error) {
-
-    console.error(
-      'Block failed:',
-      error
-    );
+  } catch (err) {
 
     showStatus(
       'admin-status',
       'error',
-      humanizeDbError(error)
+      err.message ||
+      'Block failed.'
     );
   }
 }
 
 async function loadBlocks() {
-
   try {
 
     const {
       data,
       error
-    } =
-      await db
-        .from(
-          'blocks'
-        )
-        .select(
-          `
-            id,
-            guild_name,
-            contact,
-            blocked_until,
-            reason,
-            created_at
-          `
-        )
-        .order(
-          'created_at',
-          {
-            ascending:
-              false
-          }
-        );
+    } = await db
+      .from('blocks')
+      .select(
+        'id,guild_name,contact,blocked_until,reason,created_at'
+      )
+      .order(
+        'created_at',
+        {
+          ascending: false
+        }
+      );
 
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
 
     state.blocks =
       data || [];
 
-    if (
-      $('block-table')
-    ) {
+    $('block-table').innerHTML =
+      state.blocks.length
+        ? state.blocks
+            .map(
+              (b) => `
+                <tr>
 
-      $('block-table')
-        .innerHTML =
-        state.blocks.length
+                  <td>
+                    ${escapeHtml(
+                      b.guild_name ||
+                      '—'
+                    )}
+                    <br>
+                    ${escapeHtml(
+                      b.contact || ''
+                    )}
+                  </td>
 
-          ? state.blocks
-              .map(
-                (block) => `
-                  <tr>
-
-                    <td>
-
-                      ${escapeHtml(
-                        block.guild_name ||
-                        '—'
-                      )}
-
-                      <br>
-
-                      ${escapeHtml(
-                        block.contact ||
-                        ''
-                      )}
-
-                    </td>
-
-                    <td>
-
-                      ${
-                        block.blocked_until
-
-                          ? escapeHtml(
-                              formatDateTime(
-                                block.blocked_until
-                              )
+                  <td>
+                    ${
+                      b.blocked_until
+                        ? escapeHtml(
+                            formatDateTime(
+                              b.blocked_until
                             )
+                          )
+                        : 'Permanent'
+                    }
+                  </td>
 
-                          : 'Permanent'
-                      }
+                  <td>
+                    ${escapeHtml(
+                      b.reason ||
+                      '—'
+                    )}
+                  </td>
 
-                    </td>
+                  <td>
+                    <button
+                      class="btn btn-small btn-success"
+                      onclick="unblock('${b.id}')"
+                    >
+                      Unblock
+                    </button>
+                  </td>
 
-                    <td>
-                      ${escapeHtml(
-                        block.reason ||
-                        '—'
-                      )}
-                    </td>
+                </tr>
+              `
+            )
+            .join('')
+        : '<tr><td colspan="4">No blocks.</td></tr>';
 
-                    <td>
-
-                      <button
-                        class="btn btn-small btn-success"
-                        onclick="unblock('${block.id}')"
-                      >
-                        Unblock
-                      </button>
-
-                    </td>
-
-                  </tr>
-                `
-              )
-              .join('')
-
-          : `
-              <tr>
-
-                <td colspan="4">
-                  No blocks.
-                </td>
-
-              </tr>
-            `;
-    }
-
-  } catch (error) {
-
-    console.error(
-      'Block list load failed:',
-      error
-    );
+  } catch (err) {
 
     showStatus(
       'admin-status',
       'error',
-      error.message ||
-        'Block load failed.'
+      err.message ||
+      'Block load failed.'
     );
   }
 }
 
-async function unblock(
-  id
-) {
-
+async function unblock(id) {
   try {
 
     const {
       error
-    } =
-      await db.rpc(
-        'admin_delete_block',
-        {
-          p_block_id:
-            id
-        }
-      );
+    } = await db.rpc(
+      'admin_delete_block',
+      {
+        p_block_id:
+          id
+      }
+    );
 
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
 
     showStatus(
       'admin-status',
@@ -3010,187 +2107,141 @@ async function unblock(
 
     await loadBlocks();
 
-  } catch (error) {
-
-    console.error(
-      'Unblock failed:',
-      error
-    );
+  } catch (err) {
 
     showStatus(
       'admin-status',
       'error',
-      humanizeDbError(error)
+      err.message ||
+      'Unblock failed.'
     );
   }
-      }
-/* ============================================================
-   ADMIN RESULTS
-   ============================================================ */
+}
 
 async function loadAdminResults() {
-
   try {
 
     const {
       data,
       error
-    } =
-      await db.rpc(
-        'admin_get_results'
-      );
+    } = await db.rpc(
+      'admin_get_results'
+    );
 
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
 
     state.adminResults =
       data || [];
 
-    if (
-      $('admin-result-table')
-    ) {
+    $('admin-result-table').innerHTML =
+      state.adminResults.length
+        ? state.adminResults
+            .map(
+              (r) => `
+                <tr>
 
-      $('admin-result-table')
-        .innerHTML =
-        state.adminResults.length
-
-          ? state.adminResults
-              .map(
-                (result) => `
-                  <tr>
-
-                    <td>
-
-                      <strong>
-                        ${escapeHtml(
-                          result.winner_guild
-                        )}
-                      </strong>
-
-                      def.
-
-                      <strong>
-                        ${escapeHtml(
-                          result.loser_guild
-                        )}
-                      </strong>
-
-                    </td>
-
-                    <td>
+                  <td>
+                    <strong>
                       ${escapeHtml(
-                        result.score
+                        r.winner_guild
                       )}
-                    </td>
+                    </strong>
 
-                    <td>
+                    def.
 
-                      ${
-                        Array.isArray(
-                          result.image_urls
-                        )
-                          ? result
-                              .image_urls
-                              .length
-                          : 0
-                      }
-
-                    </td>
-
-                    <td>
+                    <strong>
                       ${escapeHtml(
-                        result.status
+                        r.loser_guild
                       )}
-                    </td>
+                    </strong>
+                  </td>
 
-                    <td>
-                      ${escapeHtml(
-                        formatDateTime(
-                          result.created_at
-                        )
-                      )}
-                    </td>
+                  <td>
+                    ${escapeHtml(
+                      r.score
+                    )}
+                  </td>
 
-                    <td>
+                  <td>
+                    ${
+                      Array.isArray(
+                        r.image_urls
+                      )
+                        ? r.image_urls.length
+                        : 0
+                    }
+                  </td>
 
-                      ${
-                        result.status ===
-                        'pending'
+                  <td>
+                    ${escapeHtml(
+                      r.status
+                    )}
+                  </td>
 
-                          ? `
-                              <button
-                                class="btn btn-small btn-success"
-                                onclick="approveResult('${result.id}')"
-                              >
-                                Approve
-                              </button>
+                  <td>
+                    ${escapeHtml(
+                      formatDateTime(
+                        r.created_at
+                      )
+                    )}
+                  </td>
 
-                              <button
-                                class="btn btn-small btn-danger"
-                                onclick="rejectResult('${result.id}')"
-                              >
-                                Reject
-                              </button>
-                            `
+                  <td>
 
-                          : '—'
-                      }
+                    ${
+                      r.status ===
+                      'pending'
+                        ? `
+                          <button
+                            class="btn btn-small btn-success"
+                            onclick="approveResult('${r.id}')"
+                          >
+                            Approve
+                          </button>
 
-                    </td>
+                          <button
+                            class="btn btn-small btn-danger"
+                            onclick="rejectResult('${r.id}')"
+                          >
+                            Reject
+                          </button>
+                        `
+                        : '—'
+                    }
 
-                  </tr>
-                `
-              )
-              .join('')
+                  </td>
 
-          : `
-              <tr>
+                </tr>
+              `
+            )
+            .join('')
+        : '<tr><td colspan="6">No result submissions.</td></tr>';
 
-                <td colspan="6">
-                  No result submissions.
-                </td>
-
-              </tr>
-            `;
-    }
-
-  } catch (error) {
-
-    console.error(
-      'Admin result load failed:',
-      error
-    );
+  } catch (err) {
 
     showStatus(
       'admin-status',
       'error',
-      error.message ||
-        'Result review load failed.'
+      err.message ||
+      'Result review load failed.'
     );
   }
 }
 
-async function approveResult(
-  id
-) {
-
+async function approveResult(id) {
   try {
 
     const {
       error
-    } =
-      await db.rpc(
-        'admin_approve_result',
-        {
-          p_result_id:
-            id
-        }
-      );
+    } = await db.rpc(
+      'admin_approve_result',
+      {
+        p_result_id:
+          id
+      }
+    );
 
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
 
     showStatus(
       'admin-status',
@@ -3202,34 +2253,25 @@ async function approveResult(
     await loadResults();
     await loadChallenges();
 
-  } catch (error) {
-
-    console.error(
-      'Result approval failed:',
-      error
-    );
+  } catch (err) {
 
     showStatus(
       'admin-status',
       'error',
-      humanizeDbError(error)
+      err.message ||
+      'Approve failed.'
     );
   }
 }
 
-async function rejectResult(
-  id
-) {
-
+async function rejectResult(id) {
   const reason =
     prompt(
       'Reason for rejection:',
       'Proof or result issue'
     );
 
-  if (
-    reason === null
-  ) {
+  if (reason === null) {
     return;
   }
 
@@ -3237,21 +2279,18 @@ async function rejectResult(
 
     const {
       error
-    } =
-      await db.rpc(
-        'admin_reject_result',
-        {
-          p_result_id:
-            id,
+    } = await db.rpc(
+      'admin_reject_result',
+      {
+        p_result_id:
+          id,
 
-          p_reason:
-            reason
-        }
-      );
+        p_reason:
+          reason
+      }
+    );
 
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
 
     showStatus(
       'admin-status',
@@ -3262,186 +2301,109 @@ async function rejectResult(
     await loadAdminResults();
     await loadChallenges();
 
-  } catch (error) {
-
-    console.error(
-      'Result rejection failed:',
-      error
-    );
+  } catch (err) {
 
     showStatus(
       'admin-status',
       'error',
-      humanizeDbError(error)
+      err.message ||
+      'Reject failed.'
     );
   }
-      }
-  /* ============================================================
-   ADMIN CHALLENGES
-   ============================================================ */
+}
 
 async function loadAdminChallenges() {
-
   try {
 
     const {
       data,
       error
-    } =
-      await db
-        .from(
-          'challenges'
-        )
-        .select(
-          `
-            id,
-            challenge_code,
-            challenger_leader_id,
-            challenger_guild_id,
-            opponent_guild_id,
-            challenge_everyone,
-            match_time,
-            weapons,
-            active_skills,
-            contact_number,
-            status,
-            created_at,
-            accepted_by_leader_id,
-            accepted_by_guild_id,
-            accepted_at,
-            user_id,
-            guild_name_normalized,
-            contact_normalized,
-            completed_at
-          `
-        )
-        .order(
-          'created_at',
-          {
-            ascending:
-              false
-          }
-        )
-        .limit(200);
+    } = await db
+      .from('challenges')
+      .select(
+        'id,guild_name,challenge_time,weapons,active_skills,status,created_at'
+      )
+      .order(
+        'created_at',
+        {
+          ascending: false
+        }
+      )
+      .limit(200);
 
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
 
-    const rows =
-      await buildChallengeDisplayRows(
-        data || []
-      );
+    $('admin-challenge-table').innerHTML =
+      data?.length
+        ? data
+            .map(
+              (c) => `
+                <tr>
 
-    if (
-      $('admin-challenge-table')
-    ) {
+                  <td>
+                    ${escapeHtml(
+                      c.guild_name
+                    )}
+                  </td>
 
-      $('admin-challenge-table')
-        .innerHTML =
-        rows.length
+                  <td>
+                    ${escapeHtml(
+                      formatTime(
+                        c.challenge_time
+                      )
+                    )}
+                  </td>
 
-          ? rows
-              .map(
-                (challenge) => `
-                  <tr>
+                  <td>
+                    ${escapeHtml(
+                      (c.weapons || [])
+                        .join(', ')
+                    )}
+                  </td>
 
-                    <td>
-                      ${escapeHtml(
-                        challenge.guild_name
-                      )}
-                    </td>
+                  <td>
+                    ${escapeHtml(
+                      (c.active_skills || [])
+                        .join(', ') ||
+                      'None'
+                    )}
+                  </td>
 
-                    <td>
-                      ${escapeHtml(
-                        formatTime(
-                          challenge.challenge_time
-                        )
-                      )}
-                    </td>
+                  <td>
+                    ${escapeHtml(
+                      c.status
+                    )}
+                  </td>
 
-                    <td>
-                      ${escapeHtml(
-                        (
-                          challenge.weapons ||
-                          []
-                        ).join(', ')
-                      )}
-                    </td>
+                  <td>
 
-                    <td>
-                      ${escapeHtml(
-                        (
-                          challenge
-                            .active_skills ||
-                          []
-                        ).join(', ') ||
-                        'None'
-                      )}
-                    </td>
+                    <button
+                      class="btn btn-small btn-danger"
+                      onclick="cancelChallenge('${c.id}')"
+                    >
+                      Cancel
+                    </button>
 
-                    <td>
-                      ${escapeHtml(
-                        challenge.status
-                      )}
-                    </td>
+                  </td>
 
-                    <td>
+                </tr>
+              `
+            )
+            .join('')
+        : '<tr><td colspan="6">No challenges.</td></tr>';
 
-                      ${
-                        challenge.status !==
-                        'completed'
-
-                          ? `
-                              <button
-                                class="btn btn-small btn-danger"
-                                onclick="cancelChallenge('${challenge.id}')"
-                              >
-                                Cancel
-                              </button>
-                            `
-
-                          : '—'
-                      }
-
-                    </td>
-
-                  </tr>
-                `
-              )
-              .join('')
-
-          : `
-              <tr>
-
-                <td colspan="6">
-                  No challenges.
-                </td>
-
-              </tr>
-            `;
-    }
-
-  } catch (error) {
-
-    console.error(
-      'Admin challenge load failed:',
-      error
-    );
+  } catch (err) {
 
     showStatus(
       'admin-status',
       'error',
-      error.message ||
-        'Challenge load failed.'
+      err.message ||
+      'Challenge load failed.'
     );
   }
 }
 
-async function cancelChallenge(
-  id
-) {
-
+async function cancelChallenge(id) {
   if (
     !confirm(
       'Cancel this challenge?'
@@ -3454,18 +2416,15 @@ async function cancelChallenge(
 
     const {
       error
-    } =
-      await db.rpc(
-        'admin_cancel_challenge',
-        {
-          p_challenge_id:
-            id
-        }
-      );
+    } = await db.rpc(
+      'admin_cancel_challenge',
+      {
+        p_challenge_id:
+          id
+      }
+    );
 
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
 
     showStatus(
       'admin-status',
@@ -3476,27 +2435,18 @@ async function cancelChallenge(
     await loadAdminChallenges();
     await loadChallenges();
 
-  } catch (error) {
-
-    console.error(
-      'Challenge cancellation failed:',
-      error
-    );
+  } catch (err) {
 
     showStatus(
       'admin-status',
       'error',
-      humanizeDbError(error)
-    
+      err.message ||
+      'Cancel failed.'
     );
   }
 }
-  /* ============================================================
-   REFRESH ADMIN
-   ============================================================ */
 
 async function refreshAdmin() {
-
   await Promise.all([
     loadGuilds(),
     loadBlocks(),
@@ -3505,705 +2455,10 @@ async function refreshAdmin() {
   ]);
 }
 
-/* ============================================================
-   CHALLENGE SUBMISSION
-   ============================================================ */
-
-async function handleChallengeSubmit(
-  event
-) {
-
-  event.preventDefault();
-
-  clearStatus(
-    'challenge-status'
-  );
-
-  if (
-    !postingWindowOpen()
-  ) {
-
-    showStatus(
-      'challenge-status',
-      'error',
-      'Challenges can only be posted from 10:00 AM until before 11:00 PM Pakistan time.'
-    );
-
-    return;
-  }
-
-  if (
-    !guildIsApproved()
-  ) {
-
-    showStatus(
-      'challenge-status',
-      'error',
-      'Only an admin-approved, non-banned guild account can post challenges.'
-    );
-
-    navigate(
-      'auth',
-      true
-    );
-
-    return;
-  }
-
-  const weapons =
-    selectedValues(
-      '#weapon-options input'
-    );
-
-  const skills =
-    selectedValues(
-      '#skill-options input'
-    );
-
-  if (
-    !weapons.length
-  ) {
-
-    showStatus(
-      'challenge-status',
-      'error',
-      'Select at least one weapon.'
-    );
-
-    return;
-  }
-
-  const invalidWeapon =
-    weapons.find(
-      (weapon) =>
-        !WEAPONS.includes(
-          weapon
-        )
-    );
-
-  if (invalidWeapon) {
-
-    showStatus(
-      'challenge-status',
-      'error',
-      `${invalidWeapon} is not an allowed weapon.`
-    );
-
-    return;
-  }
-
-  const invalidSkill =
-    skills.find(
-      (skill) =>
-        !SKILLS.includes(
-          skill
-        )
-    );
-
-  if (invalidSkill) {
-
-    showStatus(
-      'challenge-status',
-      'error',
-      `${invalidSkill} is not an allowed skill.`
-    );
-
-    return;
-  }
-
-  setButtonBusy(
-    'challenge-submit',
-    true
-  );
-
-  try {
-
-    const {
-      data,
-      error
-    } =
-      await db.rpc(
-        'submit_gvg_challenge',
-        {
-          p_challenge_time:
-            getTime24(),
-
-          p_weapons:
-            weapons,
-
-          p_active_skills:
-            skills
-        }
-      );
-
-    if (error) {
-      throw error;
-    }
-
-    const challenge =
-      Array.isArray(data)
-        ? data[0]
-        : data;
-
-    showStatus(
-      'challenge-status',
-      'ok',
-      'Challenge submitted successfully.'
-    );
-
-    event.target.reset();
-
-    initTimePicker();
-
-    await loadChallenges();
-
-    const notifyChallenge =
-      challenge
-        ? {
-            ...challenge,
-
-            guild_name:
-              state.guild
-                ?.guild_name ||
-              displayGuildName(
-                challenge
-                  .guild_name_normalized ||
-                ''
-              ),
-
-            challenge_time:
-              challenge.match_time ||
-              null,
-
-            contact:
-              challenge.contact_number ||
-              state.guild?.contact ||
-              ''
-          }
-
-        : null;
-
-    if (
-      notifyChallenge
-    ) {
-      await notifyWhatsApp(
-        notifyChallenge
-      );
-    }
-
-  } catch (error) {
-
-    console.error(
-      'Challenge submit failed:',
-      error
-    );
-
-    showStatus(
-      'challenge-status',
-      'error',
-      humanizeDbError(error)
-    );
-
-  } finally {
-
-    setButtonBusy(
-      'challenge-submit',
-      false,
-      'Confirm Challenge'
-    );
-  }
-}
-
-/* ============================================================
-   RESULT IMAGE UPLOAD
-   ============================================================ */
-
-async function uploadResultImages(
-  files
-) {
-
-  const selected =
-    [...files].filter(Boolean);
-
-  if (
-    selected.length > 2
-  ) {
-
-    throw new Error(
-      'IMAGE_LIMIT: Maximum 2 pictures are allowed.'
-    );
-  }
-
-  const urls = [];
-
-  for (
-    const file of selected
-  ) {
-
-    if (
-      file.size >
-      MAX_IMAGE_BYTES
-    ) {
-
-      throw new Error(
-        'Each image must be 5 MB or smaller.'
-      );
-    }
-
-    const allowedTypes = [
-      'image/jpeg',
-      'image/png',
-      'image/webp'
-    ];
-
-    if (
-      !allowedTypes.includes(
-        file.type
-      )
-    ) {
-
-      throw new Error(
-        'Only JPG, PNG and WEBP images are allowed.'
-      );
-    }
-
-    const uid =
-      state.user?.id;
-
-    if (!uid) {
-
-      throw new Error(
-        'LOGIN_REQUIRED: Please login to upload result pictures.'
-      );
-    }
-
-    const extension =
-      (
-        file.name
-          .split('.')
-          .pop() ||
-        'jpg'
-      ).toLowerCase();
-
-    const path =
-      `results/${uid}/` +
-      `${crypto.randomUUID()}.` +
-      `${extension}`;
-
-    const {
-      error
-    } =
-      await db.storage
-        .from(BUCKET)
-        .upload(
-          path,
-          file,
-          {
-            upsert: false,
-            contentType:
-              file.type
-          }
-        );
-
-    if (error) {
-      throw error;
-    }
-
-    const {
-      data
-    } =
-      db.storage
-        .from(BUCKET)
-        .getPublicUrl(
-          path
-        );
-
-    urls.push(
-      data.publicUrl
-    );
-  }
-
-  return urls;
-}
-
-/* ============================================================
-   RESULT SUBMISSION
-   ============================================================ */
-
-async function handleResultSubmit(
-  event
-) {
-
-  event.preventDefault();
-
-  clearStatus(
-    'result-status'
-  );
-
-  if (
-    !guildIsApproved()
-  ) {
-
-    showStatus(
-      'result-status',
-      'error',
-      'Only an admin-approved, non-banned guild account can submit results.'
-    );
-
-    navigate(
-      'auth',
-      true
-    );
-
-    return;
-  }
-
-  const challengeId =
-    $('result-challenge')
-      ?.value ||
-    '';
-
-  const winner =
-    $('winner-guild')
-      ?.value
-      ?.trim();
-
-  const loser =
-    $('loser-guild')
-      ?.value
-      ?.trim();
-
-  const score =
-    $('score')
-      ?.value
-      ?.trim();
-
-  const files = [
-    $('result-image-1')
-      ?.files?.[0],
-
-    $('result-image-2')
-      ?.files?.[0]
-  ].filter(Boolean);
-
-  if (!challengeId) {
-
-    showStatus(
-      'result-status',
-      'error',
-      'Select an open challenge.'
-    );
-
-    return;
-  }
-
-  if (
-    !winner ||
-    !loser
-  ) {
-
-    showStatus(
-      'result-status',
-      'error',
-      'Winner guild and loser guild are required.'
-    );
-
-    return;
-  }
-
-  if (
-    normalizeGuild(winner) ===
-    normalizeGuild(loser)
-  ) {
-
-    showStatus(
-      'result-status',
-      'error',
-      'Winner and loser guilds must be different.'
-    );
-
-    return;
-  }
-
-  if (!score) {
-
-    showStatus(
-      'result-status',
-      'error',
-      'Enter the result/score.'
-    );
-
-    return;
-  }
-
-  setButtonBusy(
-    'result-submit',
-    true
-  );
-
-  try {
-
-    const imageUrls =
-      await uploadResultImages(
-        files
-      );
-
-    const {
-      error
-    } =
-      await db.rpc(
-        'submit_gvg_result',
-        {
-          p_challenge_id:
-            challengeId,
-
-          p_winner_guild:
-            winner,
-
-          p_loser_guild:
-            loser,
-
-          p_score:
-            score,
-
-          p_image_urls:
-            imageUrls
-        }
-      );
-
-    if (error) {
-      throw error;
-    }
-
-    showStatus(
-      'result-status',
-      'ok',
-      'Result submitted. It will be published after admin approval.'
-    );
-
-    event.target.reset();
-
-    await loadChallenges();
-    await loadResults();
-
-  } catch (error) {
-
-    console.error(
-      'Result submit failed:',
-      error
-    );
-
-    showStatus(
-      'result-status',
-      'error',
-      humanizeDbError(error)
-    );
-
-  } finally {
-
-    setButtonBusy(
-      'result-submit',
-      false,
-      'Submit Result for Approval'
-    );
-  }
-}
-  /* ============================================================
-   ERROR HANDLING
-   ============================================================ */
-
-function humanizeDbError(
-  error
-) {
-
-  const message =
-    String(
-      error?.message ||
-      error ||
-      'Request failed.'
-    );
-
-  if (
-    message.includes(
-      'LOGIN_REQUIRED'
-    )
-  ) {
-    return 'Please login to continue.';
-  }
-
-  if (
-    message.includes(
-      'ALREADY_REGISTERED'
-    )
-  ) {
-    return (
-      'This account already has a registered guild.'
-    );
-  }
-
-  if (
-    message.includes(
-      'DUPLICATE_REGISTRATION'
-    )
-  ) {
-    return (
-      'This guild name or contact number is already registered.'
-    );
-  }
-
-  if (
-    message.includes(
-      'INVALID_GUILD'
-    )
-  ) {
-    return 'Invalid guild name.';
-  }
-
-  if (
-    message.includes(
-      'INVALID_CONTACT'
-    )
-  ) {
-    return 'Invalid contact number.';
-  }
-
-  if (
-    message.includes(
-      'APPROVAL'
-    )
-  ) {
-    return (
-      'This guild is not approved yet.'
-    );
-  }
-
-  if (
-    message.includes(
-      'BAN_ACTIVE'
-    )
-  ) {
-    return (
-      'This guild is currently banned.'
-    );
-  }
-
-  if (
-    message.includes(
-      'BLOCKED'
-    )
-  ) {
-    return (
-      'This guild or contact number is currently blocked.'
-    );
-  }
-
-  if (
-    message.includes(
-      'DAILY_CHALLENGE_LIMIT'
-    )
-  ) {
-    return (
-      'This guild has reached its 10-challenge daily limit.'
-    );
-  }
-
-  if (
-    message.includes(
-      'COOLDOWN'
-    )
-  ) {
-    return (
-      'Please wait 15 minutes before posting another challenge.'
-    );
-  }
-
-  if (
-    message.includes(
-      'TIME_WINDOW'
-    )
-  ) {
-    return (
-      'Challenge posting is open only from 10:00 AM to before 11:00 PM Pakistan time.'
-    );
-  }
-
-  if (
-    message.includes(
-      'DAILY_RESULT_LIMIT'
-    )
-  ) {
-    return (
-      'This guild has reached the 5-result daily limit.'
-    );
-  }
-
-  if (
-    message.includes(
-      'RESULT_EXISTS'
-    )
-  ) {
-    return (
-      'This challenge already has a result submission.'
-    );
-  }
-
-  if (
-    message.includes(
-      'CHALLENGE_NOT_FOUND'
-    )
-  ) {
-    return 'Challenge not found.';
-  }
-
-  if (
-    message.includes(
-      'GUILD_NOT_FOUND'
-    )
-  ) {
-    return 'Guild not found.';
-  }
-
-  if (
-    message.includes(
-      'ADMIN_ONLY'
-    )
-  ) {
-    return 'Admin access required.';
-  }
-
-  if (
-    message.includes(
-      'USER_ALREADY_EXISTS'
-    )
-  ) {
-    return (
-      'This email already has an account. Login first.'
-    );
-  }
-
-  return message
-    .replace(
-      /^.*?P0001.*?:/s,
-      ''
-    )
-    .trim() ||
-    message;
-}
-
-/* ============================================================
-   NAVIGATION
-   ============================================================ */
-
-function navigate(
-  page,
-  force = false
-) {
-
+function navigate(page, force = false) {
   const protectedPage =
-    [
-      'challenge',
-      'results'
-    ].includes(page);
+    ['challenge', 'results']
+      .includes(page);
 
   if (
     protectedPage &&
@@ -4214,21 +2469,17 @@ function navigate(
   }
 
   document
-    .querySelectorAll(
-      '.page'
-    )
-    .forEach(
-      (section) =>
-        section.classList.remove(
-          'active'
-        )
+    .querySelectorAll('.page')
+    .forEach((p) =>
+      p.classList.remove(
+        'active'
+      )
     );
 
   const target =
     $(`page-${page}`);
 
   if (target) {
-
     target.classList.add(
       'active'
     );
@@ -4238,19 +2489,17 @@ function navigate(
     .querySelectorAll(
       '[data-page-link]'
     )
-    .forEach(
-      (button) => {
-
-        button.classList.toggle(
-          'active',
-          button.dataset.pageLink ===
-            page
-        );
-      }
+    .forEach((b) =>
+      b.classList.toggle(
+        'active',
+        b.dataset.pageLink ===
+          page
+      )
     );
 
   if (
-    page === 'home'
+    page === 'home' &&
+    guildIsApproved()
   ) {
     loadChallenges();
   }
@@ -4259,9 +2508,7 @@ function navigate(
     page === 'challenge' &&
     guildIsApproved()
   ) {
-
     updateChallengeIdentity();
-
     loadChallenges();
   }
 
@@ -4269,21 +2516,15 @@ function navigate(
     page === 'results' &&
     guildIsApproved()
   ) {
-
     loadChallenges();
-
     loadResults();
   }
 
-  if (
-    page === 'admin'
-  ) {
+  if (page === 'admin') {
     restoreAdmin();
   }
 
-  if (
-    page === 'auth'
-  ) {
+  if (page === 'auth') {
     refreshGuildAuth();
   }
 
@@ -4293,32 +2534,23 @@ function navigate(
   });
 }
 
-/* ============================================================
-   EVENT WIRING
-   ============================================================ */
-
 function wire() {
 
   document
     .querySelectorAll(
       '[data-page-link]'
     )
-    .forEach(
-      (element) => {
+    .forEach((el) =>
+      el.addEventListener(
+        'click',
+        (e) => {
+          e.preventDefault();
 
-        element.addEventListener(
-          'click',
-          (event) => {
-
-            event.preventDefault();
-
-            navigate(
-              element.dataset
-                .pageLink
-            );
-          }
-        );
-      }
+          navigate(
+            el.dataset.pageLink
+          );
+        }
+      )
     );
 
   $('nav-logout')
@@ -4328,49 +2560,49 @@ function wire() {
     );
 
   $('challenge-form')
-    ?.addEventListener(
+    .addEventListener(
       'submit',
       handleChallengeSubmit
     );
 
   $('result-form')
-    ?.addEventListener(
+    .addEventListener(
       'submit',
       handleResultSubmit
     );
 
   $('guild-login-form')
-    ?.addEventListener(
+    .addEventListener(
       'submit',
       handleGuildLogin
     );
 
   $('guild-register-form')
-    ?.addEventListener(
+    .addEventListener(
       'submit',
       handleGuildRegister
     );
 
   $('admin-login-form')
-    ?.addEventListener(
+    .addEventListener(
       'submit',
       handleAdminLogin
     );
 
   $('admin-logout')
-    ?.addEventListener(
+    .addEventListener(
       'click',
       handleAdminLogout
     );
 
   $('guild-form')
-    ?.addEventListener(
+    .addEventListener(
       'submit',
       handleGuildSave
     );
 
   $('block-form')
-    ?.addEventListener(
+    .addEventListener(
       'submit',
       handleBlock
     );
@@ -4387,10 +2619,6 @@ function wire() {
       renderChallengeLists
     );
 }
-
-/* ============================================================
-   GLOBAL FUNCTIONS
-   ============================================================ */
 
 window.openWhatsApp =
   openWhatsApp;
@@ -4431,12 +2659,7 @@ window.cancelChallenge =
 window.navigate =
   navigate;
 
-/* ============================================================
-   BOOT
-   ============================================================ */
-
 (async function boot() {
-
   try {
 
     initTimePicker();
@@ -4445,11 +2668,9 @@ window.navigate =
 
     db.auth.onAuthStateChange(
       (_event, _session) => {
-
         setTimeout(
-          () => {
-            refreshGuildAuth();
-          },
+          () =>
+            refreshGuildAuth(),
           0
         );
       }
@@ -4457,35 +2678,26 @@ window.navigate =
 
     await refreshGuildAuth();
 
-    if (
-      guildIsApproved()
-    ) {
-
+    if (guildIsApproved()) {
       await loadChallenges();
-
-      await loadResults();
     }
 
     await updateStats();
 
     await restoreAdmin();
 
-  } catch (error) {
+  } catch (err) {
 
     console.error(
-      'Boot failed:',
-      error
+      'Boot failed',
+      err
     );
 
     showStatus(
       'guild-auth-status',
       'error',
-      error.message ||
-        'Website startup failed.'
+      err.message ||
+      'Website startup failed.'
     );
   }
-
 })();
-
-  
-  
