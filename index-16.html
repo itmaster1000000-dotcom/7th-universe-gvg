@@ -1,0 +1,1981 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#05070d" />
+  <meta name="color-scheme" content="dark" />
+  <meta
+    name="description"
+    content="7TH UNIVERSE Guild VS Guild — daily challenges, verified results and fair play."
+  />
+  <title>7TH UNIVERSE • Guild VS Guild</title>
+
+  <link rel="icon" type="image/png" href="1000084600.png" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  />
+
+  <style>
+    :root {
+      --bg: #05070d;
+      --bg-2: #090d16;
+      --panel: rgba(12, 16, 27, 0.88);
+      --panel-strong: rgba(14, 19, 31, 0.96);
+      --panel-soft: rgba(255, 255, 255, 0.035);
+      --line: rgba(255, 255, 255, 0.085);
+      --line-strong: rgba(255, 255, 255, 0.14);
+      --text: #f6f8fc;
+      --muted: #8d98aa;
+      --muted-2: #677183;
+      --blue: #2787ff;
+      --blue-soft: #65b7ff;
+      --red: #ff2f70;
+      --red-soft: #ff729f;
+      --green: #33dc85;
+      --green-soft: #91f1bb;
+      --yellow: #ffd25a;
+      --orange: #ff9d50;
+      --danger: #ff567e;
+      --shadow: 0 30px 90px rgba(0, 0, 0, 0.45);
+      --shadow-soft: 0 16px 50px rgba(0, 0, 0, 0.28);
+      --radius-xl: 28px;
+      --radius-lg: 22px;
+      --radius: 16px;
+      --radius-sm: 12px;
+      --max: 1280px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      overflow-x: hidden;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 12% 8%, rgba(39, 135, 255, 0.13), transparent 28%),
+        radial-gradient(circle at 88% 8%, rgba(255, 47, 112, 0.12), transparent 28%),
+        radial-gradient(circle at 50% 92%, rgba(39, 135, 255, 0.07), transparent 36%),
+        linear-gradient(180deg, #05070d 0%, #070a12 55%, #05070d 100%);
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: -1;
+      opacity: 0.22;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+      background-size: 34px 34px;
+      mask-image: linear-gradient(to bottom, black 0%, transparent 92%);
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    button,
+    a {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    img {
+      display: block;
+      max-width: 100%;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .container {
+      width: min(calc(100% - 28px), var(--max));
+      margin-inline: auto;
+    }
+
+    .top-glow {
+      height: 3px;
+      background: linear-gradient(
+        90deg,
+        var(--blue) 0%,
+        #8ed1ff 27%,
+        rgba(255,255,255,0.9) 50%,
+        #ff92b1 73%,
+        var(--red) 100%
+      );
+      box-shadow:
+        0 0 24px rgba(39, 135, 255, 0.35),
+        0 0 28px rgba(255, 47, 112, 0.32);
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(18px);
+      background: rgba(5, 7, 13, 0.8);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .nav {
+      min-height: 76px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+      flex: 0 0 auto;
+    }
+
+    .brand-logo {
+      width: 46px;
+      height: 46px;
+      border-radius: 13px;
+      object-fit: cover;
+      border: 1px solid rgba(255,255,255,0.17);
+      box-shadow:
+        0 0 24px rgba(39, 135, 255, 0.16),
+        0 0 24px rgba(255, 47, 112, 0.12);
+    }
+
+    .brand-title {
+      margin: 0;
+      font-family: "Barlow Condensed", sans-serif;
+      font-size: 26px;
+      line-height: 0.92;
+      font-weight: 900;
+      letter-spacing: 0.09em;
+      white-space: nowrap;
+    }
+
+    .brand-subtitle {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.19em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+
+    .nav-links button {
+      border: 1px solid transparent;
+      background: transparent;
+      color: #aeb8c8;
+      padding: 10px 12px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      transition: 0.18s ease;
+    }
+
+    .nav-links button:hover,
+    .nav-links button.active {
+      color: #fff;
+      border-color: rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.045);
+    }
+
+    .nav-actions {
+      min-width: 64px;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .page {
+      display: none;
+      min-height: calc(100vh - 79px);
+    }
+
+    .page.active {
+      display: block;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 44px;
+      padding: 11px 16px;
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 12px;
+      color: #fff;
+      background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.035));
+      font-size: 13px;
+      font-weight: 800;
+      transition:
+        transform .16s ease,
+        border-color .16s ease,
+        box-shadow .16s ease,
+        background .16s ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      border-color: rgba(255,255,255,0.18);
+    }
+
+    .btn:disabled {
+      cursor: not-allowed;
+      opacity: .58;
+      transform: none;
+    }
+
+    .btn-primary {
+      border-color: rgba(39, 135, 255, 0.46);
+      background: linear-gradient(135deg, #1673f5, #49a5ff);
+      box-shadow: 0 13px 30px rgba(39, 135, 255, 0.22);
+    }
+
+    .btn-success {
+      border-color: rgba(51, 220, 133, 0.34);
+      background: rgba(51, 220, 133, 0.10);
+      color: var(--green-soft);
+    }
+
+    .btn-danger {
+      border-color: rgba(255, 47, 112, 0.34);
+      background: rgba(255, 47, 112, 0.10);
+      color: #ff99b8;
+    }
+
+    .btn-small {
+      min-height: 36px;
+      padding: 8px 11px;
+      border-radius: 10px;
+      font-size: 11px;
+    }
+
+    .hero {
+      padding: 44px 0 34px;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.04fr) minmax(360px, .96fr);
+      gap: 28px;
+      align-items: center;
+    }
+
+    .hero-copy {
+      max-width: 760px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 11px;
+      border: 1px solid rgba(255,255,255,0.09);
+      background: rgba(255,255,255,0.03);
+      border-radius: 999px;
+      color: #c5cfdf;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: var(--green);
+      box-shadow: 0 0 13px rgba(51,220,133,.85);
+    }
+
+    .hero h1 {
+      margin: 18px 0 12px;
+      font-family: "Barlow Condensed", sans-serif;
+      font-size: clamp(68px, 9vw, 116px);
+      line-height: .80;
+      font-weight: 900;
+      letter-spacing: -.028em;
+      text-transform: uppercase;
+    }
+
+    .hero h1 .gradient {
+      background: linear-gradient(90deg, #dbe9ff 0%, #56aaff 39%, #ffffff 51%, #ff7ea5 92%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .hero h1 .subline {
+      display: block;
+      margin-top: 10px;
+      font-size: .50em;
+      letter-spacing: .17em;
+      color: #eef2f8;
+    }
+
+    .hero-text {
+      max-width: 720px;
+      color: #a6b0bf;
+      font-size: 15px;
+      line-height: 1.85;
+    }
+
+    .hero-actions,
+    .card-actions,
+    .split-actions {
+      display: flex;
+      gap: 9px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .hero-actions {
+      margin-top: 22px;
+    }
+
+    .poster {
+      position: relative;
+      overflow: hidden;
+      border-radius: 26px;
+      border: 1px solid rgba(255,255,255,0.11);
+      background: #05070c;
+      box-shadow: var(--shadow);
+      isolation: isolate;
+    }
+
+    .poster::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        linear-gradient(180deg, rgba(0,0,0,0) 55%, rgba(3,5,9,.86) 100%),
+        linear-gradient(90deg, rgba(39,135,255,.08), transparent 50%, rgba(255,47,112,.07));
+    }
+
+    .poster img {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      object-fit: cover;
+    }
+
+    .poster-badge {
+      position: absolute;
+      left: 16px;
+      bottom: 16px;
+      z-index: 1;
+      display: grid;
+      gap: 3px;
+      max-width: calc(100% - 32px);
+      padding: 12px 14px;
+      border: 1px solid rgba(255,255,255,.09);
+      border-radius: 13px;
+      background: rgba(3,5,9,.70);
+      backdrop-filter: blur(16px);
+    }
+
+    .poster-badge strong {
+      font-size: 13px;
+      letter-spacing: .08em;
+    }
+
+    .poster-badge span {
+      color: #aeb8c7;
+      font-size: 11px;
+      line-height: 1.55;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 13px;
+      margin-top: 26px;
+    }
+
+    .stat-card {
+      position: relative;
+      overflow: hidden;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.018));
+      box-shadow: var(--shadow-soft);
+    }
+
+    .stat-card::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 58px;
+      height: 2px;
+      background: linear-gradient(90deg, var(--blue), transparent);
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .13em;
+      text-transform: uppercase;
+    }
+
+    .stat-value {
+      margin-top: 8px;
+      font-family: "Barlow Condensed", sans-serif;
+      font-size: 39px;
+      line-height: .9;
+      font-weight: 900;
+      letter-spacing: .03em;
+    }
+
+    .section {
+      padding: 20px 0 42px;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .section-kicker {
+      color: #788398;
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+    }
+
+    .section-title {
+      margin: 5px 0 0;
+      font-family: "Barlow Condensed", sans-serif;
+      font-size: 40px;
+      line-height: .92;
+      font-weight: 900;
+      letter-spacing: .03em;
+      text-transform: uppercase;
+    }
+
+    .section-description {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.7;
+      max-width: 580px;
+    }
+
+    .card {
+      position: relative;
+      overflow: hidden;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.016));
+      box-shadow: var(--shadow-soft);
+    }
+
+    .card::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 80px;
+      height: 2px;
+      background: linear-gradient(90deg, rgba(39,135,255,.95), rgba(255,47,112,.7), transparent);
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .challenge-list,
+    .result-list {
+      display: grid;
+      gap: 14px;
+    }
+
+    .row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+    }
+
+    .challenge-name {
+      font-family: "Barlow Condensed", sans-serif;
+      font-size: 26px;
+      line-height: .95;
+      font-weight: 900;
+      letter-spacing: .02em;
+      text-transform: uppercase;
+      word-break: break-word;
+    }
+
+    .challenge-meta {
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .pill-wrap {
+      display: flex;
+      gap: 7px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-top: 15px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 27px;
+      padding: 5px 9px;
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 999px;
+      color: #cad3e1;
+      background: rgba(255,255,255,.035);
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .contact {
+      color: #c7d9ff;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 28px;
+      padding: 5px 9px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.10);
+      font-size: 9px;
+      font-weight: 900;
+      letter-spacing: .11em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .badge-open {
+      color: #80bfff;
+      background: rgba(39,135,255,.10);
+      border-color: rgba(39,135,255,.28);
+    }
+
+    .badge-approved {
+      color: var(--green-soft);
+      background: rgba(51,220,133,.10);
+      border-color: rgba(51,220,133,.26);
+    }
+
+    .badge-pending {
+      color: #ffe08a;
+      background: rgba(255,210,90,.09);
+      border-color: rgba(255,210,90,.23);
+    }
+
+    .badge-rejected {
+      color: #ff98ae;
+      background: rgba(255,47,112,.09);
+      border-color: rgba(255,47,112,.23);
+    }
+
+    .search-box {
+      min-width: min(380px, 100%);
+      position: relative;
+    }
+
+    .search-box input {
+      width: 100%;
+      padding-right: 44px;
+    }
+
+    .search-icon {
+      position: absolute;
+      top: 50%;
+      right: 14px;
+      transform: translateY(-50%);
+      color: #657083;
+      pointer-events: none;
+    }
+
+    label {
+      display: grid;
+      gap: 7px;
+      color: #b7c0ce;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .04em;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      min-height: 44px;
+      padding: 11px 12px;
+      border: 1px solid rgba(255,255,255,.09);
+      border-radius: 12px;
+      outline: none;
+      color: #f6f8fc;
+      background: rgba(3,6,12,.66);
+      transition: border-color .16s ease, box-shadow .16s ease, background .16s ease;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 90px;
+    }
+
+    input::placeholder,
+    textarea::placeholder {
+      color: #5f6979;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      border-color: rgba(39,135,255,.48);
+      box-shadow: 0 0 0 3px rgba(39,135,255,.10);
+      background: rgba(3,6,12,.90);
+    }
+
+    input[readonly] {
+      color: #aab7ca;
+      background: rgba(255,255,255,.025);
+    }
+
+    input[type="file"] {
+      padding: 9px;
+      cursor: pointer;
+    }
+
+    input[type="file"]::file-selector-button {
+      margin-right: 10px;
+      padding: 8px 10px;
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 9px;
+      color: #fff;
+      background: rgba(255,255,255,.06);
+      cursor: pointer;
+      font-weight: 800;
+    }
+
+    .field-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 13px;
+    }
+
+    .field-grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 13px;
+    }
+
+    .full {
+      grid-column: 1 / -1;
+    }
+
+    .choice-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .choice-grid.skills {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .choice {
+      position: relative;
+    }
+
+    .choice input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .choice label {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 46px;
+      padding: 9px;
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 11px;
+      background: rgba(255,255,255,.028);
+      color: #afb9c9;
+      text-align: center;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 800;
+      transition: .16s ease;
+    }
+
+    .choice input:checked + label {
+      border-color: rgba(39,135,255,.44);
+      color: #fff;
+      background: linear-gradient(135deg, rgba(39,135,255,.18), rgba(255,47,112,.08));
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.03), 0 10px 24px rgba(0,0,0,.16);
+    }
+
+    .field-hint {
+      margin-top: 6px;
+      color: var(--muted-2);
+      font-size: 10px;
+      line-height: 1.6;
+    }
+
+    .status {
+      display: none;
+      margin-top: 13px;
+      padding: 11px 12px;
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 12px;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .status.show {
+      display: block;
+    }
+
+    .status.ok {
+      color: #aaf4c8;
+      border-color: rgba(51,220,133,.22);
+      background: rgba(51,220,133,.08);
+    }
+
+    .status.info {
+      color: #a9d2ff;
+      border-color: rgba(39,135,255,.22);
+      background: rgba(39,135,255,.08);
+    }
+
+    .status.error {
+      color: #ffb0c0;
+      border-color: rgba(255,47,112,.24);
+      background: rgba(255,47,112,.08);
+    }
+
+    .empty {
+      padding: 28px 18px;
+      text-align: center;
+      color: var(--muted);
+      border: 1px dashed rgba(255,255,255,.09);
+      border-radius: 16px;
+      background: rgba(255,255,255,.02);
+      font-size: 12px;
+    }
+
+    .account-card {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 16px;
+      align-items: center;
+      margin-bottom: 18px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background:
+        linear-gradient(90deg, rgba(39,135,255,.08), transparent 42%),
+        linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.015));
+      box-shadow: var(--shadow-soft);
+    }
+
+    .account-title {
+      font-family: "Barlow Condensed", sans-serif;
+      font-size: 26px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: .03em;
+    }
+
+    .account-email {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 11px;
+      word-break: break-word;
+    }
+
+    .account-message {
+      margin-top: 8px;
+      color: #aeb8c8;
+      font-size: 11px;
+      line-height: 1.6;
+    }
+
+    .table-shell {
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(255,255,255,.015);
+    }
+
+    table {
+      width: 100%;
+      min-width: 800px;
+      border-collapse: collapse;
+    }
+
+    th,
+    td {
+      padding: 12px 13px;
+      text-align: left;
+      border-bottom: 1px solid rgba(255,255,255,.055);
+      vertical-align: top;
+      font-size: 11px;
+    }
+
+    th {
+      color: #7f8a9f;
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: .12em;
+      background: rgba(255,255,255,.03);
+      white-space: nowrap;
+    }
+
+    td {
+      color: #c2cbd8;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .image-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .image-grid a {
+      display: block;
+      overflow: hidden;
+      border-radius: 13px;
+      border: 1px solid rgba(255,255,255,.08);
+      background: #02040a;
+    }
+
+    .image-grid img {
+      width: 100%;
+      aspect-ratio: 16 / 10;
+      object-fit: cover;
+      transition: transform .18s ease;
+    }
+
+    .image-grid a:hover img {
+      transform: scale(1.025);
+    }
+
+    .admin-grid {
+      display: grid;
+      gap: 16px;
+    }
+
+    .admin-panel {
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.015));
+      box-shadow: var(--shadow-soft);
+    }
+
+    .admin-panel h3 {
+      margin: 0;
+      font-family: "Barlow Condensed", sans-serif;
+      font-size: 28px;
+      line-height: 1;
+      text-transform: uppercase;
+      letter-spacing: .03em;
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    .subtle-note {
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.65;
+      margin-top: 4px;
+    }
+
+    .loader {
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255,255,255,.28);
+      border-top-color: #fff;
+      border-radius: 50%;
+      display: inline-block;
+      animation: spin .8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .footer {
+      padding: 28px 0 34px;
+      border-top: 1px solid var(--line);
+      background: rgba(0,0,0,.12);
+    }
+
+    .footer-inner {
+      display: flex;
+      justify-content: space-between;
+      gap: 15px;
+      flex-wrap: wrap;
+      color: #727d90;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .footer-brand {
+      color: #a7b1c0;
+    }
+
+    .section-anchor {
+      scroll-margin-top: 100px;
+    }
+
+    @media (max-width: 1080px) {
+      .nav {
+        flex-wrap: wrap;
+        padding: 10px 0;
+      }
+
+      .nav-links {
+        order: 3;
+        width: 100%;
+        justify-content: flex-start;
+        overflow-x: auto;
+        flex-wrap: nowrap;
+      }
+
+      .nav-links button {
+        white-space: nowrap;
+      }
+
+      .hero-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .poster {
+        width: min(100%, 680px);
+        margin-inline: auto;
+      }
+
+      .stats {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 760px) {
+      .container {
+        width: min(calc(100% - 20px), var(--max));
+      }
+
+      .brand-title {
+        font-size: 22px;
+      }
+
+      .brand-subtitle {
+        font-size: 8px;
+      }
+
+      .brand-logo {
+        width: 41px;
+        height: 41px;
+      }
+
+      .hero {
+        padding-top: 30px;
+      }
+
+      .hero h1 {
+        font-size: clamp(58px, 19vw, 84px);
+      }
+
+      .section-title {
+        font-size: 34px;
+      }
+
+      .stats,
+      .grid-2,
+      .grid-3,
+      .field-grid,
+      .field-grid-3 {
+        grid-template-columns: 1fr;
+      }
+
+      .choice-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .choice-grid.skills {
+        grid-template-columns: 1fr;
+      }
+
+      .account-card {
+        grid-template-columns: 1fr;
+      }
+
+      .section-head,
+      .panel-head {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .search-box {
+        min-width: 100%;
+      }
+
+      .hero-actions .btn,
+      .split-actions .btn {
+        width: 100%;
+      }
+
+      .image-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .nav-actions {
+        min-width: auto;
+      }
+
+      .nav-actions .btn {
+        min-height: 36px;
+        padding: 8px 10px;
+      }
+
+      .brand-subtitle {
+        display: none;
+      }
+
+      .card,
+      .admin-panel,
+      .account-card {
+        padding: 15px;
+      }
+
+      .row {
+        flex-direction: column;
+      }
+
+      .card-actions {
+        align-items: stretch;
+      }
+
+      .card-actions .btn {
+        flex: 1 1 auto;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="top-glow"></div>
+
+  <header>
+    <div class="container nav">
+      <div class="brand">
+        <img
+          class="brand-logo"
+          src="1000084600.png"
+          alt="7TH UNIVERSE"
+        />
+        <div>
+          <div class="brand-title">7TH UNIVERSE</div>
+          <div class="brand-subtitle">Guild VS Guild • Challenges & Results</div>
+        </div>
+      </div>
+
+      <nav class="nav-links" aria-label="Primary navigation">
+        <button type="button" data-page-link="home" class="active">Home</button>
+        <button type="button" data-page-link="challenge" class="auth-required">Challenge</button>
+        <button type="button" data-page-link="results" class="auth-required">Results</button>
+        <button type="button" data-page-link="auth" id="nav-auth">Guild Login</button>
+        <button type="button" data-page-link="admin">Admin</button>
+      </nav>
+
+      <div class="nav-actions">
+        <button type="button" class="btn btn-small hidden" id="nav-logout">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- ====================================================== -->
+    <!-- HOME                                                    -->
+    <!-- ====================================================== -->
+    <section id="page-home" class="page active">
+      <div class="container hero">
+        <div class="hero-grid">
+          <div class="hero-copy">
+            <div class="eyebrow">
+              <span class="eyebrow-dot"></span>
+              Live GVG Arena • Pakistan Time
+            </div>
+
+            <h1>
+              <span class="gradient">7TH UNIVERSE</span>
+              <span class="subline">GUILD VS GUILD</span>
+            </h1>
+
+            <p class="hero-text">
+              A professional Guild VS Guild arena for open challenges,
+              verified result submissions and fair-play administration.
+              Guild posting and result tools unlock only for approved,
+              non-banned guild accounts.
+            </p>
+
+            <div class="hero-actions">
+              <button
+                type="button"
+                class="btn btn-primary"
+                data-page-link="challenge"
+              >
+                Open Challenge Arena
+              </button>
+
+              <button
+                type="button"
+                class="btn"
+                data-page-link="results"
+              >
+                View Approved Results
+              </button>
+            </div>
+          </div>
+
+          <div class="poster">
+            <img src="1000084600.png" alt="7TH UNIVERSE Guild VS Guild artwork" />
+            <div class="poster-badge">
+              <strong>7TH UNIVERSE • GVG</strong>
+              <span>
+                Daily Challenges • Verified Results • Fair Play
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="stats">
+          <div class="stat-card">
+            <div class="stat-label">Open Challenges</div>
+            <div class="stat-value" id="stat-open">0</div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-label">Today's Result Submissions</div>
+            <div class="stat-value" id="stat-results">0</div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-label">Today's Approved Results</div>
+            <div class="stat-value" id="stat-approved-results">0</div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-label">Approved Guilds</div>
+            <div class="stat-value" id="stat-guilds">0</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="container section section-anchor">
+        <div class="section-head">
+          <div>
+            <div class="section-kicker">Open Arena</div>
+            <h2 class="section-title">Live Challenges</h2>
+          </div>
+
+          <div class="search-box">
+            <input
+              id="challenge-search"
+              type="search"
+              placeholder="Search by guild name..."
+              autocomplete="off"
+            />
+            <span class="search-icon" aria-hidden="true">⌕</span>
+          </div>
+        </div>
+
+        <div id="home-challenge-list" class="challenge-list">
+          <div class="empty">Loading open challenges...</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================================================== -->
+    <!-- AUTH / GUILD ACCOUNT                                    -->
+    <!-- ====================================================== -->
+    <section id="page-auth" class="page">
+      <div class="container section">
+        <div class="section-head">
+          <div>
+            <div class="section-kicker">Guild Access</div>
+            <h2 class="section-title">Login & Registration</h2>
+          </div>
+          <div class="section-description">
+            Use your Supabase Auth account to manage one guild registration.
+            Approval by an administrator is required before Challenge and Results unlock.
+          </div>
+        </div>
+
+        <div id="guild-account-card" class="account-card hidden">
+          <div>
+            <div class="account-title">Guild Account</div>
+            <div id="guild-account-info" class="account-email"></div>
+            <div id="guild-account-message" class="account-message"></div>
+          </div>
+          <div>
+            <span id="guild-account-badge" class="badge badge-pending">NOT REGISTERED</span>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="panel-head">
+              <div>
+                <h3>Guild Login</h3>
+                <div class="subtle-note">
+                  Existing Auth account? Login here.
+                </div>
+              </div>
+            </div>
+
+            <form id="guild-login-form" novalidate>
+              <div class="field-grid">
+                <label class="full">
+                  Email
+                  <input
+                    id="guild-login-email"
+                    type="email"
+                    autocomplete="email"
+                    placeholder="guild@example.com"
+                    required
+                  />
+                </label>
+
+                <label class="full">
+                  Password
+                  <input
+                    id="guild-login-password"
+                    type="password"
+                    autocomplete="current-password"
+                    placeholder="Your password"
+                    required
+                  />
+                </label>
+              </div>
+
+              <div class="split-actions" style="margin-top:14px;">
+                <button type="submit" class="btn btn-primary">
+                  Login to Guild Account
+                </button>
+              </div>
+
+              <div id="guild-auth-status" class="status"></div>
+            </form>
+          </div>
+
+          <div class="card">
+            <div class="panel-head">
+              <div>
+                <h3>Register Guild</h3>
+                <div class="subtle-note">
+                  New account or logged-in account can complete guild registration here.
+                </div>
+              </div>
+            </div>
+
+            <form id="guild-register-form" novalidate>
+              <div class="field-grid">
+                <label class="full">
+                  Guild Name
+                  <input
+                    id="guild-register-name"
+                    type="text"
+                    maxlength="80"
+                    autocomplete="organization"
+                    placeholder="Enter your guild name"
+                    required
+                  />
+                </label>
+
+                <label>
+                  Contact Number
+                  <input
+                    id="guild-register-contact"
+                    type="tel"
+                    maxlength="30"
+                    autocomplete="tel"
+                    placeholder="03XXXXXXXXX"
+                    required
+                  />
+                </label>
+
+                <label>
+                  Account Email
+                  <input
+                    id="guild-register-email"
+                    type="email"
+                    autocomplete="email"
+                    placeholder="guild@example.com"
+                    required
+                  />
+                </label>
+
+                <label class="full">
+                  Password
+                  <input
+                    id="guild-register-password"
+                    type="password"
+                    autocomplete="new-password"
+                    placeholder="Minimum 8 characters"
+                    minlength="8"
+                    required
+                  />
+                </label>
+              </div>
+
+              <div class="field-hint">
+                If the email is already authenticated in this browser, the registration flow uses the current account.
+              </div>
+
+              <div class="split-actions" style="margin-top:14px;">
+                <button type="submit" class="btn btn-primary">
+                  Register Guild
+                </button>
+              </div>
+
+              <div class="field-hint">
+                Admin approval is still required after registration.
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================================================== -->
+    <!-- CHALLENGE                                                 -->
+    <!-- ====================================================== -->
+    <section id="page-challenge" class="page">
+      <div class="container section">
+        <div class="section-head">
+          <div>
+            <div class="section-kicker">Approved Guild Only</div>
+            <h2 class="section-title">Create Challenge</h2>
+          </div>
+          <div class="section-description">
+            Challenge posting is available only from 10:00 AM until before 11:00 PM Pakistan time,
+            subject to the server-side rules and limits.
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="panel-head">
+              <div>
+                <h3>Challenge Setup</h3>
+                <div class="subtle-note">
+                  Your approved guild identity is filled automatically.
+                </div>
+              </div>
+              <span class="badge badge-open">OPEN ARENA</span>
+            </div>
+
+            <form id="challenge-form" novalidate>
+              <div class="field-grid">
+                <label>
+                  Guild Name
+                  <input id="guild-name" type="text" readonly placeholder="Approved guild name" />
+                </label>
+
+                <label>
+                  Contact Number
+                  <input id="contact" type="tel" readonly placeholder="Approved contact number" />
+                </label>
+              </div>
+
+              <div style="margin-top:14px;">
+                <label>
+                  Match Time
+                  <div class="field-grid-3">
+                    <select id="time-hour" aria-label="Hour"></select>
+                    <select id="time-minute" aria-label="Minute"></select>
+                    <select id="time-ampm" aria-label="AM or PM">
+                      <option value="AM">AM</option>
+                      <option value="PM">PM</option>
+                    </select>
+                  </div>
+                </label>
+                <div class="field-hint">
+                  Pakistan time (Asia/Karachi). Challenge posting window is enforced by the backend as well.
+                </div>
+              </div>
+
+              <div style="margin-top:16px;">
+                <label>
+                  Weapons • Select at least one
+                </label>
+                <div id="weapon-options" class="choice-grid" style="margin-top:8px;">
+                  <div class="choice">
+                    <input id="weapon-desert" type="checkbox" value="Desert" />
+                    <label for="weapon-desert">Desert</label>
+                  </div>
+                  <div class="choice">
+                    <input id="weapon-m1887" type="checkbox" value="M1887" />
+                    <label for="weapon-m1887">M1887</label>
+                  </div>
+                  <div class="choice">
+                    <input id="weapon-m1887x" type="checkbox" value="M1887X" />
+                    <label for="weapon-m1887x">M1887X</label>
+                  </div>
+                  <div class="choice">
+                    <input id="weapon-m1014" type="checkbox" value="M1014" />
+                    <label for="weapon-m1014">M1014</label>
+                  </div>
+                  <div class="choice">
+                    <input id="weapon-woodpecker" type="checkbox" value="Woodpecker" />
+                    <label for="weapon-woodpecker">Woodpecker</label>
+                  </div>
+                </div>
+              </div>
+
+              <div style="margin-top:16px;">
+                <label>
+                  Active Skills • Optional
+                </label>
+                <div id="skill-options" class="choice-grid skills" style="margin-top:8px;">
+                  <div class="choice">
+                    <input id="skill-alok" type="checkbox" value="DJ Alok" />
+                    <label for="skill-alok">DJ Alok</label>
+                  </div>
+                  <div class="choice">
+                    <input id="skill-tatsuya" type="checkbox" value="Tatsuya" />
+                    <label for="skill-tatsuya">Tatsuya</label>
+                  </div>
+                  <div class="choice">
+                    <input id="skill-koda" type="checkbox" value="Koda" />
+                    <label for="skill-koda">Koda</label>
+                  </div>
+                </div>
+              </div>
+
+              <div class="split-actions" style="margin-top:18px;">
+                <button id="challenge-submit" type="submit" class="btn btn-primary">
+                  Confirm Challenge
+                </button>
+              </div>
+
+              <div class="field-hint">
+                Your contact number is used for challenge contact actions and WhatsApp messaging.
+              </div>
+
+              <div id="challenge-status" class="status"></div>
+            </form>
+          </div>
+
+          <div class="card">
+            <div class="panel-head">
+              <div>
+                <h3>Open Challenges</h3>
+                <div class="subtle-note">
+                  Search and contact available guild challenges from the live database.
+                </div>
+              </div>
+            </div>
+
+            <div class="search-box" style="min-width:100%; margin-bottom:13px;">
+              <input
+                id="challenge-search-2"
+                type="search"
+                placeholder="Search open challenges..."
+                autocomplete="off"
+              />
+              <span class="search-icon" aria-hidden="true">⌕</span>
+            </div>
+
+            <div id="challenge-list" class="challenge-list">
+              <div class="empty">Loading open challenges...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================================================== -->
+    <!-- RESULTS                                                  -->
+    <!-- ====================================================== -->
+    <section id="page-results" class="page">
+      <div class="container section">
+        <div class="section-head">
+          <div>
+            <div class="section-kicker">Verified Records</div>
+            <h2 class="section-title">Results</h2>
+          </div>
+          <div class="section-description">
+            Public results appear only after administrator approval.
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="panel-head">
+              <div>
+                <h3>Submit Result</h3>
+                <div class="subtle-note">
+                  The logged-in approved guild must be one of the two result guilds.
+                </div>
+              </div>
+              <span class="badge badge-approved">ADMIN REVIEW</span>
+            </div>
+
+            <form id="result-form" novalidate>
+              <div class="field-grid">
+                <label class="full">
+                  Open Challenge
+                  <select id="result-challenge" required>
+                    <option value="">Select an open challenge</option>
+                  </select>
+                </label>
+
+                <label>
+                  Winner Guild
+                  <input
+                    id="winner-guild"
+                    type="text"
+                    maxlength="80"
+                    placeholder="Winner guild"
+                    required
+                  />
+                </label>
+
+                <label>
+                  Loser Guild
+                  <input
+                    id="loser-guild"
+                    type="text"
+                    maxlength="80"
+                    placeholder="Loser guild"
+                    required
+                  />
+                </label>
+
+                <label class="full">
+                  Score
+                  <input
+                    id="score"
+                    type="text"
+                    maxlength="80"
+                    placeholder="Example: 6 - 4"
+                    required
+                  />
+                </label>
+
+                <label>
+                  Proof Picture 1
+                  <input
+                    id="result-image-1"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                  />
+                </label>
+
+                <label>
+                  Proof Picture 2
+                  <input
+                    id="result-image-2"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                  />
+                </label>
+              </div>
+
+              <div class="field-hint">
+                Maximum 2 pictures. JPG, PNG or WEBP. Maximum 5 MB per picture.
+              </div>
+
+              <div class="split-actions" style="margin-top:16px;">
+                <button id="result-submit" type="submit" class="btn btn-primary">
+                  Submit Result for Approval
+                </button>
+              </div>
+
+              <div id="result-status" class="status"></div>
+            </form>
+          </div>
+
+          <div class="card">
+            <div class="panel-head">
+              <div>
+                <h3>Approved Results</h3>
+                <div class="subtle-note">
+                  Latest 100 approved records are shown here.
+                </div>
+              </div>
+            </div>
+
+            <div id="result-list" class="result-list">
+              <div class="empty">Loading approved results...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================================================== -->
+    <!-- ADMIN                                                     -->
+    <!-- ====================================================== -->
+    <section id="page-admin" class="page">
+      <div class="container section">
+        <div class="section-head">
+          <div>
+            <div class="section-kicker">Administration</div>
+            <h2 class="section-title">Admin Control Center</h2>
+          </div>
+          <div class="section-description">
+            Administrative operations are backed by the Supabase RPC functions in the supplied script.js.
+          </div>
+        </div>
+
+        <div id="admin-login-panel" class="card">
+          <div class="panel-head">
+            <div>
+              <h3>Admin Login</h3>
+              <div class="subtle-note">
+                Only active records in the admins table can access the dashboard.
+              </div>
+            </div>
+            <span class="badge badge-rejected">RESTRICTED</span>
+          </div>
+
+          <form id="admin-login-form" novalidate>
+            <div class="field-grid">
+              <label>
+                Admin Email
+                <input
+                  id="admin-email"
+                  type="email"
+                  autocomplete="username"
+                  placeholder="admin@example.com"
+                  required
+                />
+              </label>
+
+              <label>
+                Password
+                <input
+                  id="admin-password"
+                  type="password"
+                  autocomplete="current-password"
+                  placeholder="Admin password"
+                  required
+                />
+              </label>
+            </div>
+
+            <div class="split-actions" style="margin-top:14px;">
+              <button type="submit" class="btn btn-primary">
+                Login as Admin
+              </button>
+            </div>
+
+            <div id="admin-login-status" class="status"></div>
+          </form>
+        </div>
+
+        <div id="admin-dashboard" class="hidden admin-grid" style="margin-top:16px;">
+          <div class="admin-panel">
+            <div class="panel-head">
+              <div>
+                <h3>Admin Session</h3>
+                <div class="subtle-note">
+                  Logged in as <span id="admin-user-label" class="mono"></span>
+                </div>
+              </div>
+              <button id="admin-logout" type="button" class="btn btn-danger btn-small">
+                Admin Logout
+              </button>
+            </div>
+            <div id="admin-status" class="status"></div>
+          </div>
+
+          <!-- Guild registry -->
+          <div class="admin-panel">
+            <div class="panel-head">
+              <div>
+                <h3>Guild Registry</h3>
+                <div class="subtle-note">
+                  Approve, reject or ban guild accounts through the server-side admin RPCs.
+                </div>
+              </div>
+            </div>
+
+            <form id="guild-form" novalidate>
+              <div class="field-grid-3">
+                <label>
+                  Guild Name
+                  <input id="reg-guild-name" type="text" maxlength="80" placeholder="Guild name" required />
+                </label>
+
+                <label>
+                  Contact
+                  <input id="reg-contact" type="tel" maxlength="30" placeholder="Contact number" required />
+                </label>
+
+                <label>
+                  Approval Status
+                  <select id="reg-status">
+                    <option value="approved">Approved</option>
+                    <option value="pending">Pending</option>
+                    <option value="rejected">Rejected</option>
+                  </select>
+                </label>
+
+                <label>
+                  Ban Until
+                  <input id="reg-ban-until" type="datetime-local" />
+                </label>
+
+                <label class="full">
+                  Ban / Admin Reason
+                  <input id="reg-ban-reason" type="text" maxlength="250" value="Rule violation" placeholder="Reason" />
+                </label>
+              </div>
+
+              <div class="split-actions" style="margin-top:14px;">
+                <button type="submit" class="btn btn-primary">
+                  Save Guild
+                </button>
+              </div>
+            </form>
+
+            <div class="table-shell" style="margin-top:16px;">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Guild</th>
+                    <th>Status</th>
+                    <th>Ban Until</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="guild-table">
+                  <tr>
+                    <td colspan="4">Loading guilds...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Blocks -->
+          <div class="admin-panel">
+            <div class="panel-head">
+              <div>
+                <h3>Blocks</h3>
+                <div class="subtle-note">
+                  Create a block by guild name, contact number, or both.
+                </div>
+              </div>
+            </div>
+
+            <form id="block-form" novalidate>
+              <div class="field-grid-3">
+                <label>
+                  Guild Name
+                  <input id="block-guild" type="text" maxlength="80" placeholder="Optional guild name" />
+                </label>
+
+                <label>
+                  Contact Number
+                  <input id="block-number" type="tel" maxlength="30" placeholder="Optional contact" />
+                </label>
+
+                <label>
+                  Block Until
+                  <input id="block-until" type="datetime-local" />
+                </label>
+
+                <label class="full">
+                  Reason
+                  <input id="block-reason" type="text" maxlength="250" value="Rule violation" placeholder="Block reason" />
+                </label>
+              </div>
+
+              <div class="split-actions" style="margin-top:14px;">
+                <button type="submit" class="btn btn-danger">
+                  Create Block
+                </button>
+              </div>
+            </form>
+
+            <div class="table-shell" style="margin-top:16px;">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Guild / Contact</th>
+                    <th>Until</th>
+                    <th>Reason</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="block-table">
+                  <tr>
+                    <td colspan="4">Loading blocks...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Result review -->
+          <div class="admin-panel">
+            <div class="panel-head">
+              <div>
+                <h3>Result Review</h3>
+                <div class="subtle-note">
+                  Review pending proof and approve or reject result submissions.
+                </div>
+              </div>
+            </div>
+
+            <div class="table-shell">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Match</th>
+                    <th>Score</th>
+                    <th>Proofs</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-result-table">
+                  <tr>
+                    <td colspan="6">Loading result submissions...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Challenge review -->
+          <div class="admin-panel">
+            <div class="panel-head">
+              <div>
+                <h3>Challenge Control</h3>
+                <div class="subtle-note">
+                  Review open and historical challenges and cancel where required.
+                </div>
+              </div>
+            </div>
+
+            <div class="table-shell">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Guild</th>
+                    <th>Time</th>
+                    <th>Weapons</th>
+                    <th>Skills</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-challenge-table">
+                  <tr>
+                    <td colspan="6">Loading challenges...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-inner">
+      <span class="footer-brand">7TH UNIVERSE • GUILD VS GUILD</span>
+      <span>Challenges • Verified Results • Fair Play</span>
+    </div>
+  </footer>
+
+  <!-- Supabase JS v2 -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- Current supplied JavaScript -->
+  <script src="./script.js"></script>
+</body>
+</html>
