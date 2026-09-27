@@ -63,15 +63,24 @@ button{
 }
 
 .logoMark{
-  width:48px;
-  height:48px;
+  width:60px;
+  height:60px;
   border-radius:14px;
-  display:grid;
-  place-items:center;
-  font-size:27px;
-  font-weight:1000;
-  background:linear-gradient(135deg,var(--blue),var(--pink));
-  box-shadow:0 0 30px rgba(47,140,255,.20);
+  display:block;
+  flex:0 0 60px;
+
+  background-image:url("assets/7th-universe-website-logo.png");
+  background-size:cover;
+  background-position:center;
+  background-repeat:no-repeat;
+
+  font-size:0;
+  color:transparent;
+
+  border:1px solid rgba(255,255,255,.12);
+  box-shadow:
+    0 0 25px rgba(47,140,255,.18),
+    0 0 25px rgba(255,47,120,.10);
 }
 
 .brand b{
