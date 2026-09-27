@@ -52,6 +52,8 @@ const state = {
   admin: null,
   challenges: [],
   results: [],
+  leaderboard: [],
+  allWeekTop10: [],
   guilds: [],
   blocks: [],
   adminResults: []
@@ -490,6 +492,26 @@ function humanizeDbError(
   ) {
     return (
       'Guild not found.'
+    );
+  }
+
+  if (
+    /GUILD_LEADER_LIMIT/i.test(
+      message
+    )
+  ) {
+    return (
+      'This guild already has 2 leaders. A third leader is not allowed.'
+    );
+  }
+
+  if (
+    /IMAGE_REQUIRED/i.test(
+      message
+    )
+  ) {
+    return (
+      'Exactly 2 proof screenshots are required.'
     );
   }
 
@@ -2241,6 +2263,213 @@ async function handleChallengeSubmit(
 }
 
 /* ============================================================
+   WEEKLY LEADERBOARD
+   ============================================================ */
+
+async function loadLeaderboard() {
+
+  try {
+
+    const {
+      data,
+      error
+    } =
+      await db.rpc(
+        'get_gvg_weekly_leaderboard'
+      );
+
+    if (error) {
+      throw error;
+    }
+
+    state.leaderboard =
+      data || [];
+
+    renderLeaderboard();
+
+  } catch (error) {
+
+    console.error(
+      'Leaderboard load failed:',
+      error
+    );
+
+    if (
+      $('weekly-leaderboard-table')
+    ) {
+      $('weekly-leaderboard-table')
+        .innerHTML =
+        `
+          <tr>
+            <td colspan="5">
+              Could not load weekly leaderboard.
+            </td>
+          </tr>
+        `;
+    }
+  }
+}
+
+function renderLeaderboard() {
+
+  if (
+    !$('weekly-ranking-list')
+  ) {
+    return;
+  }
+
+  $('weekly-ranking-list')
+    .innerHTML =
+    state.leaderboard.length
+
+      ? state.leaderboard
+          .map(
+            (guild) => `
+              <div class="ranking-row">
+                <div class="ranking-position">
+                  ${escapeHtml(guild.rank_no)}
+                </div>
+
+                <div class="ranking-main">
+                  <strong>
+                    ${escapeHtml(guild.guild_name)}
+                  </strong>
+                  <span>
+                    ${escapeHtml(guild.wins)} W • ${escapeHtml(guild.losses)} L
+                  </span>
+                </div>
+
+                <div class="ranking-points">
+                  ${escapeHtml(guild.points)}
+                  <small>PTS</small>
+                </div>
+              </div>
+            `
+          )
+          .join('')
+
+      : `
+          <div class="empty">
+            No guild ranking data yet this week.
+          </div>
+        `;
+}
+
+async function loadBottomGuild() {
+
+  try {
+
+    const {
+      data,
+      error
+    } =
+      await db.rpc(
+        'get_gvg_weekly_bottom_guild'
+      );
+
+    if (error) {
+      throw error;
+    }
+
+    const row =
+      Array.isArray(data)
+        ? data[0] || null
+        : data || null;
+
+    if ($('weekly-bottom-guild')) {
+      $('weekly-bottom-guild').innerHTML = row
+        ? `
+            <strong>${escapeHtml(row.guild_name)}</strong>
+            <span>${escapeHtml(row.points)} POINTS</span>
+          `
+        : '<span>No guild ranking data yet.</span>';
+    }
+
+  } catch (error) {
+
+    console.error(
+      'Bottom guild load failed:',
+      error
+    );
+
+    if ($('weekly-bottom-guild')) {
+      $('weekly-bottom-guild').textContent =
+        'Could not load bottom ranking.';
+    }
+  }
+}
+
+async function loadAllWeekTop10() {
+
+  try {
+
+    const {
+      data,
+      error
+    } =
+      await db.rpc(
+        'get_gvg_all_weeks_top10'
+      );
+
+    if (error) {
+      throw error;
+    }
+
+    state.allWeekTop10 =
+      data || [];
+
+    renderAllWeekTop10();
+
+  } catch (error) {
+
+    console.error(
+      'All-week top 10 load failed:',
+      error
+    );
+
+    if ($('all-week-top10-list')) {
+      $('all-week-top10-list').innerHTML =
+        '<div class="empty">Could not load all-week top 10.</div>';
+    }
+  }
+}
+
+function renderAllWeekTop10() {
+
+  if (!$('all-week-top10-list')) {
+    return;
+  }
+
+  $('all-week-top10-list').innerHTML =
+    Array.isArray(state.allWeekTop10) &&
+    state.allWeekTop10.length
+      ? state.allWeekTop10.map(
+          (entry) => `
+            <div class="ranking-row">
+              <div class="ranking-position">
+                ${escapeHtml(entry.rank_no)}
+              </div>
+
+              <div class="ranking-main">
+                <strong>
+                  ${escapeHtml(entry.guild_name)}
+                </strong>
+                <span>
+                  WEEK OF ${escapeHtml(formatDateTime(entry.week_start))}
+                </span>
+              </div>
+
+              <div class="ranking-points">
+                ${escapeHtml(entry.points)}
+                <small>PTS</small>
+              </div>
+            </div>
+          `
+        ).join('')
+      : '<div class="empty">No weekly high-score records yet.</div>';
+}
+
+/* ============================================================
    RESULTS
    ============================================================ */
 
@@ -2662,6 +2891,17 @@ async function handleResultSubmit(
       'result-status',
       'error',
       'Select an open challenge.'
+    );
+
+    return;
+  }
+
+  if (files.length !== 2) {
+
+    showStatus(
+      'result-status',
+      'error',
+      'Exactly 2 proof screenshots are required.'
     );
 
     return;
@@ -3972,6 +4212,9 @@ async function approveResult(
     await loadAdminResults();
     await loadResults();
     await loadChallenges();
+    await loadLeaderboard();
+    await loadBottomGuild();
+    await loadAllWeekTop10();
 
   } catch (error) {
 
@@ -4285,8 +4528,7 @@ function navigate(
 
   const protectedPage =
     [
-      'challenge',
-      'results'
+      'challenge'
     ].includes(page);
 
   if (
@@ -4350,6 +4592,14 @@ function navigate(
   ) {
     loadChallenges();
     loadResults();
+    loadAllWeekTop10();
+  }
+
+  if (
+    page === 'ranking'
+  ) {
+    loadLeaderboard();
+    loadBottomGuild();
   }
 
   if (
@@ -4654,6 +4904,9 @@ window.unblock =
     await Promise.all([
       loadChallenges(),
       loadResults(),
+      loadLeaderboard(),
+      loadBottomGuild(),
+      loadAllWeekTop10(),
       updateStats()
     ]);
 
