@@ -211,11 +211,21 @@ function fillResultChallenges(){
   const sel=$('result-challenge'); if(!sel)return; const current=sel.value; sel.innerHTML='<option value="">Select an active challenge</option>'+state.challenges.map(c=>`<option value="${escapeHtml(c.id)}">${escapeHtml(c.guild_name)} • ${escapeHtml(formatTime(c.match_time))}</option>`).join(''); if(state.challenges.some(c=>c.id===current))sel.value=current;
 }
 function fillResultGuilds(){
-  const html=state.guildOptions.map(g=>`<option value="${escapeHtml(g.guild_name)}">${escapeHtml(g.guild_name)}</option>`).join('');
-  if($('result-winner')){const cur=$('result-winner').value;$('result-winner').innerHTML='<option value="">Select winner</option>'+html;if(state.guildOptions.some(g=>g.guild_name===cur))$('result-winner').value=cur;}
-  if($('result-loser')){const cur=$('result-loser').value;$('result-loser').innerHTML='<option value="">Select loser</option>'+html;if(state.guildOptions.some(g=>g.guild_name===cur))$('result-loser').value=cur;}
+  const list=$('gvg-guild-options');
+  if(!list)return;
+  list.innerHTML=state.guildOptions.map(g=>`<option value="${escapeHtml(g.guild_name)}"></option>`).join('');
 }
-function selectChallengeForResult(id){ const c=state.challenges.find(x=>x.id===id); if(!c)return; $('result-challenge').value=id; const challenger=normalizeGuild(c.guild_name); const winnerSel=$('result-winner'); const loserSel=$('result-loser'); if([...winnerSel.options].some(o=>normalizeGuild(o.value)===challenger)) winnerSel.value=c.guild_name; if([...loserSel.options].some(o=>normalizeGuild(o.value)!==challenger)) { const first=[...loserSel.options].find(o=>o.value && normalizeGuild(o.value)!==challenger); if(first) loserSel.value=first.value; } $('result-form').scrollIntoView({behavior:'smooth',block:'center'}); }
+function selectChallengeForResult(id){
+  const c=state.challenges.find(x=>x.id===id);
+  if(!c)return;
+  $('result-challenge').value=id;
+  const challenger=String(c.guild_name||'').trim();
+  const winnerInput=$('result-winner');
+  const loserInput=$('result-loser');
+  if(winnerInput)winnerInput.value=challenger;
+  if(loserInput)loserInput.value='';
+  $('result-form').scrollIntoView({behavior:'smooth',block:'center'});
+}
 
 async function uploadResultImages(files){
   if(files.length!==2)throw new Error('Exactly 2 proof screenshots are required.'); if(!state.user)throw new Error('LOGIN_REQUIRED: Login required.'); const urls=[];
