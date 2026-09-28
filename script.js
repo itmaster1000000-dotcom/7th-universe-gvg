@@ -1,9 +1,7 @@
 /*
-  7TH UNIVERSE GVG — Updated frontend
-  Uses two separate Supabase sessions:
-  - db       = Guild session
-  - adminDb  = Admin session
-  This prevents the Admin email/session from replacing the Guild account session.
+  7TH UNIVERSE GVG — FINAL FRONTEND
+  Uses two isolated Supabase Auth clients so the Admin browser session
+  does not replace the Leader browser session.
 */
 
 const SUPABASE_URL = 'https://ypnpeiglbiycbexpeibb.supabase.co';
@@ -11,931 +9,355 @@ const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_5ei0IhM1tQ15u5pAIIavhQ_alE9O3bl
 const TIME_ZONE = 'Asia/Karachi';
 const IMAGE_BUCKET = 'result-images';
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
-const WHATSAPP_NOTIFY_ENDPOINT = '';
 
-const { createClient } = window.supabase;
-
-const db = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-  auth: { storageKey: '7th-universe-guild-session', autoRefreshToken: true, persistSession: true, detectSessionInUrl: true }
-});
-
-const adminDb = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-  auth: { storageKey: '7th-universe-admin-session', autoRefreshToken: true, persistSession: true, detectSessionInUrl: false }
-});
+const RULES = [
+  'Roof / Height — <b>ALLOW NAHI</b>',
+  'Revive Karna — <b>ALLOW NAHI</b>',
+  'BO3 Matches — <b>ALLOW NAHI</b>',
+  '1 Outsider Player Bhi — <b>ALLOW NAHI</b>',
+  'Zone Packing — <b>ALLOW NAHI</b>',
+  'Level 30 Se Low Level ID — <b>ALLOW NAHI</b>',
+  'Dono Guilds Ka Agree Na Hone Par PC — <b>ALLOW NAHI</b>',
+  'Abusing Language — <b>ALLOW NAHI</b>',
+  'One Player Ka Two Guilds Se Khelna — <b>ALLOW NAHI</b>',
+  'PANNEL USER — <b>ALLOW NAHI</b>',
+  'Proof Ke Baghair Ilzam Lagana — <b>ALLOW NAHI</b>'
+];
 
 const ALLOWED_WEAPONS = ['Desert', 'M1887', 'M1887X', 'M1014', 'Woodpecker'];
 const ALLOWED_SKILLS = ['DJ Alok', 'Tatsuya', 'Koda'];
+
+const { createClient } = window.supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  auth: { storageKey: '7th-universe-guild-session-v2', autoRefreshToken: true, persistSession: true, detectSessionInUrl: true }
+});
+const adminDb = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  auth: { storageKey: '7th-universe-admin-session-v2', autoRefreshToken: true, persistSession: true, detectSessionInUrl: false }
+});
 
 const state = {
   user: null,
   guild: null,
   adminUser: null,
-  admin: null,
-  challenges: [],
-  results: [],
-  leaderboard: [],
+  adminOk: false,
+  top10: [],
+  top20: [],
   bottom: null,
-  history: [],
+  challenges: [],
+  guildOptions: [],
+  results: [],
   guilds: [],
-  blocks: [],
-  adminResults: []
+  bans: []
 };
 
 const $ = (id) => document.getElementById(id);
 
 function escapeHtml(value) {
   return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 }
 
-function normalizeGuild(value) {
-  return String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
+function normalizeGuild(value) { return String(value || '').trim().replace(/\s+/g, ' ').toLowerCase(); }
+function normalizeContact(value) { let n = String(value || '').replace(/\D/g, ''); if (n.startsWith('00')) n = n.slice(2); if (n.startsWith('0')) n = `92${n.slice(1)}`; return n; }
+function formatContact(value) { const n = normalizeContact(value); if (!n) return ''; return n.startsWith('92') && n.length === 12 ? `+92 ${n.slice(2,5)} ${n.slice(5,8)} ${n.slice(8)}` : `+${n}`; }
+function formatTime(value) { if (!value) return '--:--'; const [hRaw,mRaw='00'] = String(value).split(':'); const h = Number(hRaw); if (!Number.isFinite(h)) return '--:--'; return `${h % 12 || 12}:${String(mRaw).padStart(2,'0')} ${h >= 12 ? 'PM' : 'AM'}`; }
+function formatDateTime(value) { try { return new Intl.DateTimeFormat('en-PK',{dateStyle:'medium',timeStyle:'short',timeZone:TIME_ZONE}).format(new Date(value)); } catch { return String(value || ''); } }
+function showStatus(id,type,message){ const el=$(id); if(!el) return; el.className=`status show ${type}`; el.textContent=message; }
+function clearStatus(id){ const el=$(id); if(!el) return; el.className='status'; el.textContent=''; }
+function setBusy(buttonId,busy,label){ const btn=$(buttonId); if(!btn) return; btn.disabled=busy; if(busy) btn.dataset.oldText=btn.textContent; btn.textContent=busy?'PLEASE WAIT…':(label||btn.dataset.oldText||'SUBMIT'); }
+function humanizeError(error){ const msg=String(error?.message || error?.error_description || error || 'Unknown error').trim(); return msg.replace(/^(Error:\s*)/i,''); }
+function currentPakistanParts(){ const parts=new Intl.DateTimeFormat('en-CA',{timeZone:TIME_ZONE,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).formatToParts(new Date()); const o={}; for(const p of parts) o[p.type]=p.value; return {year:Number(o.year),month:Number(o.month),day:Number(o.day),hour:Number(o.hour)%24,minute:Number(o.minute)}; }
+function cycleStartDateKey(){ const p=currentPakistanParts(); const d=new Date(Date.UTC(p.year,p.month-1,p.day)); if(p.hour<10) d.setUTCDate(d.getUTCDate()-1); return d.toISOString().slice(0,10); }
+function challengePostingOpen(){ const p=currentPakistanParts(); const mins=p.hour*60+p.minute; return mins>=600 && mins<1380; }
+function cycleStartForChallenge(challengeCreatedAt){ const d=new Date(new Intl.DateTimeFormat('en-US',{timeZone:TIME_ZONE,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(challengeCreatedAt))); if(Number.isNaN(d.getTime())) return null; const p=new Intl.DateTimeFormat('en-US',{timeZone:TIME_ZONE,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).formatToParts(new Date(challengeCreatedAt)); const o={}; for(const x of p)o[x.type]=x.value; const local=new Date(Date.UTC(Number(o.year),Number(o.month)-1,Number(o.day),Number(o.hour)%24,Number(o.minute))); if(Number(o.hour)<10)local.setUTCDate(local.getUTCDate()-1); return local.toISOString().slice(0,10); }
+
+function openView(name){
+  $('public-landing').style.display = name==='public' || name==='register' ? 'grid' : 'none';
+  $('public-view').classList.toggle('hidden',name!=='public');
+  $('register-view').classList.toggle('hidden',name!=='register');
+  $('member-dashboard').style.display = name==='member' ? 'block' : 'none';
+  $('admin-page').style.display = name==='admin' ? 'block' : 'none';
+  window.scrollTo({top:0,behavior:'smooth'});
 }
 
-function normalizeContact(value) {
-  let n = String(value || '').replace(/\D/g, '');
-  if (n.startsWith('00')) n = n.slice(2);
-  if (n.startsWith('0')) n = `92${n.slice(1)}`;
-  return n;
+function renderRules(){
+  const target=$('rules-grid'); if(!target) return;
+  target.innerHTML=RULES.map((rule,i)=>`<div class="rule-item"><div class="rule-no">${i+1}</div><div class="rule-text">${rule}</div></div>`).join('');
+}
+function renderWeaponSkillChoices(){
+  const wg=$('weapon-grid'), sg=$('skill-grid');
+  if(wg) wg.innerHTML=ALLOWED_WEAPONS.map((x,i)=>`<label class="rule-item" style="grid-template-columns:32px 1fr;cursor:pointer"><input type="checkbox" name="weapons" value="${escapeHtml(x)}" style="min-height:auto;width:auto;margin:0" /><span>${escapeHtml(x)}</span></label>`).join('');
+  if(sg) sg.innerHTML=ALLOWED_SKILLS.map((x)=>`<label class="rule-item" style="grid-template-columns:32px 1fr;cursor:pointer"><input type="checkbox" name="skills" value="${escapeHtml(x)}" style="min-height:auto;width:auto;margin:0" /><span>${escapeHtml(x)}</span></label>`).join('');
 }
 
-function formatContact(value) {
-  const n = normalizeContact(value);
-  if (!n) return '';
-  if (n.startsWith('92') && n.length === 12) return `+92 ${n.slice(2,5)} ${n.slice(5,8)} ${n.slice(8)}`;
-  return `+${n}`;
+function isPendingRegistrationSaved(){ try{return Boolean(localStorage.getItem('7th-universe-pending-registration-v2'));}catch{return false;} }
+function savePendingRegistration(data){ try{ localStorage.setItem('7th-universe-pending-registration-v2',JSON.stringify(data)); }catch{} }
+function readPendingRegistration(){ try{return JSON.parse(localStorage.getItem('7th-universe-pending-registration-v2')||'null');}catch{return null;} }
+function clearPendingRegistration(){ try{localStorage.removeItem('7th-universe-pending-registration-v2');}catch{} }
+
+async function loadPublicTop10(){
+  try{
+    const {data,error}=await db.rpc('get_gvg_public_top10');
+    if(error) throw error;
+    state.top10=data||[];
+    const target=$('public-top10-table');
+    target.innerHTML=state.top10.length?state.top10.map(r=>`<tr><td class="tiny-rank">${escapeHtml(r.rank_no)}</td><td><strong>${escapeHtml(r.guild_name)}</strong></td><td class="tiny-points">${escapeHtml(r.points)}</td></tr>`).join(''):'<tr><td colspan="3">No current weekly records yet.</td></tr>';
+  }catch(error){ console.error(error); $('public-top10-table').innerHTML='<tr><td colspan="3">Could not load Top 10.</td></tr>'; }
 }
 
-function formatTime(value) {
-  if (!value) return '--:--';
-  const [hText, mText = '00'] = String(value).split(':');
-  const h = Number(hText);
-  if (!Number.isFinite(h)) return '--:--';
-  return `${h % 12 || 12}:${String(mText).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
+async function loadMyGuild(){
+  if(!state.user){state.guild=null;return;}
+  const {data,error}=await db.rpc('get_my_gvg_guild');
+  if(error){ console.error(error); state.guild=null; return; }
+  state.guild=Array.isArray(data)?(data[0]||null):data;
+}
+function guildApproved(){ return Boolean(state.guild && state.guild.approval_status==='approved' && !state.guild.is_banned && (!state.guild.ban_until || new Date(state.guild.ban_until)<=new Date())); }
+
+async function completePendingRegistration(){
+  const pending=readPendingRegistration(); if(!pending || !state.user) return;
+  if(String(pending.email||'').toLowerCase()!==String(state.user.email||'').toLowerCase()) return;
+  try{
+    const {data,error}=await db.rpc('register_gvg_guild',{p_guild_name:pending.guild,p_contact:pending.contact});
+    if(error) throw error;
+    clearPendingRegistration(); state.guild=data;
+    showStatus('login-status','ok','Account confirmed and guild registration has been submitted. Admin approval is required.');
+  }catch(error){ showStatus('login-status','error',humanizeError(error)); }
 }
 
-function formatDateTime(value) {
-  if (!value) return '-';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '-';
-  return new Intl.DateTimeFormat('en-PK', { dateStyle: 'medium', timeStyle: 'short', timeZone: TIME_ZONE }).format(d);
+async function handleLogin(e){
+  e.preventDefault(); clearStatus('login-status');
+  const email=$('login-email').value.trim(), password=$('login-password').value;
+  if(!email||!password){showStatus('login-status','error','Email and password are required.');return;}
+  try{
+    setBusy('login-form',false);
+    const {data,error}=await db.auth.signInWithPassword({email,password});
+    if(error) throw error;
+    state.user=data.user; await loadMyGuild(); await completePendingRegistration(); await enterMember();
+  }catch(error){showStatus('login-status','error',humanizeError(error));}
 }
 
-function formatWeek(value) {
-  if (!value) return '-';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '-';
-  return new Intl.DateTimeFormat('en-PK', { dateStyle: 'medium', timeZone: TIME_ZONE }).format(d);
-}
-
-function currentPakistanParts() {
-  const formatter = new Intl.DateTimeFormat('en-GB', { timeZone: TIME_ZONE, hour: '2-digit', minute: '2-digit', hour12: false });
-  const parts = Object.fromEntries(formatter.formatToParts(new Date()).map((p) => [p.type, p.value]));
-  return { hour: Number(parts.hour), minute: Number(parts.minute) };
-}
-
-function postingWindowOpen() {
-  const { hour, minute } = currentPakistanParts();
-  const total = hour * 60 + minute;
-  return total >= 600 && total < 1380;
-}
-
-function selectedValues(selector) {
-  return [...document.querySelectorAll(selector)].filter((el) => el.checked).map((el) => el.value);
-}
-
-function showStatus(id, type, message) {
-  const el = $(id);
-  if (!el) return;
-  el.className = `status show ${type}`;
-  el.textContent = message;
-}
-
-function clearStatus(id) {
-  const el = $(id);
-  if (!el) return;
-  el.className = 'status';
-  el.textContent = '';
-}
-
-function setButtonBusy(id, busy, restoreText) {
-  const btn = $(id);
-  if (!btn) return;
-  if (busy) {
-    btn.disabled = true;
-    btn.dataset.oldText = btn.textContent;
-    btn.innerHTML = '<span class="loader"></span>';
-  } else {
-    btn.disabled = false;
-    btn.textContent = restoreText || btn.dataset.oldText || 'Submit';
-  }
-}
-
-function humanizeDbError(error) {
-  const message = String(error?.message || error?.details || error || 'Request failed.');
-  if (/LOGIN_REQUIRED/i.test(message)) return 'Please login to continue.';
-  if (/ALREADY_REGISTERED/i.test(message)) return 'This account already has a registered guild.';
-  if (/DUPLICATE_REGISTRATION/i.test(message)) return 'This contact number is already registered.';
-  if (/GUILD_LEADER_LIMIT/i.test(message)) return 'This guild already has 2 leaders.';
-  if (/INVALID_GUILD/i.test(message)) return 'Invalid guild name.';
-  if (/INVALID_CONTACT/i.test(message)) return 'Invalid contact number.';
-  if (/APPROVAL/i.test(message)) return 'This guild is not approved yet or is currently banned.';
-  if (/BAN_ACTIVE/i.test(message)) return 'This guild is currently banned.';
-  if (/BLOCKED/i.test(message)) return 'This guild or contact number is currently blocked.';
-  if (/DAILY_CHALLENGE_LIMIT/i.test(message)) return 'This guild has reached the 10-challenge daily limit.';
-  if (/COOLDOWN/i.test(message)) return 'Please wait 15 minutes before posting another challenge.';
-  if (/TIME_WINDOW/i.test(message)) return 'Challenge posting is open only from 10:00 AM until before 11:00 PM Pakistan time.';
-  if (/DAILY_RESULT_LIMIT/i.test(message)) return 'This guild has reached the 5-result daily limit.';
-  if (/IMAGE_LIMIT/i.test(message)) return 'Exactly 2 proof screenshots are required.';
-  if (/RESULT_EXISTS/i.test(message)) return 'This challenge already has a result submission.';
-  if (/RESULT_MATCH/i.test(message)) return 'The selected challenge does not match the submitted guilds.';
-  if (/RESULT_ACTOR/i.test(message)) return 'The logged-in guild must be either the winner or the loser.';
-  if (/RESULT_GUILD/i.test(message)) return 'Both result guilds must be registered, approved and not banned.';
-  if (/CHALLENGE_NOT_FOUND/i.test(message)) return 'Challenge not found or it is no longer open.';
-  if (/ADMIN_ONLY/i.test(message)) return 'Admin access required.';
-  if (/Invalid login credentials/i.test(message)) return 'Invalid email or password.';
-  if (/Email not confirmed/i.test(message)) return 'Please confirm your email before logging in.';
-  if (/not linked as an active/i.test(message)) return 'This Auth account is not linked as an active 7TH UNIVERSE admin.';
-  return message.trim();
-}
-
-function guildIsApproved() {
-  if (!state.user || !state.guild) return false;
-  const banned = state.guild.is_banned === true || Boolean(state.guild.ban_until && new Date(state.guild.ban_until) > new Date());
-  return state.guild.approval_status === 'approved' && !banned;
-}
-
-function guildStatusText(guild) {
-  if (!guild) return 'No guild is registered with this account. Complete Guild Registration below.';
-  const banned = guild.is_banned === true || Boolean(guild.ban_until && new Date(guild.ban_until) > new Date());
-  if (banned) return guild.ban_until ? `BANNED until ${formatDateTime(guild.ban_until)}.` : 'BANNED permanently.';
-  if (guild.approval_status === 'approved') return 'Your guild is approved. Challenge and Results are unlocked.';
-  if (guild.approval_status === 'rejected') return 'Your guild registration was rejected by an admin.';
-  return 'Your guild registration is pending admin approval.';
-}
-
-async function loadMyGuild() {
-  state.guild = null;
-  if (!state.user) return null;
-  const { data, error } = await db.from('guild_registry').select('id,user_id,guild_name,contact,approval_status,is_banned,ban_until,ban_reason,created_at,updated_at').eq('user_id', state.user.id).maybeSingle();
-  if (error) throw error;
-  state.guild = data || null;
-  return state.guild;
-}
-
-function syncGuildRegistrationForm() {
-  const email = $('guild-register-email');
-  const password = $('guild-register-password');
-  if (!email) return;
-  if (state.user) {
-    email.value = state.user.email || '';
-    email.readOnly = true;
-    if (password) {
-      password.required = false;
-      password.disabled = true;
-      password.value = '';
-      password.placeholder = 'Not required while logged in';
+async function handleRegister(e){
+  e.preventDefault(); clearStatus('register-status');
+  const guild=$('register-guild').value.trim(), contact=$('register-contact').value.trim(), email=$('register-email').value.trim(), password=$('register-password').value;
+  if(!guild||!contact||!email||!password){showStatus('register-status','error','Guild name, contact, email and password are required.');return;}
+  if(password.length<8){showStatus('register-status','error','Password must be at least 8 characters.');return;}
+  try{
+    const {data,error}=await db.auth.signUp({email,password});
+    if(error) throw error;
+    savePendingRegistration({guild,contact,email});
+    if(data.session){
+      state.user=data.user; const {data:reg,error:regError}=await db.rpc('register_gvg_guild',{p_guild_name:guild,p_contact:contact}); if(regError) throw regError; clearPendingRegistration(); state.guild=reg; openView('member'); await refreshMember();
+    }else{
+      showStatus('register-status','info','Account created. Please confirm the email, then login. The guild registration details are saved and will be submitted automatically after login.');
     }
-  } else {
-    email.readOnly = false;
-    if (password) {
-      password.required = true;
-      password.disabled = false;
-      password.placeholder = 'Minimum 8 characters';
-    }
-  }
+  }catch(error){showStatus('register-status','error',humanizeError(error));}
 }
 
-function updateGuildUI() {
-  document.querySelectorAll('.auth-required').forEach((el) => el.classList.toggle('hidden', !guildIsApproved()));
-  $('nav-auth')?.classList.toggle('hidden', !!state.user);
-  $('nav-logout')?.classList.toggle('hidden', !state.user);
-  $('guild-account-card')?.classList.toggle('hidden', !state.user);
-  if ($('guild-account-info')) $('guild-account-info').textContent = state.user?.email || '';
-  if ($('guild-account-message')) $('guild-account-message').textContent = guildStatusText(state.guild);
-  if ($('guild-account-badge')) {
-    const badge = $('guild-account-badge');
-    badge.textContent = state.guild ? String(state.guild.approval_status || 'pending').toUpperCase() : 'NOT REGISTERED';
-    badge.className = `badge ${guildIsApproved() ? 'badge-ok' : state.guild?.approval_status === 'rejected' ? 'badge-danger' : 'badge-pending'}`;
-  }
-  if ($('guild-name')) $('guild-name').value = state.guild?.guild_name || '';
-  if ($('contact')) $('contact').value = state.guild?.contact || '';
-  syncGuildRegistrationForm();
+async function handleForgot(){
+  clearStatus('login-status'); const email=$('login-email').value.trim(); if(!email){showStatus('login-status','error','Enter your account email first.');return;}
+  try{
+    const redirectTo=`${window.location.origin}${window.location.pathname}`;
+    const {error}=await db.auth.resetPasswordForEmail(email,{redirectTo}); if(error) throw error;
+    showStatus('login-status','ok','Password reset email sent. Open the email and choose a new password.');
+  }catch(error){showStatus('login-status','error',humanizeError(error));}
 }
 
-async function refreshGuildAuth() {
-  try {
-    const { data: { user } } = await db.auth.getUser();
-    state.user = user || null;
-    await loadMyGuild();
-    updateGuildUI();
-  } catch (error) {
-    console.error('Guild auth refresh failed', error);
-    state.user = null;
-    state.guild = null;
-    updateGuildUI();
-  }
-}
-
-async function handleGuildLogin(event) {
+async function handleUpdatePassword(event){
   event.preventDefault();
-  clearStatus('guild-auth-status');
-  const email = $('guild-login-email')?.value.trim() || '';
-  const password = $('guild-login-password')?.value || '';
-  if (!email || !password) return showStatus('guild-auth-status', 'error', 'Email and password are required.');
-  try {
-    const { error } = await db.auth.signInWithPassword({ email, password });
-    if (error) throw error;
-    await refreshGuildAuth();
-    if (!state.guild) {
-      showStatus('guild-auth-status', 'info', 'Login successful. This account has no registered guild yet. Complete Guild Registration below.');
-      navigate('auth', true);
-      return;
-    }
-    if (!guildIsApproved()) {
-      showStatus('guild-auth-status', 'info', guildStatusText(state.guild));
-      navigate('auth', true);
-      return;
-    }
-    showStatus('guild-auth-status', 'ok', 'Login successful. Challenge and Results are now available.');
-    navigate('challenge', true);
-  } catch (error) {
-    showStatus('guild-auth-status', 'error', humanizeDbError(error));
-  }
 }
 
-async function registerGuildForCurrentUser(guild, contact) {
-  if (!state.user) throw new Error('LOGIN_REQUIRED: Login required.');
-  const { data, error } = await db.rpc('register_gvg_guild', { p_guild_name: guild, p_contact: contact });
-  if (error) throw error;
-  state.guild = Array.isArray(data) ? data[0] : data;
-  await refreshGuildAuth();
-  return state.guild;
+async function renderMemberIdentity(){
+  const info=$('member-identity'), badge=$('member-status-badge'); if(!info||!badge)return;
+  if(!state.user){info.textContent='Not logged in';badge.className='badge badge-red';badge.textContent='LOGOUT';return;}
+  const g=state.guild;
+  if(!g){info.textContent=`${state.user.email} • No guild registration yet`;badge.className='badge badge-gold';badge.textContent='NOT REGISTERED';return;}
+  info.textContent=`${g.guild_name} • ${formatContact(g.contact)} • ${state.user.email}`;
+  if(g.is_banned || (g.ban_until && new Date(g.ban_until)>new Date())){badge.className='badge badge-red';badge.textContent='BANNED';return;}
+  badge.className=g.approval_status==='approved'?'badge badge-green':'badge badge-gold'; badge.textContent=String(g.approval_status||'').toUpperCase();
 }
 
-async function handleGuildRegister(event) {
-  event.preventDefault();
-  clearStatus('guild-auth-status');
-  const guild = $('guild-register-name')?.value.trim() || '';
-  const contact = $('guild-register-contact')?.value.trim() || '';
-  const email = $('guild-register-email')?.value.trim() || '';
-  const password = $('guild-register-password')?.value || '';
-  if (!guild || !contact || !email) return showStatus('guild-auth-status', 'error', 'Guild name, contact and email are required.');
-  if (!state.user && password.length < 8) return showStatus('guild-auth-status', 'error', 'Password must be at least 8 characters.');
-  try {
-    if (state.user) {
-      if (String(state.user.email || '').trim().toLowerCase() !== email.toLowerCase()) throw new Error('Registration email must match the currently logged-in guild account.');
-      if (state.guild) return showStatus('guild-auth-status', 'info', guildStatusText(state.guild));
-      await registerGuildForCurrentUser(guild, contact);
-      showStatus('guild-auth-status', 'ok', 'Guild registered successfully. The record is ready for admin approval.');
-      return;
-    }
-    const login = await db.auth.signInWithPassword({ email, password });
-    if (!login.error) {
-      await refreshGuildAuth();
-      if (state.guild) return showStatus('guild-auth-status', 'info', guildStatusText(state.guild));
-      await registerGuildForCurrentUser(guild, contact);
-      showStatus('guild-auth-status', 'ok', 'Guild registered successfully. The record is ready for admin approval.');
-      return;
-    }
-    const { data, error } = await db.auth.signUp({ email, password, options: { data: { account_type: 'guild' } } });
-    if (error) {
-      if (/already registered|already exists|user already/i.test(String(error.message || ''))) throw new Error('This email already has an account. Login with that email and password, then register the guild.');
-      throw error;
-    }
-    if (data?.session) {
-      await refreshGuildAuth();
-      if (!state.guild) await registerGuildForCurrentUser(guild, contact);
-      showStatus('guild-auth-status', 'ok', 'Guild registered successfully. The record is ready for admin approval.');
-    } else {
-      showStatus('guild-auth-status', 'info', 'Account created. Confirm your email, then login and complete Guild Registration. Admin approval is required.');
-    }
-  } catch (error) {
-    showStatus('guild-auth-status', 'error', humanizeDbError(error));
-  } finally {
-    syncGuildRegistrationForm();
-  }
+async function loadLiveChallenges(){
+  try{
+    const {data,error}=await db.rpc('get_gvg_live_challenges'); if(error) throw error;
+    state.challenges=data||[]; renderChallenges(); fillResultChallenges();
+  }catch(error){console.error(error); $('live-challenge-list').innerHTML='<div class="empty">Could not load live challenges.</div>';}
+}
+function renderChallenges(){
+  const target=$('live-challenge-list'); if(!target)return;
+  target.innerHTML=state.challenges.length?state.challenges.map(c=>`<div class="challenge-card"><div class="meta-row"><div><div class="kicker">${escapeHtml(c.challenge_code||'CHALLENGE')}</div><div class="name">${escapeHtml(c.guild_name)}</div></div><span class="badge badge-blue">OPEN</span></div><div class="challenge-time">MATCH ${escapeHtml(formatTime(c.match_time))}</div><div class="pill-wrap">${(c.weapons||[]).map(x=>`<span class="pill">${escapeHtml(x)}</span>`).join('')}${(c.active_skills||[]).map(x=>`<span class="pill">${escapeHtml(x)}</span>`).join('')}</div><div class="contact-line"><a class="contact-link" href="tel:${escapeHtml(normalizeContact(c.contact_number))}">${escapeHtml(formatContact(c.contact_number))}</a><button class="btn btn-primary btn-small" type="button" data-action="result-from-challenge" data-id="${escapeHtml(c.id)}">SUBMIT RESULT</button></div></div>`).join(''):'<div class="empty">No active challenges right now.</div>';
 }
 
-async function handleGuildLogout() {
-  try { await db.auth.signOut(); } catch (error) { console.error(error); }
-  state.user = null;
-  state.guild = null;
-  updateGuildUI();
-  navigate('home', true);
+async function loadGuildOptions(){
+  try{const {data,error}=await db.rpc('get_gvg_guild_options'); if(error)throw error; state.guildOptions=data||[]; fillResultGuilds();}catch(error){console.error(error);}
 }
-
-function mapChallengeRow(row) {
-  const rawContact = row.contact_normalized || row.contact_number || '';
-  const guildName = row.guild_name || row.guild_name_normalized || 'Unknown Guild';
-  return {
-    ...row,
-    guild_name: String(guildName).toUpperCase(),
-    challenge_time: row.match_time,
-    contact: formatContact(rawContact)
-  };
+function fillResultChallenges(){
+  const sel=$('result-challenge'); if(!sel)return; const current=sel.value; sel.innerHTML='<option value="">Select an active challenge</option>'+state.challenges.map(c=>`<option value="${escapeHtml(c.id)}">${escapeHtml(c.guild_name)} • ${escapeHtml(formatTime(c.match_time))}</option>`).join(''); if(state.challenges.some(c=>c.id===current))sel.value=current;
 }
-
-function challengeMessage(challenge) {
-  return ['7TH UNIVERSE GVG', '', `Guild: ${challenge.guild_name}`, `Time: ${formatTime(challenge.challenge_time)}`, `Weapons: ${(challenge.weapons || []).join(', ') || 'Not specified'}`, `Active Skills: ${(challenge.active_skills || []).join(', ') || 'None'}`, `Contact: ${challenge.contact}`].join('\n');
+function fillResultGuilds(){
+  const html=state.guildOptions.map(g=>`<option value="${escapeHtml(g.guild_name)}">${escapeHtml(g.guild_name)}</option>`).join('');
+  if($('result-winner')){const cur=$('result-winner').value;$('result-winner').innerHTML='<option value="">Select winner</option>'+html;if(state.guildOptions.some(g=>g.guild_name===cur))$('result-winner').value=cur;}
+  if($('result-loser')){const cur=$('result-loser').value;$('result-loser').innerHTML='<option value="">Select loser</option>'+html;if(state.guildOptions.some(g=>g.guild_name===cur))$('result-loser').value=cur;}
 }
+function selectChallengeForResult(id){ const c=state.challenges.find(x=>x.id===id); if(!c)return; $('result-challenge').value=id; const challenger=normalizeGuild(c.guild_name); const winnerSel=$('result-winner'); const loserSel=$('result-loser'); if([...winnerSel.options].some(o=>normalizeGuild(o.value)===challenger)) winnerSel.value=c.guild_name; if([...loserSel.options].some(o=>normalizeGuild(o.value)!==challenger)) { const first=[...loserSel.options].find(o=>o.value && normalizeGuild(o.value)!==challenger); if(first) loserSel.value=first.value; } $('result-form').scrollIntoView({behavior:'smooth',block:'center'}); }
 
-function openWhatsApp(challengeId) {
-  const challenge = state.challenges.find((x) => x.id === challengeId);
-  if (!challenge) return;
-  const n = normalizeContact(challenge.contact);
-  if (!n) return alert('No valid contact number is available.');
-  window.open(`https://wa.me/${n}?text=${encodeURIComponent(challengeMessage(challenge))}`, '_blank', 'noopener,noreferrer');
-}
-
-async function notifyWhatsApp(challenge) {
-  if (!WHATSAPP_NOTIFY_ENDPOINT) return;
-  try {
-    await fetch(WHATSAPP_NOTIFY_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'new_challenge', challenge }) });
-  } catch (error) { console.warn('WhatsApp notification failed', error); }
-}
-
-function navigateToResultForChallenge(challengeId) {
-  const select = $('result-challenge');
-  navigate('results', true);
-  setTimeout(() => {
-    if (select) select.value = challengeId;
-  }, 20);
-}
-
-function renderChallengeCard(challenge) {
-  const weapons = (challenge.weapons || []).map((x) => `<span class="pill">${escapeHtml(x)}</span>`).join('') || '<span class="pill">Not specified</span>';
-  const skills = (challenge.active_skills || []).map((x) => `<span class="pill">${escapeHtml(x)}</span>`).join('') || '<span class="pill">None</span>';
-  return `<div class="challenge-card">
-    <div class="meta-row"><div><div class="name">${escapeHtml(challenge.guild_name)}</div><div class="subtle">Open challenge • no date</div></div><span class="badge badge-open">OPEN</span></div>
-    <div class="challenge-time">${escapeHtml(formatTime(challenge.challenge_time))}</div>
-    <div class="pill-wrap"><strong class="small muted">WEAPONS</strong></div><div class="pill-wrap" style="margin-top:-4px">${weapons}</div>
-    <div class="pill-wrap"><strong class="small muted">SKILLS</strong></div><div class="pill-wrap" style="margin-top:-4px">${skills}</div>
-    <div class="card-actions" style="margin-top:13px"><a class="contact-link" href="tel:+${escapeHtml(normalizeContact(challenge.contact))}">${escapeHtml(challenge.contact)}</a><button class="btn btn-small" type="button" data-action="whatsapp" data-id="${escapeHtml(challenge.id)}">WhatsApp</button><button class="btn btn-small btn-primary" type="button" data-action="copy" data-id="${escapeHtml(challenge.id)}">Copy Number</button>${guildIsApproved() ? `<button class="btn btn-small btn-success" type="button" data-action="result" data-id="${escapeHtml(challenge.id)}">Submit Result</button>` : ''}</div>
-  </div>`;
-}
-
-function renderChallengeLists() {
-  const search = (($('home-challenge-search')?.value || $('challenge-search')?.value || '').trim().toLowerCase());
-  const html = state.challenges.filter((c) => !search || String(c.guild_name || '').toLowerCase().includes(search)).map(renderChallengeCard).join('') || '<div class="empty">No open challenges found.</div>';
-  if ($('home-challenge-list')) $('home-challenge-list').innerHTML = html;
-  if ($('challenge-list')) $('challenge-list').innerHTML = html;
-}
-
-async function loadChallenges() {
-  try {
-    const { data, error } = await db.from('challenges').select('id,challenge_code,challenger_leader_id,challenger_guild_id,opponent_guild_id,challenge_everyone,match_time,weapons,active_skills,contact_number,status,created_at,accepted_by_leader_id,accepted_by_guild_id,accepted_at,user_id,guild_name_normalized,contact_normalized,completed_at').eq('status', 'open').order('created_at', { ascending: false }).limit(200);
-    if (error) throw error;
-    state.challenges = (data || []).map(mapChallengeRow);
-    renderChallengeLists();
-    fillResultChallenges();
-    await updateStats();
-  } catch (error) {
-    console.error(error);
-    const html = '<div class="empty">Could not load challenges.</div>';
-    if ($('home-challenge-list')) $('home-challenge-list').innerHTML = html;
-    if ($('challenge-list')) $('challenge-list').innerHTML = html;
-  }
-}
-
-function initTimePicker() {
-  const hour = $('time-hour'), minute = $('time-minute'), ampm = $('time-ampm');
-  if (!hour || !minute || !ampm) return;
-  hour.innerHTML = Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}">${String(i + 1).padStart(2, '0')}</option>`).join('');
-  minute.innerHTML = Array.from({ length: 60 }, (_, i) => `<option value="${String(i).padStart(2, '0')}">${String(i).padStart(2, '0')}</option>`).join('');
-  const now = currentPakistanParts();
-  hour.value = String(now.hour % 12 || 12);
-  minute.value = String(now.minute).padStart(2, '0');
-  ampm.value = now.hour >= 12 ? 'PM' : 'AM';
-}
-
-function getSelectedTime24() {
-  let h = Number($('time-hour')?.value || 12);
-  const m = Number($('time-minute')?.value || 0);
-  const ap = $('time-ampm')?.value || 'AM';
-  if (ap === 'PM' && h !== 12) h += 12;
-  if (ap === 'AM' && h === 12) h = 0;
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`;
-}
-
-async function handleChallengeSubmit(event) {
-  event.preventDefault();
-  clearStatus('challenge-status');
-  if (!guildIsApproved()) return navigate('auth', true);
-  if (!postingWindowOpen()) return showStatus('challenge-status', 'error', 'Challenges can only be posted from 10:00 AM until before 11:00 PM Pakistan time.');
-  const weapons = selectedValues('#weapon-options input');
-  const skills = selectedValues('#skill-options input');
-  if (!weapons.length) return showStatus('challenge-status', 'error', 'Select at least one weapon.');
-  if (weapons.some((x) => !ALLOWED_WEAPONS.includes(x))) return showStatus('challenge-status', 'error', 'Invalid weapon selection.');
-  if (skills.some((x) => !ALLOWED_SKILLS.includes(x))) return showStatus('challenge-status', 'error', 'Invalid skill selection.');
-  setButtonBusy('challenge-submit', true);
-  try {
-    const { data, error } = await db.rpc('submit_gvg_challenge', { p_challenge_time: getSelectedTime24(), p_weapons: weapons, p_active_skills: skills });
-    if (error) throw error;
-    $('challenge-form')?.reset();
-    initTimePicker();
-    showStatus('challenge-status', 'ok', 'Challenge submitted successfully.');
-    await loadChallenges();
-    const returned = Array.isArray(data) ? data[0] : data;
-    if (returned) await notifyWhatsApp({ ...returned, guild_name: String(returned.guild_name_normalized || state.guild?.guild_name || '').toUpperCase(), challenge_time: returned.match_time || null, contact: formatContact(returned.contact_number || state.guild?.contact || '') });
-  } catch (error) {
-    showStatus('challenge-status', 'error', humanizeDbError(error));
-  } finally {
-    setButtonBusy('challenge-submit', false, 'Confirm Challenge');
-  }
-}
-
-function renderLeaderboardTable(targetId, rows) {
-  const target = $(targetId);
-  if (!target) return;
-  target.innerHTML = rows.length ? rows.map((g) => `<tr><td><span class="rank-number">${escapeHtml(g.rank_no)}</span></td><td><strong>${escapeHtml(g.guild_name)}</strong></td><td><span class="points ${Number(g.points) < 0 ? 'negative' : 'positive'}">${escapeHtml(g.points)}</span></td><td>${escapeHtml(g.wins)}</td><td>${escapeHtml(g.losses)}</td></tr>`).join('') : '<tr><td colspan="5">No approved results yet this week.</td></tr>';
-}
-
-async function loadLeaderboard() {
-  try {
-    const { data, error } = await db.rpc('get_gvg_weekly_leaderboard');
-    if (error) throw error;
-    state.leaderboard = data || [];
-    renderLeaderboardTable('home-ranking-table', state.leaderboard);
-    renderLeaderboardTable('ranking-table', state.leaderboard);
-  } catch (error) {
-    console.error('Leaderboard load failed', error);
-  }
-}
-
-async function loadBottom() {
-  try {
-    const { data, error } = await db.rpc('get_gvg_weekly_bottom');
-    if (error) throw error;
-    state.bottom = Array.isArray(data) ? data[0] : data;
-    if ($('bottom-card')) {
-      $('bottom-card').innerHTML = state.bottom ? `<strong>${escapeHtml(state.bottom.guild_name)}</strong><div class="sub">${escapeHtml(state.bottom.points)} points • ${escapeHtml(state.bottom.wins)}W / ${escapeHtml(state.bottom.losses)}L</div>` : '<div class="sub">No weekly records yet.</div>';
-    }
-  } catch (error) {
-    console.error('Bottom load failed', error);
-  }
-}
-
-async function loadHistory() {
-  try {
-    const { data, error } = await db.rpc('get_gvg_all_time_top10');
-    if (error) throw error;
-    state.history = data || [];
-    if ($('history-list')) {
-      $('history-list').innerHTML = state.history.length ? state.history.map((r) => `<div class="history-item"><div class="pos">#${escapeHtml(r.rank_no)}</div><div><div class="guild">${escapeHtml(r.guild_name)}</div><div class="week">Week started ${escapeHtml(formatWeek(r.week_start))} • ${escapeHtml(r.wins)}W / ${escapeHtml(r.losses)}L</div></div><div class="score">${escapeHtml(r.points)}</div></div>`).join('') : '<div class="empty">No historical weekly records yet.</div>';
-    }
-  } catch (error) {
-    console.error('History load failed', error);
-  }
-}
-
-async function loadRankings() {
-  await Promise.all([loadLeaderboard(), loadBottom(), loadHistory()]);
-}
-
-async function loadResults() {
-  try {
-    const { data, error } = await db.from('challenge_results').select('id,challenge_id,winner_guild,loser_guild,score,image_urls,status,created_at').eq('status', 'approved').order('created_at', { ascending: false }).limit(100);
-    if (error) throw error;
-    state.results = data || [];
-    renderResults();
-    await updateStats();
-  } catch (error) {
-    console.error('Result load failed', error);
-    if ($('result-list')) $('result-list').innerHTML = '<div class="empty">Could not load results.</div>';
-  }
-}
-
-function renderResults() {
-  if (!$('result-list')) return;
-  $('result-list').innerHTML = state.results.length ? state.results.map((r) => {
-    const images = Array.isArray(r.image_urls) ? r.image_urls.slice(0, 2) : [];
-    return `<div class="card"><div class="meta-row"><div><div class="match-name">${escapeHtml(r.winner_guild)} <span class="muted">def.</span> ${escapeHtml(r.loser_guild)}</div><div class="subtle">Score: ${escapeHtml(r.score)}</div></div><span class="badge badge-ok">APPROVED</span></div>${images.length ? `<div class="image-grid">${images.map((url, i) => `<a class="proof" href="${escapeHtml(url)}" target="_blank" rel="noopener"><span class="proof-label">PROOF ${i + 1}</span><img src="${escapeHtml(url)}" alt="${escapeHtml(r.winner_guild)} vs ${escapeHtml(r.loser_guild)} proof ${i + 1}"></a>`).join('')}</div>` : '<div class="hint">No proof images stored.</div>'}</div>`;
-  }).join('') : '<div class="empty">No approved results yet.</div>';
-}
-
-function fillResultChallenges() {
-  const select = $('result-challenge');
-  if (!select) return;
-  const current = select.value;
-  select.innerHTML = '<option value="">Select an open challenge</option>' + state.challenges.map((c) => `<option value="${escapeHtml(c.id)}">${escapeHtml(c.guild_name)} — ${escapeHtml(formatTime(c.challenge_time))}</option>`).join('');
-  if (state.challenges.some((x) => x.id === current)) select.value = current;
-}
-
-async function uploadResultImages(files) {
-  const selected = [...files].filter(Boolean);
-  if (selected.length !== 2) throw new Error('IMAGE_LIMIT: Exactly 2 proof screenshots are required.');
-  if (!state.user) throw new Error('LOGIN_REQUIRED: Login required.');
-  const urls = [];
-  for (const file of selected) {
-    if (file.size > MAX_IMAGE_SIZE) throw new Error('Each image must be 5 MB or smaller.');
-    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) throw new Error('Only JPG, PNG and WEBP images are allowed.');
-    const ext = String(file.name.split('.').pop() || 'jpg').toLowerCase();
-    const path = `results/${state.user.id}/${crypto.randomUUID()}.${ext}`;
-    const { error } = await db.storage.from(IMAGE_BUCKET).upload(path, file, { upsert: false, contentType: file.type });
-    if (error) throw error;
-    const { data } = db.storage.from(IMAGE_BUCKET).getPublicUrl(path);
-    if (data?.publicUrl) urls.push(data.publicUrl);
+async function uploadResultImages(files){
+  if(files.length!==2)throw new Error('Exactly 2 proof screenshots are required.'); if(!state.user)throw new Error('LOGIN_REQUIRED: Login required.'); const urls=[];
+  for(const file of files){
+    if(file.size>MAX_IMAGE_SIZE)throw new Error('Each image must be 5 MB or smaller.');
+    if(!['image/jpeg','image/png','image/webp'].includes(file.type))throw new Error('Only JPG, PNG and WEBP images are allowed.');
+    const ext=(file.name.split('.').pop()||'jpg').toLowerCase(); const path=`results/${state.user.id}/${crypto.randomUUID()}.${ext}`;
+    const {error}=await db.storage.from(IMAGE_BUCKET).upload(path,file,{upsert:false,contentType:file.type}); if(error)throw error;
+    const {data}=db.storage.from(IMAGE_BUCKET).getPublicUrl(path); if(data?.publicUrl)urls.push(data.publicUrl);
   }
   return urls;
 }
 
-async function handleResultSubmit(event) {
-  event.preventDefault();
-  clearStatus('result-status');
-  if (!guildIsApproved()) return navigate('auth', true);
-  const challengeId = $('result-challenge')?.value || '';
-  const winner = $('winner-guild')?.value.trim() || '';
-  const loser = $('loser-guild')?.value.trim() || '';
-  const score = $('score')?.value.trim() || '';
-  const files = [$('result-image-1')?.files?.[0], $('result-image-2')?.files?.[0]].filter(Boolean);
-  if (!challengeId || !winner || !loser || !score) return showStatus('result-status', 'error', 'Challenge, winner, loser and score are required.');
-  if (normalizeGuild(winner) === normalizeGuild(loser)) return showStatus('result-status', 'error', 'Winner and loser must be different.');
-  if (files.length !== 2) return showStatus('result-status', 'error', 'Exactly 2 proof screenshots are required.');
-  setButtonBusy('result-submit', true);
-  try {
-    const imageUrls = await uploadResultImages(files);
-    const { error } = await db.rpc('submit_gvg_result', { p_challenge_id: challengeId, p_winner_guild: winner, p_loser_guild: loser, p_score: score, p_image_urls: imageUrls });
-    if (error) throw error;
-    showStatus('result-status', 'ok', 'Result submitted. It will appear publicly only after admin approval.');
-    $('result-form')?.reset();
-    await loadChallenges();
-    await loadResults();
-  } catch (error) {
-    showStatus('result-status', 'error', humanizeDbError(error));
-  } finally {
-    setButtonBusy('result-submit', false, 'Submit Result for Approval');
+async function handleChallengeSubmit(e){
+  e.preventDefault();clearStatus('challenge-status');if(!guildApproved())return showStatus('challenge-status','error','Your guild is not approved or is currently banned.');if(!challengePostingOpen())return showStatus('challenge-status','error','New challenges are allowed only from 10:00 AM until before 11:00 PM Pakistan time.');
+  const time=$('challenge-time').value; const weapons=[...document.querySelectorAll('input[name="weapons"]:checked')].map(x=>x.value); const skills=[...document.querySelectorAll('input[name="skills"]:checked')].map(x=>x.value);
+  if(!time||!weapons.length){showStatus('challenge-status','error','Match time and at least one weapon are required.');return;}
+  try{setBusy('challenge-submit',true);const {data,error}=await db.rpc('submit_gvg_challenge',{p_challenge_time:time,p_weapons:weapons,p_active_skills:skills});if(error)throw error;showStatus('challenge-status','ok',`Challenge ${data?.challenge_code||''} posted successfully.`);$('challenge-form').reset();await loadLiveChallenges();}catch(error){showStatus('challenge-status','error',humanizeError(error));}finally{setBusy('challenge-submit',false,'POST CHALLENGE');}
+}
+
+async function handleResultSubmit(e){
+  e.preventDefault();clearStatus('result-status');if(!guildApproved())return showStatus('result-status','error','Your guild is not approved or is currently banned.');
+  const challengeId=$('result-challenge').value,winner=$('result-winner').value,loser=$('result-loser').value,score=$('result-score').value.trim();const files=[$('result-image-1').files[0],$('result-image-2').files[0]].filter(Boolean);
+  if(!challengeId||!winner||!loser||!score)return showStatus('result-status','error','Challenge, winner, loser and score are required.'); if(normalizeGuild(winner)===normalizeGuild(loser))return showStatus('result-status','error','Winner and loser must be different.');if(files.length!==2)return showStatus('result-status','error','Exactly 2 proof screenshots are required.');
+  try{setBusy('result-submit',true);const urls=await uploadResultImages(files);const {error}=await db.rpc('submit_gvg_result',{p_challenge_id:challengeId,p_winner_guild:winner,p_loser_guild:loser,p_score:score,p_image_urls:urls});if(error)throw error;showStatus('result-status','ok','Result submitted for admin approval.');$('result-form').reset();await loadLiveChallenges();await loadApprovedResults();}catch(error){showStatus('result-status','error',humanizeError(error));}finally{setBusy('result-submit',false,'SUBMIT RESULT');}
+}
+
+async function loadApprovedResults(){
+  try{const {data,error}=await db.rpc('get_gvg_approved_results');if(error)throw error;state.results=data||[];const target=$('approved-result-list');target.innerHTML=state.results.length?state.results.map(r=>`<div class="result-slot"><div class="result-teams"><div class="team win"><strong>${escapeHtml(r.winner_guild)}</strong><small>WIN</small></div><div class="vs">VS</div><div class="team loss"><strong>${escapeHtml(r.loser_guild)}</strong><small>DEFEAT</small></div></div><div class="score-line">SCORE • ${escapeHtml(r.score)}</div></div>`).join(''):'<div class="empty">No approved results yet.</div>';}catch(error){console.error(error);$('approved-result-list').innerHTML='<div class="empty">Could not load approved results.</div>';}
+}
+
+async function loadRanking(){
+  try{
+    const [a,b,c]=await Promise.all([db.rpc('get_gvg_weekly_top20'),db.rpc('get_gvg_weekly_bottom'),db.rpc('get_gvg_public_top10')]); if(a.error)throw a.error;if(b.error)throw b.error;if(c.error)throw c.error;
+    state.top20=a.data||[];state.bottom=Array.isArray(b.data)?(b.data[0]||null):b.data;state.top10=c.data||[];
+    $('member-top20-table').innerHTML=state.top20.length?state.top20.map(r=>`<tr><td class="pos">${escapeHtml(r.rank_no)}</td><td><strong>${escapeHtml(r.guild_name)}</strong></td><td class="pts ${Number(r.points)<0?'pos-red':'pos-green'}">${escapeHtml(r.points)}</td></tr>`).join(''):'<tr><td colspan="3">No ranking data yet.</td></tr>';
+    $('bottom-guild').innerHTML=state.bottom?`<strong>${escapeHtml(state.bottom.guild_name)}</strong><span>${escapeHtml(state.bottom.points)} points</span>`:'<div class="muted" style="margin-top:4px;font-size:9px">No current weekly guilds.</div>';
+    $('public-top10-table').innerHTML=state.top10.length?state.top10.map(r=>`<tr><td class="tiny-rank">${escapeHtml(r.rank_no)}</td><td><strong>${escapeHtml(r.guild_name)}</strong></td><td class="tiny-points">${escapeHtml(r.points)}</td></tr>`).join(''):'<tr><td colspan="3">No current weekly records yet.</td></tr>';
+  }catch(error){console.error(error);}
+}
+
+async function enterMember(){openView('member');await refreshMember();}
+async function refreshMember(){
+  await loadMyGuild();await renderMemberIdentity();await Promise.all([loadLiveChallenges(),loadGuildOptions(),loadApprovedResults(),loadRanking()]);
+}
+async function handleLogout(){try{await db.auth.signOut();}catch{}state.user=null;state.guild=null;openView('public');$('nav-logout').classList.add('hidden');$('nav-register').classList.remove('hidden');$('login-password').value='';await loadPublicTop10();}
+
+/* ------------------------- ADMIN ------------------------- */
+async function isAdmin(){
+  const {data,error}=await adminDb.rpc('is_gvg_admin'); if(error){console.error(error);return false;} return Boolean(data);
+}
+async function handleAdminLogin(e){
+  e.preventDefault();clearStatus('admin-login-status');const email=$('admin-email').value.trim(),password=$('admin-password').value;if(!email||!password)return showStatus('admin-login-status','error','Admin email and password are required.');
+  try{const {data,error}=await adminDb.auth.signInWithPassword({email,password});if(error)throw error;const ok=await isAdmin();if(!ok){await adminDb.auth.signOut();throw new Error('This account is not an active 7TH UNIVERSE admin.');}state.adminUser=data.user;state.adminOk=true;openView('admin');await refreshAdmin();}catch(error){showStatus('admin-login-status','error',humanizeError(error));}
+}
+async function restoreAdmin(){
+  const {data:{session}}=await adminDb.auth.getSession(); if(!session){state.adminUser=null;state.adminOk=false;return;}state.adminUser=session.user;state.adminOk=await isAdmin();if(state.adminOk){openView('admin');await refreshAdmin();}
+}
+async function refreshAdmin(){
+  if(!state.adminOk)return; $('admin-session-label').textContent=`${state.adminUser?.email||''} • Admin session active`;
+  await Promise.all([loadAdminGuilds(),loadAdminResults(),loadBans()]);
+}
+function guildStatusLabel(g){ if(g.is_banned || (g.ban_until&&new Date(g.ban_until)>new Date()))return 'BANNED'; return String(g.approval_status||'').toUpperCase(); }
+function guildStatusClass(g){ if(g.is_banned || (g.ban_until&&new Date(g.ban_until)>new Date()))return 'status-banned'; if(g.approval_status==='approved')return 'status-approved'; if(g.approval_status==='pending')return 'status-pending'; return 'status-rejected'; }
+function filteredGuilds(){const q=($('admin-guild-search').value||'').trim().toLowerCase();if(!q)return state.guilds;return state.guilds.filter(g=>[g.guild_name,g.contact,g.approval_status,g.email_list].some(v=>String(v||'').toLowerCase().includes(q)));}
+function guildMenu(g){return `<div class="menu-wrap"><button class="dots-btn" type="button" data-menu-button="${escapeHtml(g.id)}">⋮</button><div class="dots-menu" id="menu-${escapeHtml(g.id)}"><button type="button" data-action="guild-info" data-id="${escapeHtml(g.id)}">GUILD INFO</button><button type="button" data-action="guild-edit" data-id="${escapeHtml(g.id)}">EDIT</button><button class="danger" type="button" data-action="guild-remove" data-id="${escapeHtml(g.id)}">REMOVE GUILD</button></div></div>`;}
+function renderGuildTable(targetId,rows){const target=$(targetId);if(!target)return;target.innerHTML=rows.length?rows.map(g=>`<tr><td><div class="guild-row"><div class="guild-main"><strong>${escapeHtml(g.guild_name)}</strong><span>${escapeHtml(g.leader_count)} leader(s)</span></div>${guildMenu(g)}</div></td><td><span class="status-pill ${guildStatusClass(g)}">${escapeHtml(guildStatusLabel(g))}</span></td><td><span class="muted" style="font-size:8px">⋮ MENU</span></td></tr>`).join(''):'<tr><td colspan="3">No matching guilds.</td></tr>';}
+async function loadAdminGuilds(){
+  try{const {data,error}=await adminDb.rpc('admin_get_guild_directory');if(error)throw error;state.guilds=data||[];const pending=state.guilds.filter(g=>String(g.approval_status)==='pending');renderGuildTable('pending-guild-table',pending);renderGuildTable('all-guild-table',filteredGuilds());}catch(error){showStatus('admin-status','error',humanizeError(error));}
+}
+function leaderArray(g){ try{return Array.isArray(g.leaders)?g.leaders:(typeof g.leaders==='string'?JSON.parse(g.leaders):[]);}catch{return [];} }
+function findGuild(id){return state.guilds.find(g=>g.id===id)||null;}
+function openModal(html){$('modal').innerHTML=html;$('modal-backdrop').classList.add('open');}
+function closeModal(){$('modal-backdrop').classList.remove('open');$('modal').innerHTML='';}
+function adminGuildInfo(g){
+  const leaders=leaderArray(g);
+  const leaderHtml=leaders.length?leaders.map((l,i)=>`<div class="leader-card"><div class="leader-title">LEADER ${i+1}</div><div class="leader-meta">${escapeHtml(l.email||'Email unavailable')}<br>${escapeHtml(formatContact(l.contact||''))}</div><div class="modal-actions"><button class="btn btn-small btn-gold" type="button" data-action="reset-password" data-email="${escapeHtml(l.email||'')}">RESET PASSWORD</button></div></div>`).join(''):'<div class="empty">No linked leader emails.</div>';
+  const pending=g.approval_status==='pending';
+  openModal(`<div class="modal-head"><div><div class="kicker">Guild Information</div><h3>${escapeHtml(g.guild_name)}</h3></div><button class="close-btn" type="button" data-action="close-modal">×</button></div><div class="info-grid"><div class="info-box"><small>Status</small><strong>${escapeHtml(guildStatusLabel(g))}</strong></div><div class="info-box"><small>Current Points</small><strong>${escapeHtml(g.points)}</strong></div><div class="info-box"><small>Leader Count</small><strong>${escapeHtml(g.leader_count)}</strong></div><div class="info-box"><small>Registered</small><strong>${escapeHtml(formatDateTime(g.created_at))}</strong></div></div><div class="kicker" style="margin-top:13px">Leaders</div><div class="leader-list">${leaderHtml}</div>${pending?`<div class="divider"></div><div class="modal-actions"><button class="btn btn-green" type="button" data-action="approve-guild" data-id="${escapeHtml(g.id)}">APPROVE GUILD</button><button class="btn btn-red" type="button" data-action="reject-guild" data-id="${escapeHtml(g.id)}">REJECT GUILD</button></div>`:''}`);
+}
+function adminGuildEdit(g){
+  const leaders=leaderArray(g);
+  const editableLeaders=leaders.filter(l=>l && l.id);
+  const first=editableLeaders[0]||{id:g.id,contact:g.contact||'',email:''};
+  const leaderOptions=editableLeaders.length?editableLeaders.map((l,i)=>`<option value="${escapeHtml(l.id)}" data-contact="${escapeHtml(l.contact||'')}" data-email="${escapeHtml(l.email||'')}">LEADER ${i+1} • ${escapeHtml(l.email||'Email unavailable')}</option>`).join(''):`<option value="${escapeHtml(g.id)}" data-contact="${escapeHtml(g.contact||'')}">REGISTERED RECORD</option>`;
+  openModal(`<div class="modal-head"><div><div class="kicker">Edit Guild</div><h3>${escapeHtml(g.guild_name)}</h3></div><button class="close-btn" type="button" data-action="close-modal">×</button></div><form id="edit-guild-form"><div class="field-grid"><label class="full">LEADER RECORD<select id="edit-leader-id">${leaderOptions}</select></label><label>CONTACT NUMBER<input id="edit-contact" type="tel" value="${escapeHtml(first.contact||g.contact||'')}" required /></label><label>CURRENT WEEK POINTS<input id="edit-points" type="number" step="1" value="${escapeHtml(g.points)}" required /></label><label class="full">APPROVAL STATUS<select id="edit-status"><option value="approved" ${g.approval_status==='approved'?'selected':''}>Approved</option><option value="pending" ${g.approval_status==='pending'?'selected':''}>Pending</option><option value="rejected" ${g.approval_status==='rejected'?'selected':''}>Rejected</option></select></label></div><div class="hint">Select the leader record whose contact number you want to edit. Weekly points and approval status are shared by the whole guild.</div><div class="modal-actions"><button class="btn btn-primary" type="submit">SAVE CONTACT + POINTS</button><button class="btn btn-gold" id="edit-reset-password" type="button">CHANGE PASSWORD VIA RESET EMAIL</button><button class="btn btn-ghost" type="button" data-action="guild-info" data-id="${escapeHtml(g.id)}">CANCEL</button></div><div id="edit-status-message" class="status"></div></form>`);
+  const leaderSelect=$('edit-leader-id');
+  leaderSelect.addEventListener('change',()=>{const o=leaderSelect.options[leaderSelect.selectedIndex];$('edit-contact').value=o?.dataset?.contact||'';});
+  $('edit-reset-password').addEventListener('click',()=>{const o=leaderSelect.options[leaderSelect.selectedIndex];resetLeaderPassword(o?.dataset?.email||'');});
+  $('edit-guild-form').addEventListener('submit',async(event)=>{event.preventDefault();const leaderId=leaderSelect.value,contact=$('edit-contact').value.trim(),points=Number($('edit-points').value),status=$('edit-status').value;if(!Number.isInteger(points))return showStatus('edit-status-message','error','Points must be a whole number.');try{const {error}=await adminDb.rpc('admin_update_guild_controls',{p_guild_id:leaderId,p_contact:contact,p_points:points,p_approval_status:status});if(error)throw error;closeModal();showStatus('admin-status','ok','Guild controls updated.');await loadAdminGuilds();}catch(error){showStatus('edit-status-message','error',humanizeError(error));}});
+}
+
+async function resetLeaderPassword(email){
+  if(!email)return; if(!confirm(`Send password reset email to ${email}?`))return; try{const redirectTo=`${window.location.origin}${window.location.pathname}`;const {error}=await adminDb.auth.resetPasswordForEmail(email,{redirectTo});if(error)throw error;alert('Password reset email sent.');}catch(error){alert(humanizeError(error));}
+}
+async function removeGuild(id){const g=findGuild(id);if(!g)return;if(!confirm(`ARE YOU SURE TO WANT REMOVE THIS GUILD?\n\n${g.guild_name}`))return;try{const {error}=await adminDb.rpc('admin_remove_guild',{p_guild_id:id});if(error)throw error;closeModal();showStatus('admin-status','ok','Guild removed from registry. Historical challenge/result records remain.');await loadAdminGuilds();}catch(error){showStatus('admin-status','error',humanizeError(error));}}
+async function setGuildApproval(id,status){const g=findGuild(id);if(!g)return;try{const leaders=leaderArray(g);const contact=leaders[0]?.contact||g.contact||'';const {error}=await adminDb.rpc('admin_update_guild_controls',{p_guild_id:id,p_contact:contact,p_points:Number(g.points)||0,p_approval_status:status});if(error)throw error;closeModal();showStatus('admin-status','ok',`Guild ${status}.`);await loadAdminGuilds();}catch(error){showStatus('admin-status','error',humanizeError(error));}}
+
+async function loadAdminResults(){
+  try{const {data,error}=await adminDb.rpc('admin_get_results');if(error)throw error;const rows=data||[];state.results=rows;const target=$('admin-result-table');target.innerHTML=rows.length?rows.map(r=>{const imgs=Array.isArray(r.image_urls)?r.image_urls.slice(0,2):[];const gallery=imgs.length?`<details class="proof-details"><summary>OPEN ${imgs.length} PROOF SCREENSHOTS</summary><div class="proof-gallery">${imgs.map((u,i)=>`<a href="${escapeHtml(u)}" target="_blank" rel="noopener"><span class="proof-tag">PROOF ${i+1}</span><img src="${escapeHtml(u)}" alt="${escapeHtml(r.winner_guild)} vs ${escapeHtml(r.loser_guild)} proof ${i+1}" /></a>`).join('')}</div></details>`:'<span class="muted">No proof</span>';return `<tr><td><strong>${escapeHtml(r.winner_guild)}</strong><div class="muted" style="margin-top:3px">DEFEAT</div><strong>${escapeHtml(r.loser_guild)}</strong></td><td>${escapeHtml(r.score)}</td><td>${gallery}<div style="margin-top:6px"><span class="status-pill ${r.status==='approved'?'status-approved':r.status==='pending'?'status-pending':'status-rejected'}">${escapeHtml(r.status)}</span></div></td><td>${r.status==='pending'?`<div style="display:flex;gap:5px;flex-wrap:wrap"><button class="btn btn-green btn-small" type="button" data-action="approve-result" data-id="${escapeHtml(r.id)}">APPROVE</button><button class="btn btn-red btn-small" type="button" data-action="reject-result" data-id="${escapeHtml(r.id)}">REJECT</button></div>`:'—'}</td></tr>`;}).join(''):'<tr><td colspan="4">No result submissions.</td></tr>';}catch(error){showStatus('admin-status','error',humanizeError(error));}
+}
+async function approveResult(id){try{const {error}=await adminDb.rpc('admin_approve_result',{p_result_id:id});if(error)throw error;showStatus('admin-status','ok','Result approved and weekly points awarded.');await Promise.all([loadAdminResults(),loadAdminGuilds()]);}catch(error){showStatus('admin-status','error',humanizeError(error));}}
+async function rejectResult(id){const reason=prompt('Reason for rejection:','Proof or result issue');if(reason===null)return;try{const {error}=await adminDb.rpc('admin_reject_result',{p_result_id:id,p_reason:reason.trim()||'Rejected by admin'});if(error)throw error;showStatus('admin-status','ok','Result rejected. The challenge is open again while it is still inside its cycle.');await loadAdminResults();}catch(error){showStatus('admin-status','error',humanizeError(error));}}
+
+async function handleBan(e){e.preventDefault();clearStatus('ban-status');const guild=$('ban-guild').value.trim(),contact=$('ban-contact').value.trim(),duration=$('ban-duration').value,reason=$('ban-reason').value.trim()||'Rule violation';if(!guild&&!contact)return showStatus('ban-status','error','Enter a guild name or contact number.');let until=null;const now=new Date();if(duration==='1h')until=new Date(now.getTime()+60*60*1000);if(duration==='6h')until=new Date(now.getTime()+6*60*60*1000);if(duration==='1d')until=new Date(now.getTime()+24*60*60*1000);if(duration==='3d')until=new Date(now.getTime()+3*24*60*60*1000);if(duration==='7d')until=new Date(now.getTime()+7*24*60*60*1000);try{const {error}=await adminDb.rpc('admin_ban_guild_identity',{p_guild_name:guild||null,p_contact:contact||null,p_ban_until:until?until.toISOString():null,p_reason:reason});if(error)throw error;showStatus('ban-status','ok',until?`Guild banned until ${formatDateTime(until)}.`:'Guild permanently banned.');e.target.reset();$('ban-reason').value='Rule violation';await Promise.all([loadAdminGuilds(),loadBans()]);}catch(error){showStatus('ban-status','error',humanizeError(error));}}
+async function loadBans(){
+  try{const {data,error}=await adminDb.rpc('admin_get_active_bans');if(error)throw error;state.bans=data||[];const target=$('ban-list');target.innerHTML=state.bans.length?state.bans.map(b=>`<div class="challenge-card"><div class="meta-row"><div><div class="name">${escapeHtml(b.guild_name||'Identity ban')}</div><div class="subtle">${escapeHtml(formatContact(b.contact||''))}</div></div><span class="badge badge-red">${b.ban_until?escapeHtml(formatDateTime(b.ban_until)):'PERMANENT'}</span></div><div class="contact-line"><span class="muted" style="font-size:8px">${escapeHtml(b.reason||'Rule violation')}</span><button class="btn btn-green btn-small" type="button" data-action="unban-identity" data-guild="${escapeHtml(b.guild_name||'')}" data-contact="${escapeHtml(b.contact||'')}">UNBAN</button></div></div>`).join(''):'<div class="empty">No active bans.</div>';}catch(error){console.error(error);}
+}
+async function unbanIdentity(guild,contact){try{const {error}=await adminDb.rpc('admin_unban_guild_identity',{p_guild_name:guild||null,p_contact:contact||null});if(error)throw error;showStatus('admin-status','ok','Guild unbanned.');await Promise.all([loadAdminGuilds(),loadBans()]);}catch(error){showStatus('admin-status','error',humanizeError(error));}}
+
+/* ------------------------- Events ------------------------- */
+document.addEventListener('click',async(e)=>{
+  const actionEl=e.target.closest('[data-action]');
+  if(actionEl){const action=actionEl.dataset.action,id=actionEl.dataset.id;if(action==='result-from-challenge')return selectChallengeForResult(id);if(action==='close-modal')return closeModal();if(action==='guild-info'){const g=findGuild(id);if(g)adminGuildInfo(g);return;}if(action==='guild-edit'){const g=findGuild(id);if(g)adminGuildEdit(g);return;}if(action==='guild-remove')return removeGuild(id);if(action==='approve-guild')return setGuildApproval(id,'approved');if(action==='reject-guild')return setGuildApproval(id,'rejected');if(action==='reset-password')return resetLeaderPassword(actionEl.dataset.email||'');if(action==='approve-result')return approveResult(id);if(action==='reject-result')return rejectResult(id);if(action==='unban-identity')return unbanIdentity(actionEl.dataset.guild||'',actionEl.dataset.contact||'');}
+  const menuBtn=e.target.closest('[data-menu-button]');if(menuBtn){const id=menuBtn.dataset.menuButton;document.querySelectorAll('.dots-menu.open').forEach(x=>{if(x.id!==`menu-${id}`)x.classList.remove('open')});document.getElementById(`menu-${id}`)?.classList.toggle('open');return;}document.querySelectorAll('.dots-menu.open').forEach(x=>x.classList.remove('open'));
+});
+$('nav-admin').addEventListener('click',async()=>{openView('admin');await restoreAdmin();});
+$('nav-register').addEventListener('click',()=>openView('register'));
+$('nav-logout').addEventListener('click',handleLogout);
+$('back-login').addEventListener('click',()=>openView('public'));
+$('admin-back').addEventListener('click',()=>openView(state.user?'member':'public'));
+$('login-form').addEventListener('submit',handleLogin);
+$('register-form').addEventListener('submit',handleRegister);
+$('forgot-password').addEventListener('click',handleForgot);
+$('challenge-form').addEventListener('submit',handleChallengeSubmit);
+$('result-form').addEventListener('submit',handleResultSubmit);
+$('admin-login-form').addEventListener('submit',handleAdminLogin);
+$('admin-logout').addEventListener('click',async()=>{try{await adminDb.auth.signOut();}catch{}state.adminUser=null;state.adminOk=false;openView(state.user?'member':'public');});
+$('admin-guild-search').addEventListener('input',()=>renderGuildTable('all-guild-table',filteredGuilds()));
+$('modal-backdrop').addEventListener('click',(e)=>{if(e.target===$('modal-backdrop'))closeModal();});
+
+db.auth.onAuthStateChange(async(event,session)=>{
+  if(event==='PASSWORD_RECOVERY'){
+    $('password-recovery-backdrop').classList.add('open');
+    return;
   }
-}
+  if(session){state.user=session.user;await loadMyGuild();if(!location.hash.includes('admin')){openView('member');await refreshMember();}$('nav-logout').classList.remove('hidden');$('nav-register').classList.add('hidden');}
+  else {state.user=null;state.guild=null;openView('public');$('nav-logout').classList.add('hidden');$('nav-register').classList.remove('hidden');}
+});
 
-async function updateStats() {
-  try {
-    const { data, error } = await db.rpc('get_gvg_stats');
-    if (error) throw error;
-    const stats = Array.isArray(data) ? data[0] || {} : data || {};
-    if ($('stat-open')) $('stat-open').textContent = String(stats.open_challenges ?? state.challenges.length ?? 0);
-    if ($('stat-results')) $('stat-results').textContent = String(stats.today_result_submissions ?? 0);
-    if ($('stat-approved-results')) $('stat-approved-results').textContent = String(stats.today_approved_results ?? 0);
-    if ($('stat-guilds')) $('stat-guilds').textContent = String(stats.approved_guilds ?? 0);
-  } catch (error) {
-    console.warn('Stats failed', error);
-  }
-}
+$('password-recovery-form').addEventListener('submit',async(e)=>{
+  e.preventDefault();clearStatus('recovery-status');
+  const a=$('recovery-password').value,b=$('recovery-password-confirm').value;
+  if(a.length<8)return showStatus('recovery-status','error','Password must be at least 8 characters.');
+  if(a!==b)return showStatus('recovery-status','error','Passwords do not match.');
+  try{
+    const {error}=await db.auth.updateUser({password:a});
+    if(error)throw error;
+    showStatus('recovery-status','ok','Password updated successfully. You can now login with your new password.');
+    setTimeout(async()=>{try{await db.auth.signOut();}catch{}$('password-recovery-backdrop').classList.remove('open');openView('public');},900);
+  }catch(error){showStatus('recovery-status','error',humanizeError(error));}
+});
 
-/* ============================ ADMIN ============================ */
 
-async function isCurrentUserAdmin() {
-  const { data: { user } } = await adminDb.auth.getUser();
-  if (!user) { state.admin = null; state.adminUser = null; return false; }
-  const { data, error } = await adminDb.from('admins').select('id,admin_name,is_active,created_at').eq('id', user.id).eq('is_active', true).maybeSingle();
-  if (error) { console.warn('Admin check failed', error); state.admin = null; state.adminUser = null; return false; }
-  state.adminUser = user;
-  state.admin = data || null;
-  return !!data;
-}
-
-async function handleAdminLogin(event) {
-  event.preventDefault();
-  clearStatus('admin-login-status');
-  const email = $('admin-email')?.value.trim() || '';
-  const password = $('admin-password')?.value || '';
-  if (!email || !password) return showStatus('admin-login-status', 'error', 'Admin email and password are required.');
-  try {
-    const { error } = await adminDb.auth.signInWithPassword({ email, password });
-    if (error) throw error;
-    const ok = await isCurrentUserAdmin();
-    if (!ok) {
-      await adminDb.auth.signOut();
-      throw new Error('This Auth account is not linked as an active 7TH UNIVERSE admin.');
-    }
-    await restoreAdmin();
-    showStatus('admin-login-status', 'ok', 'Admin login successful. Guild session remains separate.');
-  } catch (error) {
-    showStatus('admin-login-status', 'error', humanizeDbError(error));
-  }
-}
-
-async function handleAdminLogout() {
-  try { await adminDb.auth.signOut(); } catch (error) { console.error(error); }
-  state.adminUser = null;
-  state.admin = null;
-  $('admin-login-panel')?.classList.remove('hidden');
-  $('admin-dashboard')?.classList.add('hidden');
-}
-
-async function restoreAdmin() {
-  const ok = await isCurrentUserAdmin();
-  $('admin-login-panel')?.classList.toggle('hidden', ok);
-  $('admin-dashboard')?.classList.toggle('hidden', !ok);
-  if (!ok) return;
-  if ($('admin-user-label')) $('admin-user-label').textContent = state.adminUser?.email || '';
-  await refreshAdmin();
-}
-
-async function refreshAdmin() {
-  if (!(await isCurrentUserAdmin())) return;
-  await Promise.all([loadGuilds(), loadBlocks(), loadAdminResults(), loadAdminChallenges()]);
-}
-
-function getCurrentWeekPoint(guildName) {
-  const row = state.guilds.find((g) => normalizeGuild(g.guild_name) === normalizeGuild(guildName));
-  return row ? Number(row.points || 0) : 0;
-}
-
-function fillGuildEditor(guild) {
-  if (!guild) return;
-  $('reg-guild-id').value = guild.id || '';
-  $('reg-guild-name').value = guild.guild_name || '';
-  $('reg-contact').value = guild.contact || '';
-  $('reg-status').value = guild.approval_status || 'approved';
-  $('reg-points').value = String(guild.points ?? 0);
-  $('reg-ban-until').value = guild.ban_until ? new Date(guild.ban_until).toISOString().slice(0,16) : '';
-  $('reg-ban-reason').value = guild.ban_reason || 'Rule violation';
-  document.getElementById('guild-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-}
-
-function clearGuildEditor() {
-  $('guild-form')?.reset();
-  $('reg-guild-id').value = '';
-  $('reg-status').value = 'approved';
-  $('reg-points').value = '0';
-  $('reg-ban-reason').value = 'Rule violation';
-}
-
-function filteredGuilds() {
-  const q = ($('admin-guild-search')?.value || '').trim().toLowerCase();
-  if (!q) return state.guilds;
-  return state.guilds.filter((g) => [g.guild_name, g.contact, g.user_id, g.email, g.approval_status].some((v) => String(v || '').toLowerCase().includes(q)));
-}
-
-function renderGuilds() {
-  const target = $('guild-table');
-  if (!target) return;
-  const rows = filteredGuilds();
-  target.innerHTML = rows.length ? rows.map((g) => `<tr><td><strong>${escapeHtml(g.guild_name)}</strong><div class="subtle">Leader: ${escapeHtml(g.email || '—')}</div></td><td>${escapeHtml(formatContact(g.contact))}</td><td>${escapeHtml(g.leader_count)}</td><td>${escapeHtml(g.approval_status)}</td><td><span class="points ${Number(g.points) < 0 ? 'negative' : 'positive'}">${escapeHtml(g.points)}</span></td><td>${g.ban_until && new Date(g.ban_until) > new Date() ? escapeHtml(formatDateTime(g.ban_until)) : g.is_banned ? 'Permanent' : '—'}</td><td><button class="btn btn-small btn-primary" type="button" data-action="edit-guild" data-id="${escapeHtml(g.id)}">Edit</button>${g.is_banned || (g.ban_until && new Date(g.ban_until) > new Date()) ? `<button class="btn btn-small btn-success" type="button" data-action="unban-guild" data-id="${escapeHtml(g.id)}">Unban</button>` : `<button class="btn btn-small btn-danger" type="button" data-action="ban-guild" data-id="${escapeHtml(g.id)}">Ban</button>`} <button class="btn btn-small btn-danger" type="button" data-action="remove-guild" data-id="${escapeHtml(g.id)}">Remove</button></td></tr>`).join('') : '<tr><td colspan="7">No matching registered guilds.</td></tr>';
-}
-
-async function loadGuilds() {
-  try {
-    const { data, error } = await adminDb.rpc('admin_get_guilds');
-    if (error) throw error;
-    state.guilds = data || [];
-    renderGuilds();
-  } catch (error) {
-    console.error('Guild list load failed', error);
-    showStatus('admin-status', 'error', humanizeDbError(error));
-  }
-}
-
-async function handleGuildSave(event) {
-  event.preventDefault();
-  clearStatus('admin-status');
-  const id = $('reg-guild-id')?.value || '';
-  const guild = $('reg-guild-name')?.value.trim() || '';
-  const contact = $('reg-contact')?.value.trim() || '';
-  const status = $('reg-status')?.value || 'approved';
-  const points = Number($('reg-points')?.value || 0);
-  const banUntil = $('reg-ban-until')?.value ? new Date($('reg-ban-until').value).toISOString() : null;
-  const reason = $('reg-ban-reason')?.value.trim() || 'Rule violation';
-  try {
-    if (!guild || !contact) throw new Error('Guild name and contact are required.');
-    if (!Number.isInteger(points)) throw new Error('Points must be a whole number.');
-    if (id) {
-      const { error } = await adminDb.rpc('admin_update_guild_record', {
-        p_guild_id: id,
-        p_guild_name: guild,
-        p_contact: contact,
-        p_approval_status: status,
-        p_ban_until: banUntil,
-        p_ban_reason: reason,
-        p_points: points
-      });
-      if (error) throw error;
-    } else {
-      const { error } = await adminDb.rpc('admin_upsert_guild', { p_guild_name: guild, p_contact: contact, p_approval_status: status, p_ban_until: banUntil, p_ban_reason: reason });
-      if (error) throw error;
-    }
-    showStatus('admin-status', 'ok', 'Guild, contact and current-week points saved.');
-    await loadGuilds();
-    await loadRankings();
-  } catch (error) {
-    showStatus('admin-status', 'error', humanizeDbError(error));
-  }
-}
-
-async function quickGuildBan(id, permanent = false) {
-  try {
-    let iso = null;
-    if (!permanent) {
-      const input = prompt('Enter ban end as YYYY-MM-DD HH:MM (Pakistan time), or leave blank for permanent:', '');
-      if (input === null) return;
-      if (input.trim()) {
-        const date = new Date(`${input.trim().replace(' ', 'T')}+05:00`);
-        if (Number.isNaN(date.getTime())) throw new Error('Invalid ban date/time.');
-        iso = date.toISOString();
-      }
-      permanent = !iso;
-    }
-    const { error } = await adminDb.rpc('admin_set_guild_ban', { p_guild_id: id, p_ban_until: permanent ? null : iso, p_reason: 'Admin ban' });
-    if (error) throw error;
-    showStatus('admin-status', 'ok', permanent ? 'Permanent ban applied to the guild.' : 'Temporary ban applied to the guild.');
-    await loadGuilds();
-  } catch (error) { showStatus('admin-status', 'error', humanizeDbError(error)); }
-}
-
-async function unbanGuild(id) {
-  try {
-    const { error } = await adminDb.rpc('admin_unban_guild', { p_guild_id: id });
-    if (error) throw error;
-    showStatus('admin-status', 'ok', 'Guild unbanned.');
-    await loadGuilds();
-  } catch (error) { showStatus('admin-status', 'error', humanizeDbError(error)); }
-}
-
-async function removeGuild(id) {
-  if (!confirm('Remove only this leader registration from the guild registry? Existing result/challenge data is not deleted.')) return;
-  try {
-    const { error } = await adminDb.rpc('admin_remove_guild', { p_guild_id: id });
-    if (error) throw error;
-    showStatus('admin-status', 'ok', 'Leader registration removed. Existing results and challenges remain.');
-    await loadGuilds();
-  } catch (error) { showStatus('admin-status', 'error', humanizeDbError(error)); }
-}
-
-async function handleBlock(event) {
-  event.preventDefault();
-  clearStatus('admin-status');
-  try {
-    const guild = $('block-guild')?.value.trim() || null;
-    const contact = $('block-number')?.value.trim() || null;
-    const until = $('block-until')?.value ? new Date($('block-until').value).toISOString() : null;
-    const reason = $('block-reason')?.value.trim() || 'Rule violation';
-    if (!guild && !contact) throw new Error('Enter a guild name or a contact number.');
-    const { error } = await adminDb.rpc('admin_create_block', { p_guild_name: guild, p_contact: contact, p_blocked_until: until, p_reason: reason });
-    if (error) throw error;
-    event.target.reset();
-    $('block-reason').value = 'Rule violation';
-    showStatus('admin-status', 'ok', 'Block created.');
-    await loadBlocks();
-  } catch (error) { showStatus('admin-status', 'error', humanizeDbError(error)); }
-}
-
-async function loadBlocks() {
-  try {
-    const { data, error } = await adminDb.from('blocks').select('id,guild_name,contact,blocked_until,reason,created_at').order('created_at', { ascending: false });
-    if (error) throw error;
-    state.blocks = data || [];
-    if ($('block-table')) $('block-table').innerHTML = state.blocks.length ? state.blocks.map((b) => `<tr><td>${escapeHtml(b.guild_name || '—')}<br>${escapeHtml(b.contact || '')}</td><td>${b.blocked_until ? escapeHtml(formatDateTime(b.blocked_until)) : 'Permanent'}</td><td>${escapeHtml(b.reason || '—')}</td><td><button class="btn btn-small btn-success" type="button" data-action="unblock" data-id="${escapeHtml(b.id)}">Unblock</button></td></tr>`).join('') : '<tr><td colspan="4">No blocks.</td></tr>';
-  } catch (error) { showStatus('admin-status', 'error', humanizeDbError(error)); }
-}
-
-async function unblock(id) {
-  try {
-    const { error } = await adminDb.rpc('admin_delete_block', { p_block_id: id });
-    if (error) throw error;
-    showStatus('admin-status', 'ok', 'Block removed.');
-    await loadBlocks();
-  } catch (error) { showStatus('admin-status', 'error', humanizeDbError(error)); }
-}
-
-async function loadAdminResults() {
-  try {
-    const { data, error } = await adminDb.rpc('admin_get_results');
-    if (error) throw error;
-    state.adminResults = data || [];
-    const target = $('admin-result-table');
-    if (!target) return;
-    target.innerHTML = state.adminResults.length ? state.adminResults.map((r) => {
-      const images = Array.isArray(r.image_urls) ? r.image_urls.slice(0, 2) : [];
-      const proofHtml = images.length ? `<div class="image-grid" style="min-width:250px">${images.map((url, i) => `<a class="proof" href="${escapeHtml(url)}" target="_blank" rel="noopener"><span class="proof-label">PROOF ${i + 1}</span><img src="${escapeHtml(url)}" alt="${escapeHtml(r.winner_guild)} vs ${escapeHtml(r.loser_guild)} proof ${i + 1}"></a>`).join('')}</div>` : '<span class="muted">No screenshots</span>';
-      return `<tr><td><strong>${escapeHtml(r.winner_guild)}</strong><div class="subtle">WINNER</div><strong>${escapeHtml(r.loser_guild)}</strong><div class="subtle">LOSER</div></td><td><strong>${escapeHtml(r.score)}</strong></td><td>${proofHtml}</td><td>${escapeHtml(r.status)}</td><td>${escapeHtml(formatDateTime(r.created_at))}</td><td>${r.status === 'pending' ? `<button class="btn btn-small btn-success" type="button" data-action="approve-result" data-id="${escapeHtml(r.id)}">Approve</button> <button class="btn btn-small btn-danger" type="button" data-action="reject-result" data-id="${escapeHtml(r.id)}">Reject</button>` : '—'}</td></tr>`;
-    }).join('') : '<tr><td colspan="6">No result submissions.</td></tr>';
-  } catch (error) { showStatus('admin-status', 'error', humanizeDbError(error)); }
-}
-
-async function approveResult(id) {
-  try {
-    const { error } = await adminDb.rpc('admin_approve_result', { p_result_id: id });
-    if (error) throw error;
-    showStatus('admin-status', 'ok', 'Result approved and points updated.');
-    await Promise.all([loadAdminResults(), loadResults(), loadChallenges(), loadRankings(), loadGuilds()]);
-  } catch (error) { showStatus('admin-status', 'error', humanizeDbError(error)); }
-}
-
-async function rejectResult(id) {
-  const reason = prompt('Reason for rejection:', 'Proof or result issue');
-  if (reason === null) return;
-  try {
-    const { error } = await adminDb.rpc('admin_reject_result', { p_result_id: id, p_reason: reason.trim() || 'Rejected by admin' });
-    if (error) throw error;
-    showStatus('admin-status', 'ok', 'Result rejected. The challenge is open again.');
-    await loadAdminResults();
-    await loadChallenges();
-  } catch (error) { showStatus('admin-status', 'error', humanizeDbError(error)); }
-}
-
-async function loadAdminChallenges() {
-  try {
-    const { data, error } = await adminDb.from('challenges').select('id,challenge_code,challenger_guild_id,opponent_guild_id,challenge_everyone,match_time,weapons,active_skills,contact_number,status,created_at,accepted_by_leader_id,accepted_by_guild_id,accepted_at,user_id,guild_name_normalized,contact_normalized,completed_at').order('created_at', { ascending: false }).limit(250);
-    if (error) throw error;
-    const rows = (data || []).map(mapChallengeRow);
-    if ($('admin-challenge-table')) $('admin-challenge-table').innerHTML = rows.length ? rows.map((c) => `<tr><td><strong>${escapeHtml(c.guild_name)}</strong></td><td>${escapeHtml(c.contact)}</td><td>${escapeHtml(formatTime(c.match_time))}</td><td>${escapeHtml((c.weapons || []).join(', '))}</td><td>${escapeHtml((c.active_skills || []).join(', ') || 'None')}</td><td>${escapeHtml(c.status)}</td><td>${!['completed','cancelled'].includes(c.status) ? `<button class="btn btn-small btn-danger" type="button" data-action="cancel-challenge" data-id="${escapeHtml(c.id)}">Cancel</button>` : '—'}</td></tr>`).join('') : '<tr><td colspan="7">No challenges.</td></tr>';
-  } catch (error) { showStatus('admin-status', 'error', humanizeDbError(error)); }
-}
-
-async function cancelChallenge(id) {
-  if (!confirm('Cancel this challenge?')) return;
-  try {
-    const { error } = await adminDb.rpc('admin_cancel_challenge', { p_challenge_id: id });
-    if (error) throw error;
-    showStatus('admin-status', 'ok', 'Challenge cancelled.');
-    await loadAdminChallenges();
-    await loadChallenges();
-  } catch (error) { showStatus('admin-status', 'error', humanizeDbError(error)); }
-}
-
-/* ========================== NAVIGATION ========================= */
-
-function navigate(page, force = false) {
-  if (['challenge', 'results'].includes(page) && !guildIsApproved() && !force) page = 'auth';
-  document.querySelectorAll('.page').forEach((section) => section.classList.remove('active'));
-  const target = $(`page-${page}`);
-  if (target) target.classList.add('active');
-  document.querySelectorAll('[data-page-link]').forEach((btn) => btn.classList.toggle('active', btn.dataset.pageLink === page));
-  if (page === 'home') { loadChallenges(); loadLeaderboard(); }
-  if (page === 'challenge') { updateGuildUI(); loadChallenges(); }
-  if (page === 'results') { loadChallenges(); loadResults(); }
-  if (page === 'ranking') loadRankings();
-  if (page === 'admin') restoreAdmin();
-  if (page === 'auth') refreshGuildAuth();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-function wire() {
-  document.querySelectorAll('[data-page-link]').forEach((el) => el.addEventListener('click', (e) => { e.preventDefault(); navigate(el.dataset.pageLink); }));
-  $('nav-logout')?.addEventListener('click', handleGuildLogout);
-  $('guild-login-form')?.addEventListener('submit', handleGuildLogin);
-  $('guild-register-form')?.addEventListener('submit', handleGuildRegister);
-  $('challenge-form')?.addEventListener('submit', handleChallengeSubmit);
-  $('result-form')?.addEventListener('submit', handleResultSubmit);
-  $('admin-login-form')?.addEventListener('submit', handleAdminLogin);
-  $('admin-logout')?.addEventListener('click', handleAdminLogout);
-  $('guild-form')?.addEventListener('submit', handleGuildSave);
-  $('clear-guild-edit')?.addEventListener('click', clearGuildEditor);
-  $('block-form')?.addEventListener('submit', handleBlock);
-  $('home-challenge-search')?.addEventListener('input', renderChallengeLists);
-  $('challenge-search')?.addEventListener('input', renderChallengeLists);
-  $('admin-guild-search')?.addEventListener('input', renderGuilds);
-
-  document.addEventListener('click', (event) => {
-    const actionEl = event.target.closest('[data-action]');
-    if (!actionEl) return;
-    const action = actionEl.dataset.action;
-    const id = actionEl.dataset.id;
-    if (action === 'whatsapp') return openWhatsApp(id);
-    if (action === 'copy') {
-      const c = state.challenges.find((x) => x.id === id);
-      if (c) copyContact(c.contact);
-      return;
-    }
-    if (action === 'result') return navigateToResultForChallenge(id);
-    if (action === 'edit-guild') {
-      const g = state.guilds.find((x) => x.id === id);
-      return fillGuildEditor(g);
-    }
-    if (action === 'ban-guild') return quickGuildBan(id);
-    if (action === 'unban-guild') return unbanGuild(id);
-    if (action === 'remove-guild') return removeGuild(id);
-    if (action === 'unblock') return unblock(id);
-    if (action === 'approve-result') return approveResult(id);
-    if (action === 'reject-result') return rejectResult(id);
-    if (action === 'cancel-challenge') return cancelChallenge(id);
-  });
-}
-
-async function copyContact(value) {
-  const text = String(value || '');
-  if (!text) return alert('No contact number available.');
-  try { await navigator.clipboard.writeText(text); alert('Contact number copied.'); } catch { alert(text); }
-}
-
-window.navigate = navigate;
-window.openWhatsApp = openWhatsApp;
-window.copyText = copyContact;
-window.approveResult = approveResult;
-window.rejectResult = rejectResult;
-window.cancelChallenge = cancelChallenge;
-
-(async function boot() {
-  initTimePicker();
-  wire();
-  db.auth.onAuthStateChange(() => setTimeout(refreshGuildAuth, 0));
-  adminDb.auth.onAuthStateChange(() => setTimeout(restoreAdmin, 0));
-  await refreshGuildAuth();
+(async function boot(){
+  renderRules();renderWeaponSkillChoices();
+  const {data:{session}}=await db.auth.getSession();
+  if(session){state.user=session.user;await loadMyGuild();await completePendingRegistration();await enterMember();$('nav-logout').classList.remove('hidden');$('nav-register').classList.add('hidden');}
+  else{openView('public');await loadPublicTop10();}
   await restoreAdmin();
-  await Promise.all([loadChallenges(), loadResults(), loadRankings(), updateStats()]);
 })();
