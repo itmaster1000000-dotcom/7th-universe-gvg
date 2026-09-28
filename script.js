@@ -158,16 +158,74 @@ async function handleRegister(e){
   const guild=$('register-guild').value.trim(), contact=$('register-contact').value.trim(), email=$('register-email').value.trim(), password=$('register-password').value;
   if(!guild||!contact||!email||!password){showStatus('register-status','error','Guild name, contact, email and password are required.');return;}
   if(password.length<8){showStatus('register-status','error','Password must be at least 8 characters.');return;}
+
+  const registerWithCurrentUser = async () => {
+    const {data:reg,error:regError}=await db.rpc('register_gvg_guild',{p_guild_name:guild,p_contact:contact});
+    if(regError) throw regError;
+    clearPendingRegistration();
+    state.guild=Array.isArray(reg)?(reg[0]||null):reg;
+    openView('member');
+    await refreshMember();
+  };
+
   try{
-    const {data,error}=await db.auth.signUp({email,password});
+    /* Existing Auth account: login first, then register the new guild.
+       This is important after Admin removes only the guild registry row;
+       the Auth account remains valid and should be reusable. */
+    const {data:existingSession}=await db.auth.getSession();
+    if(existingSession?.session?.user){
+      if(String(existingSession.session.user.email||'').toLowerCase()!==email.toLowerCase()){
+        await db.auth.signOut();
+      }else{
+        state.user=existingSession.session.user;
+        await loadMyGuild();
+        if(state.guild){
+          showStatus('register-status','error','This account already has a registered guild. Login with another leader account.');
+          return;
+        }
+        await registerWithCurrentUser();
+        showStatus('guild-auth-status','ok','Guild registered successfully. Your guild is now pending admin approval.');
+        return;
+      }
+    }
+
+    /* Try existing Auth credentials before creating a new Auth account. */
+    const loginResult=await db.auth.signInWithPassword({email,password});
+    if(!loginResult.error){
+      state.user=loginResult.data.user;
+      await loadMyGuild();
+      if(state.guild){
+        showStatus('register-status','error','This account already has a registered guild. Login with another leader account.');
+        await db.auth.signOut();
+        state.user=null;
+        state.guild=null;
+        return;
+      }
+      await registerWithCurrentUser();
+      showStatus('guild-auth-status','ok','Guild registered successfully. Your guild is now pending admin approval.');
+      return;
+    }
+
+    /* No valid existing login: create a genuinely new Auth account. */
+    const {data,error}=await db.auth.signUp({email,password,options:{data:{account_type:'guild'}}});
     if(error) throw error;
+
     savePendingRegistration({guild,contact,email});
     if(data.session){
-      state.user=data.user; const {data:reg,error:regError}=await db.rpc('register_gvg_guild',{p_guild_name:guild,p_contact:contact}); if(regError) throw regError; clearPendingRegistration(); state.guild=reg; openView('member'); await refreshMember();
+      state.user=data.user;
+      await registerWithCurrentUser();
+      showStatus('guild-auth-status','ok','Guild registered successfully. Your guild is now pending admin approval.');
     }else{
-      showStatus('register-status','info','Account created. Please confirm the email, then login. The guild registration details are saved and will be submitted automatically after login.');
+      showStatus('register-status','info','Account created. Please confirm the email, then login. Your guild registration details are saved and will be submitted automatically after login.');
     }
-  }catch(error){showStatus('register-status','error',humanizeError(error));}
+  }catch(error){
+    const message=String(error?.message||error||'');
+    if(/invalid login credentials/i.test(message)){
+      showStatus('register-status','error','This email already has an account, but the password did not match. Use the correct password or Forgot Password, then register this guild.');
+    }else{
+      showStatus('register-status','error',humanizeError(error));
+    }
+  }
 }
 
 async function handleForgot(){
