@@ -14,7 +14,7 @@ const RULES = [
   'Roof / Height — <b>ALLOW NAHI</b>',
   'Revive Karna — <b>ALLOW NAHI</b>',
   'BO3 Matches — <b>ALLOW NAHI</b>',
-  '1 Outsider Player Bhi — <b>ALLOW NAHI</b>',
+  '1 Outsider Player — <b>ALLOW NAHI</b>',
   'Zone Packing — <b>ALLOW NAHI</b>',
   'Level 30 Se Low Level ID — <b>ALLOW NAHI</b>',
   'Dono Guilds Ka Agree Na Hone Par PC — <b>ALLOW NAHI</b>',
@@ -81,6 +81,17 @@ function openView(name){
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
+function openMemberSection(name){
+  const allowed=['rules','challenges','results','ranking'];
+  const section=allowed.includes(name)?name:'rules';
+  document.querySelectorAll('.member-view').forEach(el=>el.classList.toggle('active',el.id===`member-section-${section}`));
+  document.querySelectorAll('[data-member-section]').forEach(btn=>btn.classList.toggle('active',btn.dataset.memberSection===section));
+  if(section==='challenges') loadLiveChallenges();
+  if(section==='results') { loadLiveChallenges(); loadGuildOptions(); loadApprovedResults(); }
+  if(section==='ranking') loadRanking();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
 function renderRules(){
   const target=$('rules-grid'); if(!target) return;
   target.innerHTML=RULES.map((rule,i)=>`<div class="rule-item"><div class="rule-no">${i+1}</div><div class="rule-text">${rule}</div></div>`).join('');
@@ -96,14 +107,19 @@ function savePendingRegistration(data){ try{ localStorage.setItem('7th-universe-
 function readPendingRegistration(){ try{return JSON.parse(localStorage.getItem('7th-universe-pending-registration-v2')||'null');}catch{return null;} }
 function clearPendingRegistration(){ try{localStorage.removeItem('7th-universe-pending-registration-v2');}catch{} }
 
+function formatWeekLabel(value){
+  try{return new Intl.DateTimeFormat('en-PK',{dateStyle:'medium',timeZone:TIME_ZONE}).format(new Date(value));}
+  catch{return String(value||'');}
+}
+
 async function loadPublicTop10(){
   try{
-    const {data,error}=await db.rpc('get_gvg_public_top10');
+    const {data,error}=await db.rpc('get_gvg_all_time_top10');
     if(error) throw error;
     state.top10=data||[];
     const target=$('public-top10-table');
-    target.innerHTML=state.top10.length?state.top10.map(r=>`<tr><td class="tiny-rank">${escapeHtml(r.rank_no)}</td><td><strong>${escapeHtml(r.guild_name)}</strong></td><td class="tiny-points">${escapeHtml(r.points)}</td></tr>`).join(''):'<tr><td colspan="3">No current weekly records yet.</td></tr>';
-  }catch(error){ console.error(error); $('public-top10-table').innerHTML='<tr><td colspan="3">Could not load Top 10.</td></tr>'; }
+    target.innerHTML=state.top10.length?state.top10.map(r=>`<tr><td class="tiny-rank">${escapeHtml(r.rank_no)}</td><td><strong>${escapeHtml(r.guild_name)}</strong></td><td>${escapeHtml(formatWeekLabel(r.week_start))}</td><td class="tiny-points">${escapeHtml(r.points)}</td></tr>`).join(''):'<tr><td colspan="4">No historical weekly records yet.</td></tr>';
+  }catch(error){ console.error(error); $('public-top10-table').innerHTML='<tr><td colspan="4">Could not load Top 10 records.</td></tr>'; }
 }
 
 async function loadMyGuild(){
@@ -233,15 +249,17 @@ async function loadApprovedResults(){
 
 async function loadRanking(){
   try{
-    const [a,b,c]=await Promise.all([db.rpc('get_gvg_weekly_top20'),db.rpc('get_gvg_weekly_bottom'),db.rpc('get_gvg_public_top10')]); if(a.error)throw a.error;if(b.error)throw b.error;if(c.error)throw c.error;
-    state.top20=a.data||[];state.bottom=Array.isArray(b.data)?(b.data[0]||null):b.data;state.top10=c.data||[];
+    const [a,b]=await Promise.all([db.rpc('get_gvg_weekly_top20'),db.rpc('get_gvg_weekly_bottom')]);
+    if(a.error)throw a.error;
+    if(b.error)throw b.error;
+    state.top20=a.data||[];
+    state.bottom=Array.isArray(b.data)?(b.data[0]||null):b.data;
     $('member-top20-table').innerHTML=state.top20.length?state.top20.map(r=>`<tr><td class="pos">${escapeHtml(r.rank_no)}</td><td><strong>${escapeHtml(r.guild_name)}</strong></td><td class="pts ${Number(r.points)<0?'pos-red':'pos-green'}">${escapeHtml(r.points)}</td></tr>`).join(''):'<tr><td colspan="3">No ranking data yet.</td></tr>';
-    $('bottom-guild').innerHTML=state.bottom?`<strong>${escapeHtml(state.bottom.guild_name)}</strong><span>${escapeHtml(state.bottom.points)} points</span>`:'<div class="muted" style="margin-top:4px;font-size:9px">No current weekly guilds.</div>';
-    $('public-top10-table').innerHTML=state.top10.length?state.top10.map(r=>`<tr><td class="tiny-rank">${escapeHtml(r.rank_no)}</td><td><strong>${escapeHtml(r.guild_name)}</strong></td><td class="tiny-points">${escapeHtml(r.points)}</td></tr>`).join(''):'<tr><td colspan="3">No current weekly records yet.</td></tr>';
+    $('bottom-guild').innerHTML=state.bottom?`<strong>${escapeHtml(state.bottom.guild_name)}</strong><span>${escapeHtml(state.bottom.points)} points</span>`:'<div class="muted" style="font-size:9px">No current weekly guilds.</div>';
   }catch(error){console.error(error);}
 }
 
-async function enterMember(){openView('member');await refreshMember();}
+async function enterMember(){openView('member');openMemberSection('rules');await refreshMember();}
 async function refreshMember(){
   await loadMyGuild();await renderMemberIdentity();await Promise.all([loadLiveChallenges(),loadGuildOptions(),loadApprovedResults(),loadRanking()]);
 }
@@ -251,12 +269,51 @@ async function handleLogout(){try{await db.auth.signOut();}catch{}state.user=nul
 async function isAdmin(){
   const {data,error}=await adminDb.rpc('is_gvg_admin'); if(error){console.error(error);return false;} return Boolean(data);
 }
+function setAdminPanel(loggedIn){
+  $('admin-login-view')?.classList.toggle('hidden',!!loggedIn);
+  $('admin-dashboard')?.classList.toggle('hidden',!loggedIn);
+}
 async function handleAdminLogin(e){
-  e.preventDefault();clearStatus('admin-login-status');const email=$('admin-email').value.trim(),password=$('admin-password').value;if(!email||!password)return showStatus('admin-login-status','error','Admin email and password are required.');
-  try{const {data,error}=await adminDb.auth.signInWithPassword({email,password});if(error)throw error;const ok=await isAdmin();if(!ok){await adminDb.auth.signOut();throw new Error('This account is not an active 7TH UNIVERSE admin.');}state.adminUser=data.user;state.adminOk=true;openView('admin');await refreshAdmin();}catch(error){showStatus('admin-login-status','error',humanizeError(error));}
+  e.preventDefault();
+  clearStatus('admin-login-status');
+  const email=$('admin-email')?.value.trim()||'';
+  const password=$('admin-password')?.value||'';
+  if(!email||!password){showStatus('admin-login-status','error','Admin email and password are required.');return;}
+  showStatus('admin-login-status','info','Checking admin account…');
+  setBusy('admin-login-submit',true,'LOGIN AS ADMIN');
+  try{
+    const {data,error}=await adminDb.auth.signInWithPassword({email,password});
+    if(error)throw error;
+    const ok=await isAdmin();
+    if(!ok){
+      await adminDb.auth.signOut();
+      throw new Error('This account is not an active 7TH UNIVERSE admin.');
+    }
+    state.adminUser=data.user;
+    state.adminOk=true;
+    setAdminPanel(true);
+    showStatus('admin-status','ok','Admin login successful.');
+    openView('admin');
+    await refreshAdmin();
+  }catch(error){
+    setAdminPanel(false);
+    showStatus('admin-login-status','error',humanizeError(error));
+  }finally{
+    setBusy('admin-login-submit',false,'LOGIN AS ADMIN');
+  }
 }
 async function restoreAdmin(){
-  const {data:{session}}=await adminDb.auth.getSession(); if(!session){state.adminUser=null;state.adminOk=false;return;}state.adminUser=session.user;state.adminOk=await isAdmin();if(state.adminOk){openView('admin');await refreshAdmin();}
+  const {data:{session}}=await adminDb.auth.getSession();
+  if(!session){
+    state.adminUser=null;
+    state.adminOk=false;
+    setAdminPanel(false);
+    return;
+  }
+  state.adminUser=session.user;
+  state.adminOk=await isAdmin();
+  setAdminPanel(state.adminOk);
+  if(state.adminOk){openView('admin');await refreshAdmin();}
 }
 async function refreshAdmin(){
   if(!state.adminOk)return; $('admin-session-label').textContent=`${state.adminUser?.email||''} • Admin session active`;
@@ -316,6 +373,7 @@ document.addEventListener('click',async(e)=>{
   if(actionEl){const action=actionEl.dataset.action,id=actionEl.dataset.id;if(action==='result-from-challenge')return selectChallengeForResult(id);if(action==='close-modal')return closeModal();if(action==='guild-info'){const g=findGuild(id);if(g)adminGuildInfo(g);return;}if(action==='guild-edit'){const g=findGuild(id);if(g)adminGuildEdit(g);return;}if(action==='guild-remove')return removeGuild(id);if(action==='approve-guild')return setGuildApproval(id,'approved');if(action==='reject-guild')return setGuildApproval(id,'rejected');if(action==='reset-password')return resetLeaderPassword(actionEl.dataset.email||'');if(action==='approve-result')return approveResult(id);if(action==='reject-result')return rejectResult(id);if(action==='unban-identity')return unbanIdentity(actionEl.dataset.guild||'',actionEl.dataset.contact||'');}
   const menuBtn=e.target.closest('[data-menu-button]');if(menuBtn){const id=menuBtn.dataset.menuButton;document.querySelectorAll('.dots-menu.open').forEach(x=>{if(x.id!==`menu-${id}`)x.classList.remove('open')});document.getElementById(`menu-${id}`)?.classList.toggle('open');return;}document.querySelectorAll('.dots-menu.open').forEach(x=>x.classList.remove('open'));
 });
+document.querySelectorAll('[data-member-section]').forEach(btn=>btn.addEventListener('click',()=>openMemberSection(btn.dataset.memberSection)));
 $('nav-admin').addEventListener('click',async()=>{openView('admin');await restoreAdmin();});
 $('nav-register').addEventListener('click',()=>openView('register'));
 $('nav-logout').addEventListener('click',handleLogout);
