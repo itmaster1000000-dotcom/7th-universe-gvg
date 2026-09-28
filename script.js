@@ -204,6 +204,27 @@ function renderChallenges(){
   target.innerHTML=state.challenges.length?state.challenges.map(c=>`<div class="challenge-card"><div class="meta-row"><div><div class="kicker">${escapeHtml(c.challenge_code||'CHALLENGE')}</div><div class="name">${escapeHtml(c.guild_name)}</div></div><span class="badge badge-blue">OPEN</span></div><div class="challenge-time">MATCH ${escapeHtml(formatTime(c.match_time))}</div><div class="pill-wrap">${(c.weapons||[]).map(x=>`<span class="pill">${escapeHtml(x)}</span>`).join('')}${(c.active_skills||[]).map(x=>`<span class="pill">${escapeHtml(x)}</span>`).join('')}</div><div class="contact-line"><a class="contact-link" href="tel:${escapeHtml(normalizeContact(c.contact_number))}">${escapeHtml(formatContact(c.contact_number))}</a><button class="btn btn-primary btn-small" type="button" data-action="result-from-challenge" data-id="${escapeHtml(c.id)}">SUBMIT RESULT</button></div></div>`).join(''):'<div class="empty">No active challenges right now.</div>';
 }
 
+let guildSearchSerial = 0;
+
+async function searchGuildSuggestions(query){
+  const q=String(query||'').trim();
+  if(!q) return [];
+  const serial=++guildSearchSerial;
+  try{
+    const {data,error}=await db.rpc('search_gvg_guilds',{p_query:q});
+    if(error) throw error;
+    if(serial!==guildSearchSerial) return [];
+    return (data||[])
+      .map(r=>String(r.guild_name||'').trim())
+      .filter(Boolean);
+  }catch(error){
+    console.error('Guild autocomplete search failed:',error);
+    return getResultGuildNames()
+      .filter(name=>name.toLowerCase().startsWith(q.toLowerCase()))
+      .slice(0,10);
+  }
+}
+
 async function loadGuildOptions(){
   try{
     const {data,error}=await db.rpc('get_gvg_guild_options');
@@ -215,6 +236,7 @@ async function loadGuildOptions(){
   }
   fillResultGuilds();
 }
+
 function getResultGuildNames(){
   const names=[
     ...state.guildOptions.map(g=>g.guild_name),
@@ -229,31 +251,58 @@ function getResultGuildNames(){
     seen.add(key); return true;
   }).sort((a,b)=>a.localeCompare(b));
 }
-function renderGuildSuggestions(input,list){
-  if(!input||!list)return;
-  const q=input.value.trim().toLowerCase();
-  if(q.length<1){list.classList.remove('open');list.innerHTML='';return;}
-  const matches=getResultGuildNames().filter(name=>name.toLowerCase().startsWith(q)).slice(0,10);
-  if(!matches.length){list.classList.remove('open');list.innerHTML='';return;}
-  list.innerHTML=matches.map(name=>`<button class="autocomplete-item" type="button" data-suggestion-value="${escapeHtml(name)}">${escapeHtml(name)}</button>`).join('');
+
+function paintGuildSuggestions(list,names){
+  if(!list) return;
+  const clean=[...new Set((names||[]).map(x=>String(x||'').trim()).filter(Boolean))].slice(0,10);
+  if(!clean.length){
+    list.classList.remove('open');
+    list.innerHTML='';
+    return;
+  }
+  list.innerHTML=clean.map(name=>`<button class="autocomplete-item" type="button" data-suggestion-value="${escapeHtml(name)}">${escapeHtml(name)}</button>`).join('');
   list.classList.add('open');
 }
+
+function renderGuildSuggestions(input,list){
+  if(!input||!list) return;
+  const q=input.value.trim();
+  if(q.length<1){
+    list.classList.remove('open');
+    list.innerHTML='';
+    return;
+  }
+  clearTimeout(input._gvgSuggestTimer);
+  input._gvgSuggestTimer=setTimeout(async()=>{
+    const value=input.value.trim();
+    if(!value) return;
+    const names=await searchGuildSuggestions(value);
+    if(input.value.trim()!==value) return;
+    paintGuildSuggestions(list,names);
+  },80);
+}
+
 function setupGuildAutocomplete(inputId,listId){
   const input=$(inputId),list=$(listId);
-  if(!input||!list||input.dataset.autocompleteReady==='1')return;
+  if(!input||!list||input.dataset.autocompleteReady==='1') return;
   input.dataset.autocompleteReady='1';
-  const render=()=>renderGuildSuggestions(input,list);
-  input.addEventListener('input',render);
-  input.addEventListener('focus',render);
+  input.addEventListener('input',()=>renderGuildSuggestions(input,list));
+  input.addEventListener('focus',()=>renderGuildSuggestions(input,list));
   list.addEventListener('pointerdown',e=>{
     const item=e.target.closest('[data-suggestion-value]');
-    if(!item)return;
+    if(!item) return;
     e.preventDefault();
     input.value=item.dataset.suggestionValue||'';
     list.classList.remove('open');
     list.innerHTML='';
   });
+  document.addEventListener('pointerdown',e=>{
+    if(!input.parentElement.contains(e.target)){
+      list.classList.remove('open');
+    }
+  });
 }
+
 function fillResultChallenges(){
   const sel=$('result-challenge'); if(!sel)return; const current=sel.value; sel.innerHTML='<option value="">Select an active challenge</option>'+state.challenges.map(c=>`<option value="${escapeHtml(c.id)}">${escapeHtml(c.guild_name)} • ${escapeHtml(formatTime(c.match_time))}</option>`).join(''); if(state.challenges.some(c=>c.id===current))sel.value=current;
 }
@@ -426,8 +475,16 @@ async function unbanIdentity(guild,contact){try{const {error}=await adminDb.rpc(
 
 function openAdminSection(name){
   const section=['guilds','results','ban'].includes(name)?name:'guilds';
-  document.querySelectorAll('.admin-panel-view').forEach(el=>el.classList.toggle('active',el.id===`admin-section-${section}`));
-  document.querySelectorAll('[data-admin-section]').forEach(btn=>btn.classList.toggle('active',btn.dataset.adminSection===section));
+  document.querySelectorAll('.admin-panel-view').forEach(el=>{
+    const active=el.id===`admin-section-${section}`;
+    el.classList.toggle('active',active);
+    el.style.display=active?'block':'none';
+  });
+  document.querySelectorAll('[data-admin-section]').forEach(btn=>{
+    const active=btn.dataset.adminSection===section;
+    btn.classList.toggle('active',active);
+    btn.setAttribute('aria-selected',active?'true':'false');
+  });
   if(section==='guilds') loadAdminGuilds();
   if(section==='results') loadAdminResults();
   if(section==='ban') loadBans();
