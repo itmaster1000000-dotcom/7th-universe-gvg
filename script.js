@@ -210,10 +210,37 @@ async function loadGuildOptions(){
 function fillResultChallenges(){
   const sel=$('result-challenge'); if(!sel)return; const current=sel.value; sel.innerHTML='<option value="">Select an active challenge</option>'+state.challenges.map(c=>`<option value="${escapeHtml(c.id)}">${escapeHtml(c.guild_name)} • ${escapeHtml(formatTime(c.match_time))}</option>`).join(''); if(state.challenges.some(c=>c.id===current))sel.value=current;
 }
+function closeResultSuggestions(){
+  ['result-winner-suggestions','result-loser-suggestions'].forEach(id=>$(id)?.classList.remove('open'));
+}
+function showResultGuildSuggestions(inputId,listId){
+  const input=$(inputId),list=$(listId); if(!input||!list)return;
+  const q=String(input.value||'').trim().toLowerCase();
+  if(!q){list.innerHTML='';list.classList.remove('open');return;}
+  const matches=state.guildOptions
+    .map(g=>String(g.guild_name||'').trim())
+    .filter(Boolean)
+    .filter((name,index,arr)=>arr.indexOf(name)===index)
+    .filter(name=>name.toLowerCase().startsWith(q))
+    .slice(0,8);
+  list.innerHTML=matches.length
+    ? matches.map(name=>`<button type="button" class="autocomplete-item" data-guild-suggestion="${escapeHtml(name)}">${escapeHtml(name)}</button>`).join('')
+    : '<div class="autocomplete-item" style="cursor:default;opacity:.6">No matching guild</div>';
+  list.classList.add('open');
+}
+function bindResultAutocomplete(inputId,listId){
+  const input=$(inputId),list=$(listId); if(!input||!list)return;
+  input.addEventListener('input',()=>showResultGuildSuggestions(inputId,listId));
+  input.addEventListener('focus',()=>showResultGuildSuggestions(inputId,listId));
+  list.addEventListener('click',e=>{const btn=e.target.closest('[data-guild-suggestion]');if(!btn)return;input.value=btn.dataset.guildSuggestion||'';list.classList.remove('open');});
+}
+function initResultAutocomplete(){
+  bindResultAutocomplete('result-winner','result-winner-suggestions');
+  bindResultAutocomplete('result-loser','result-loser-suggestions');
+  document.addEventListener('click',e=>{if(!e.target.closest('.autocomplete-wrap'))closeResultSuggestions();});
+}
 function fillResultGuilds(){
-  const list=$('gvg-guild-options');
-  if(!list)return;
-  list.innerHTML=state.guildOptions.map(g=>`<option value="${escapeHtml(g.guild_name)}"></option>`).join('');
+  closeResultSuggestions();
 }
 function selectChallengeForResult(id){
   const c=state.challenges.find(x=>x.id===id);
@@ -384,6 +411,7 @@ document.addEventListener('click',async(e)=>{
   const menuBtn=e.target.closest('[data-menu-button]');if(menuBtn){const id=menuBtn.dataset.menuButton;document.querySelectorAll('.dots-menu.open').forEach(x=>{if(x.id!==`menu-${id}`)x.classList.remove('open')});document.getElementById(`menu-${id}`)?.classList.toggle('open');return;}document.querySelectorAll('.dots-menu.open').forEach(x=>x.classList.remove('open'));
 });
 document.querySelectorAll('[data-member-section]').forEach(btn=>btn.addEventListener('click',()=>openMemberSection(btn.dataset.memberSection)));
+initResultAutocomplete();
 $('nav-admin').addEventListener('click',async()=>{openView('admin');await restoreAdmin();});
 $('nav-register').addEventListener('click',()=>openView('register'));
 $('nav-logout').addEventListener('click',handleLogout);
