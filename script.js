@@ -205,42 +205,61 @@ function renderChallenges(){
 }
 
 async function loadGuildOptions(){
-  try{const {data,error}=await db.rpc('get_gvg_guild_options'); if(error)throw error; state.guildOptions=data||[]; fillResultGuilds();}catch(error){console.error(error);}
+  try{
+    const {data,error}=await db.rpc('get_gvg_guild_options');
+    if(error) throw error;
+    state.guildOptions=data||[];
+  }catch(error){
+    console.error('Guild options load failed:',error);
+    state.guildOptions=[];
+  }
+  fillResultGuilds();
+}
+function getResultGuildNames(){
+  const names=[
+    ...state.guildOptions.map(g=>g.guild_name),
+    ...state.challenges.map(c=>c.guild_name),
+    ...state.results.flatMap(r=>[r.winner_guild,r.loser_guild]),
+    state.guild?.guild_name
+  ];
+  const seen=new Set();
+  return names.map(x=>String(x||'').trim()).filter(x=>{
+    const key=normalizeGuild(x);
+    if(!key||seen.has(key)) return false;
+    seen.add(key); return true;
+  }).sort((a,b)=>a.localeCompare(b));
+}
+function renderGuildSuggestions(input,list){
+  if(!input||!list)return;
+  const q=input.value.trim().toLowerCase();
+  if(q.length<1){list.classList.remove('open');list.innerHTML='';return;}
+  const matches=getResultGuildNames().filter(name=>name.toLowerCase().startsWith(q)).slice(0,10);
+  if(!matches.length){list.classList.remove('open');list.innerHTML='';return;}
+  list.innerHTML=matches.map(name=>`<button class="autocomplete-item" type="button" data-suggestion-value="${escapeHtml(name)}">${escapeHtml(name)}</button>`).join('');
+  list.classList.add('open');
+}
+function setupGuildAutocomplete(inputId,listId){
+  const input=$(inputId),list=$(listId);
+  if(!input||!list||input.dataset.autocompleteReady==='1')return;
+  input.dataset.autocompleteReady='1';
+  const render=()=>renderGuildSuggestions(input,list);
+  input.addEventListener('input',render);
+  input.addEventListener('focus',render);
+  list.addEventListener('pointerdown',e=>{
+    const item=e.target.closest('[data-suggestion-value]');
+    if(!item)return;
+    e.preventDefault();
+    input.value=item.dataset.suggestionValue||'';
+    list.classList.remove('open');
+    list.innerHTML='';
+  });
 }
 function fillResultChallenges(){
   const sel=$('result-challenge'); if(!sel)return; const current=sel.value; sel.innerHTML='<option value="">Select an active challenge</option>'+state.challenges.map(c=>`<option value="${escapeHtml(c.id)}">${escapeHtml(c.guild_name)} • ${escapeHtml(formatTime(c.match_time))}</option>`).join(''); if(state.challenges.some(c=>c.id===current))sel.value=current;
 }
-function closeResultSuggestions(){
-  ['result-winner-suggestions','result-loser-suggestions'].forEach(id=>$(id)?.classList.remove('open'));
-}
-function showResultGuildSuggestions(inputId,listId){
-  const input=$(inputId),list=$(listId); if(!input||!list)return;
-  const q=String(input.value||'').trim().toLowerCase();
-  if(!q){list.innerHTML='';list.classList.remove('open');return;}
-  const matches=state.guildOptions
-    .map(g=>String(g.guild_name||'').trim())
-    .filter(Boolean)
-    .filter((name,index,arr)=>arr.indexOf(name)===index)
-    .filter(name=>name.toLowerCase().startsWith(q))
-    .slice(0,8);
-  list.innerHTML=matches.length
-    ? matches.map(name=>`<button type="button" class="autocomplete-item" data-guild-suggestion="${escapeHtml(name)}">${escapeHtml(name)}</button>`).join('')
-    : '<div class="autocomplete-item" style="cursor:default;opacity:.6">No matching guild</div>';
-  list.classList.add('open');
-}
-function bindResultAutocomplete(inputId,listId){
-  const input=$(inputId),list=$(listId); if(!input||!list)return;
-  input.addEventListener('input',()=>showResultGuildSuggestions(inputId,listId));
-  input.addEventListener('focus',()=>showResultGuildSuggestions(inputId,listId));
-  list.addEventListener('click',e=>{const btn=e.target.closest('[data-guild-suggestion]');if(!btn)return;input.value=btn.dataset.guildSuggestion||'';list.classList.remove('open');});
-}
-function initResultAutocomplete(){
-  bindResultAutocomplete('result-winner','result-winner-suggestions');
-  bindResultAutocomplete('result-loser','result-loser-suggestions');
-  document.addEventListener('click',e=>{if(!e.target.closest('.autocomplete-wrap'))closeResultSuggestions();});
-}
 function fillResultGuilds(){
-  closeResultSuggestions();
+  setupGuildAutocomplete('result-winner','result-winner-suggestions');
+  setupGuildAutocomplete('result-loser','result-loser-suggestions');
 }
 function selectChallengeForResult(id){
   const c=state.challenges.find(x=>x.id===id);
@@ -331,6 +350,7 @@ async function handleAdminLogin(e){
     setAdminPanel(true);
     showStatus('admin-status','ok','Admin login successful.');
     openView('admin');
+    openAdminSection('guilds');
     await refreshAdmin();
   }catch(error){
     setAdminPanel(false);
@@ -350,7 +370,7 @@ async function restoreAdmin(){
   state.adminUser=session.user;
   state.adminOk=await isAdmin();
   setAdminPanel(state.adminOk);
-  if(state.adminOk){openView('admin');await refreshAdmin();}
+  if(state.adminOk){openView('admin');openAdminSection('guilds');await refreshAdmin();}
 }
 async function refreshAdmin(){
   if(!state.adminOk)return; $('admin-session-label').textContent=`${state.adminUser?.email||''} • Admin session active`;
@@ -404,6 +424,16 @@ async function loadBans(){
 }
 async function unbanIdentity(guild,contact){try{const {error}=await adminDb.rpc('admin_unban_guild_identity',{p_guild_name:guild||null,p_contact:contact||null});if(error)throw error;showStatus('admin-status','ok','Guild unbanned.');await Promise.all([loadAdminGuilds(),loadBans()]);}catch(error){showStatus('admin-status','error',humanizeError(error));}}
 
+function openAdminSection(name){
+  const section=['guilds','results','ban'].includes(name)?name:'guilds';
+  document.querySelectorAll('.admin-panel-view').forEach(el=>el.classList.toggle('active',el.id===`admin-section-${section}`));
+  document.querySelectorAll('[data-admin-section]').forEach(btn=>btn.classList.toggle('active',btn.dataset.adminSection===section));
+  if(section==='guilds') loadAdminGuilds();
+  if(section==='results') loadAdminResults();
+  if(section==='ban') loadBans();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
 /* ------------------------- Events ------------------------- */
 document.addEventListener('click',async(e)=>{
   const actionEl=e.target.closest('[data-action]');
@@ -411,7 +441,7 @@ document.addEventListener('click',async(e)=>{
   const menuBtn=e.target.closest('[data-menu-button]');if(menuBtn){const id=menuBtn.dataset.menuButton;document.querySelectorAll('.dots-menu.open').forEach(x=>{if(x.id!==`menu-${id}`)x.classList.remove('open')});document.getElementById(`menu-${id}`)?.classList.toggle('open');return;}document.querySelectorAll('.dots-menu.open').forEach(x=>x.classList.remove('open'));
 });
 document.querySelectorAll('[data-member-section]').forEach(btn=>btn.addEventListener('click',()=>openMemberSection(btn.dataset.memberSection)));
-initResultAutocomplete();
+document.querySelectorAll('[data-admin-section]').forEach(btn=>btn.addEventListener('click',()=>openAdminSection(btn.dataset.adminSection)));
 $('nav-admin').addEventListener('click',async()=>{openView('admin');await restoreAdmin();});
 $('nav-register').addEventListener('click',()=>openView('register'));
 $('nav-logout').addEventListener('click',handleLogout);
