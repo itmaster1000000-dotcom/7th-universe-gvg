@@ -488,6 +488,218 @@
       }
     }
 
+
+    /* ============================================================
+       V15 CLEAN ESPORTS — FIX FLOATING GLOW BOXES
+       Purpose: remove stray gray/white floating glow shapes in the
+       Admin panel while keeping a controlled premium esports glow.
+       ============================================================ */
+
+    /* Remove every decorative pseudo-element inside Admin.
+       Functional HTML elements remain untouched. */
+    #admin-page *::before,
+    #admin-page *::after{
+      content:none !important;
+      display:none !important;
+      animation:none !important;
+      filter:none !important;
+      box-shadow:none !important;
+      background:none !important;
+    }
+
+    /* Admin page itself: clean dark glass with a tight edge glow. */
+    #admin-page{
+      position:relative;
+      isolation:isolate;
+    }
+
+    #admin-page .admin-head{
+      position:relative;
+    }
+
+    #admin-page .admin-head::after{
+      content:"" !important;
+      display:block !important;
+      position:absolute;
+      left:0;
+      right:0;
+      bottom:-9px;
+      height:1px;
+      background:linear-gradient(
+        90deg,
+        rgba(32,245,160,.0),
+        rgba(32,245,160,.50),
+        rgba(69,242,255,.70),
+        rgba(59,130,255,.55),
+        rgba(255,49,94,.42),
+        rgba(255,49,94,0)
+      ) !important;
+      box-shadow:0 0 10px rgba(69,242,255,.12) !important;
+      pointer-events:none;
+    }
+
+    /* Re-add one intentional accent to each main Admin section.
+       This accent is attached to the border — never floating inside. */
+    #admin-page .admin-section{
+      position:relative;
+      border-color:rgba(128,180,205,.13) !important;
+      background:
+        linear-gradient(145deg,rgba(11,21,33,.86),rgba(4,10,17,.95)) !important;
+      box-shadow:
+        0 15px 34px rgba(0,0,0,.36),
+        inset 0 1px 0 rgba(255,255,255,.025) !important;
+    }
+
+    #admin-page .admin-section{
+      border-top-color:rgba(69,242,255,.18) !important;
+    }
+
+    #admin-page .admin-section:hover{
+      transform:none !important;
+      border-color:rgba(69,242,255,.20) !important;
+      box-shadow:
+        0 18px 42px rgba(0,0,0,.40),
+        0 0 18px rgba(69,242,255,.045),
+        inset 0 1px 0 rgba(255,255,255,.028) !important;
+    }
+
+    /* Admin section heading stays visually clean. */
+    #admin-page .admin-section-head{
+      position:relative;
+      padding-bottom:2px;
+    }
+
+    #admin-page .admin-section-head h3,
+    #admin-page .panel-head h3{
+      text-shadow:
+        0 0 10px rgba(69,242,255,.065),
+        0 2px 8px rgba(0,0,0,.35) !important;
+    }
+
+    /* Keep the gold/blue status badges, but make the glow tight. */
+    #admin-page .badge{
+      box-shadow:
+        0 4px 12px rgba(0,0,0,.20) !important;
+    }
+
+    #admin-page .badge-gold{
+      box-shadow:
+        0 0 10px rgba(239,199,90,.055),
+        0 4px 12px rgba(0,0,0,.20) !important;
+    }
+
+    #admin-page .badge-blue{
+      box-shadow:
+        0 0 10px rgba(69,130,255,.065),
+        0 4px 12px rgba(0,0,0,.20) !important;
+    }
+
+    /* Tabs: glow only around the active tab. */
+    #admin-page .admin-tabs{
+      background:linear-gradient(180deg,rgba(8,15,24,.90),rgba(3,8,14,.94)) !important;
+      box-shadow:
+        0 14px 28px rgba(0,0,0,.30),
+        inset 0 1px 0 rgba(255,255,255,.022) !important;
+    }
+
+    #admin-page .admin-tab{
+      box-shadow:none !important;
+    }
+
+    #admin-page .admin-tab.active{
+      box-shadow:
+        0 0 13px rgba(69,242,255,.07),
+        inset 0 0 14px rgba(69,242,255,.025) !important;
+    }
+
+    /* Search input: no floating shape. */
+    #admin-page .search-bar{
+      background:linear-gradient(180deg,rgba(3,10,17,.90),rgba(3,8,14,.84)) !important;
+      box-shadow:
+        0 9px 22px rgba(0,0,0,.22),
+        inset 0 1px 0 rgba(255,255,255,.018) !important;
+    }
+
+    /* Table shell and rows stay crisp and lightweight. */
+    #admin-page .admin-table-shell{
+      box-shadow:
+        0 10px 24px rgba(0,0,0,.22),
+        inset 0 1px 0 rgba(255,255,255,.02) !important;
+    }
+
+    #admin-page .admin-table tbody tr:hover{
+      background:rgba(69,242,255,.035) !important;
+      box-shadow:inset 2px 0 rgba(69,242,255,.24) !important;
+    }
+
+    /* Buttons: professional direct glow, no shine sweep. */
+    #admin-page .btn{
+      box-shadow:
+        0 8px 18px rgba(0,0,0,.22) !important;
+    }
+
+    #admin-page .btn-primary{
+      box-shadow:
+        0 8px 20px rgba(19,117,230,.20),
+        0 0 12px rgba(69,242,255,.075) !important;
+    }
+
+    #admin-page .btn-red{
+      box-shadow:
+        0 8px 20px rgba(255,49,94,.085) !important;
+    }
+
+    #admin-page .btn-gold{
+      box-shadow:
+        0 8px 20px rgba(239,199,90,.065) !important;
+    }
+
+    /* Keep the page/header premium but static and light. */
+    header{
+      backdrop-filter:none !important;
+      box-shadow:
+        0 10px 28px rgba(0,0,0,.30),
+        inset 0 1px 0 rgba(255,255,255,.022) !important;
+    }
+
+    .nav-center{
+      animation:none !important;
+    }
+
+    .brand-logo{
+      animation:none !important;
+      box-shadow:
+        0 0 12px rgba(69,242,255,.16),
+        0 4px 15px rgba(0,0,0,.24) !important;
+    }
+
+    .topline{
+      background:
+        linear-gradient(
+          90deg,
+          #20f5a0,
+          #45f2ff 40%,
+          #3b82ff 72%,
+          #ff315e
+        ) !important;
+      background-size:100% 100% !important;
+      animation:none !important;
+      box-shadow:0 0 8px rgba(69,242,255,.20) !important;
+    }
+
+    /* Mobile: eliminate accidental horizontal pressure from wide admin tabs. */
+    @media(max-width:760px){
+      #admin-page .admin-section{
+        padding:15px !important;
+      }
+      #admin-page .admin-section-head{
+        gap:9px;
+      }
+      #admin-page .admin-section-head h3{
+        font-size:27px;
+      }
+    }
+
 </style>
 </head>
 <body>
@@ -630,6 +842,6 @@
   <footer class="footer"><div class="container footer-inner"><span>7TH UNIVERSE • GUILD VS GUILD</span><span>RULES ARE EQUAL FOR ALL GUILDS</span><span class="version-chip">V10 • ULTRA FINAL VISUAL</span></div></footer>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="./script.js?v=13-performance"></script>
+  <script src="./script.js?v=15-clean-esports"></script>
 </body>
 </html>
