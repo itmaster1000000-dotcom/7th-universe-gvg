@@ -241,6 +241,148 @@
     @media (prefers-reduced-motion:reduce){
       *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.001ms!important}
     }
+
+    /* =========================================================
+       V10 ULTRA FINAL — CINEMATIC HOLOGRAPHIC VISUAL SYSTEM
+       Pure CSS. No JS / Supabase functionality changed.
+       ========================================================= */
+    :root{
+      --ux-cyan:#45f2ff;--ux-blue:#3b82ff;--ux-red:#ff315e;--ux-violet:#8b5cf6;--ux-green:#20f5a0;
+      --ux-glass:rgba(7,13,22,.78);--ux-deep:rgba(2,7,13,.92)
+    }
+    html{background:#02050a}
+    body{
+      position:relative;isolation:isolate;
+      background:
+        radial-gradient(900px 540px at 50% -12%,rgba(59,130,255,.20),transparent 62%),
+        radial-gradient(650px 500px at -8% 18%,rgba(69,242,255,.12),transparent 62%),
+        radial-gradient(650px 520px at 108% 36%,rgba(255,49,94,.10),transparent 62%),
+        radial-gradient(760px 520px at 50% 112%,rgba(139,92,246,.10),transparent 64%),
+        linear-gradient(180deg,#02050a 0%,#050c14 48%,#020409 100%);
+    }
+    body:before{
+      content:"";position:fixed;inset:0;pointer-events:none;z-index:-3;opacity:.62;
+      background:
+        linear-gradient(rgba(69,242,255,.028) 1px,transparent 1px),
+        linear-gradient(90deg,rgba(69,242,255,.028) 1px,transparent 1px),
+        radial-gradient(circle at 18% 28%,rgba(69,242,255,.34) 0 1px,transparent 2px),
+        radial-gradient(circle at 78% 16%,rgba(255,255,255,.24) 0 1px,transparent 2px),
+        radial-gradient(circle at 84% 72%,rgba(255,49,94,.28) 0 1px,transparent 2px),
+        radial-gradient(circle at 34% 82%,rgba(59,130,255,.24) 0 1px,transparent 2px);
+      background-size:34px 34px,34px 34px,190px 190px,240px 240px,270px 270px,330px 330px;
+      animation:uxDrift 24s linear infinite
+    }
+    body:after{
+      content:"";position:fixed;inset:0;pointer-events:none;z-index:999;opacity:.055;mix-blend-mode:screen;
+      background:repeating-linear-gradient(180deg,rgba(255,255,255,.65) 0,rgba(255,255,255,.65) 1px,transparent 1px,transparent 5px)
+    }
+    @keyframes uxDrift{from{background-position:0 0,0 0,0 0,0 0,0 0,0 0}to{background-position:0 34px,34px 0,95px 65px,-140px 110px,150px -95px,-110px 155px}}
+    @keyframes uxPulse{0%,100%{opacity:.58;transform:scale(1)}50%{opacity:1;transform:scale(1.04)}}
+    @keyframes uxBeam{0%{transform:translateX(-160%) skewX(-19deg);opacity:0}14%{opacity:.7}38%,100%{transform:translateX(290%) skewX(-19deg);opacity:0}}
+    @keyframes uxFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+    @keyframes uxSweep{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+
+    .topline{
+      position:relative;overflow:hidden;height:4px;
+      background:linear-gradient(90deg,#20f5a0,#45f2ff,#3b82ff,#8b5cf6,#ff315e);
+      background-size:240% 100%;animation:uxSweep 4s ease infinite;
+      box-shadow:0 0 10px rgba(69,242,255,.7),0 0 28px rgba(59,130,255,.42),0 0 44px rgba(255,49,94,.18)
+    }
+    .topline:after{content:"";position:absolute;top:-30%;bottom:-30%;left:-18%;width:16%;background:linear-gradient(90deg,transparent,#fff,transparent);filter:blur(1px);animation:uxBeam 3s linear infinite}
+
+    header{
+      position:relative;
+      background:linear-gradient(180deg,rgba(2,6,11,.96),rgba(4,10,17,.80));
+      border-bottom:1px solid rgba(69,242,255,.12);
+      box-shadow:0 16px 46px rgba(0,0,0,.40),0 0 42px rgba(59,130,255,.055),inset 0 1px 0 rgba(255,255,255,.03);
+      backdrop-filter:blur(22px) saturate(1.35)
+    }
+    header:after{content:"";position:absolute;left:5%;right:5%;bottom:-1px;height:1px;background:linear-gradient(90deg,transparent,rgba(69,242,255,.72),rgba(59,130,255,.95),rgba(255,49,94,.68),transparent);box-shadow:0 0 16px rgba(69,242,255,.60)}
+
+    .nav-center{position:relative;animation:uxFloat 6s ease-in-out infinite}
+    .nav-center:before{content:"";position:absolute;width:270px;height:80px;left:50%;top:50%;transform:translate(-50%,-50%);background:radial-gradient(ellipse,rgba(69,242,255,.12),transparent 68%);filter:blur(10px);pointer-events:none}
+    .nav-center:after{content:"";position:absolute;width:165px;height:56px;left:50%;top:50%;transform:translate(-50%,-50%);border:1px solid rgba(69,242,255,.10);border-radius:999px;box-shadow:0 0 24px rgba(59,130,255,.09) inset;animation:uxPulse 3.2s ease-in-out infinite;pointer-events:none}
+    .brand-logo{position:relative;z-index:2;border-color:rgba(69,242,255,.28);box-shadow:0 0 0 1px rgba(255,255,255,.04) inset,0 0 15px rgba(69,242,255,.34),0 0 34px rgba(59,130,255,.24),0 0 55px rgba(255,49,94,.08);animation:uxPulse 4s ease-in-out infinite}
+    .brand-title{position:relative;z-index:2;text-shadow:0 0 13px rgba(69,242,255,.24),0 0 36px rgba(59,130,255,.17)}
+    .brand-sub{position:relative;z-index:2;color:#86a6b2}
+
+    .btn{
+      position:relative;isolation:isolate;overflow:hidden;min-height:45px;border-radius:14px;
+      border-color:rgba(133,188,212,.14);
+      background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.025));
+      box-shadow:0 12px 28px rgba(0,0,0,.30),0 0 0 1px rgba(255,255,255,.02) inset;
+      text-shadow:0 1px 9px rgba(0,0,0,.4);
+      transition:transform .22s cubic-bezier(.2,.8,.2,1),box-shadow .22s,border-color .22s,filter .22s
+    }
+    .btn:before{content:"";position:absolute;inset:1px;border-radius:13px;z-index:-1;opacity:.9;background:linear-gradient(120deg,transparent 0%,rgba(255,255,255,.09) 22%,transparent 42%,rgba(69,242,255,.06) 70%,transparent 100%);background-size:240% 100%;animation:uxSweep 5s ease infinite}
+    .btn:after{content:"";position:absolute;top:-130%;bottom:-130%;left:-36%;width:18%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.75),transparent);transform:skewX(-19deg);opacity:.35;pointer-events:none}
+    .btn:hover{transform:translateY(-2px);filter:brightness(1.12);border-color:rgba(69,242,255,.38);box-shadow:0 17px 38px rgba(0,0,0,.36),0 0 26px rgba(69,242,255,.13),0 0 54px rgba(59,130,255,.08)}
+    .btn:hover:after{animation:uxBeam 1.15s ease 1}
+    .btn:active{transform:translateY(0) scale(.985)}
+    .btn-primary{border-color:rgba(69,242,255,.60);background:linear-gradient(135deg,#064eb5 0%,#0c77f0 42%,#48cfff 100%);box-shadow:0 13px 30px rgba(19,117,230,.32),0 0 26px rgba(69,242,255,.20),0 0 58px rgba(59,130,255,.13),inset 0 1px 0 rgba(255,255,255,.28)}
+    .btn-green{border-color:rgba(32,245,160,.48);background:linear-gradient(135deg,rgba(10,136,92,.36),rgba(32,245,160,.08));box-shadow:0 0 27px rgba(32,245,160,.12),0 12px 29px rgba(0,0,0,.30)}
+    .btn-red{border-color:rgba(255,49,94,.50);background:linear-gradient(135deg,rgba(155,8,41,.42),rgba(255,49,94,.10));box-shadow:0 0 27px rgba(255,49,94,.12),0 12px 29px rgba(0,0,0,.30)}
+    .btn-gold{border-color:rgba(239,199,90,.50);background:linear-gradient(135deg,rgba(135,90,8,.34),rgba(239,199,90,.09));box-shadow:0 0 27px rgba(239,199,90,.09),0 12px 29px rgba(0,0,0,.30)}
+
+    .card,.admin-panel{
+      border-color:rgba(126,182,212,.15);
+      background:linear-gradient(145deg,rgba(14,25,39,.82),rgba(4,10,17,.90) 56%,rgba(3,8,14,.96));
+      box-shadow:0 32px 78px rgba(0,0,0,.50),0 0 0 1px rgba(255,255,255,.018) inset,0 0 48px rgba(59,130,255,.065);
+      backdrop-filter:blur(20px) saturate(1.28);transform:translateZ(0)
+    }
+    .card:before,.admin-panel:before{width:175px;height:2px;background:linear-gradient(90deg,#20f5a0,#45f2ff,#3b82ff,#8b5cf6,#ff315e,transparent);box-shadow:0 0 15px rgba(69,242,255,.46),0 0 28px rgba(255,49,94,.12)}
+    .card:after,.admin-panel:after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:linear-gradient(112deg,transparent 0%,transparent 28%,rgba(69,242,255,.07) 45%,transparent 54%,rgba(255,49,94,.045) 78%,transparent 100%);background-size:220% 220%;animation:uxSweep 8s ease infinite;opacity:.8}
+    .card:hover,.admin-panel:hover{border-color:rgba(69,242,255,.23);box-shadow:0 36px 88px rgba(0,0,0,.55),0 0 0 1px rgba(69,242,255,.035) inset,0 0 58px rgba(59,130,255,.10)}
+    .title,.panel-head h3{text-shadow:0 0 16px rgba(69,242,255,.10),0 0 30px rgba(59,130,255,.07)}
+    .kicker{color:#70a6b6;text-shadow:0 0 13px rgba(69,242,255,.13)}
+
+    .login-card{box-shadow:0 38px 100px rgba(0,0,0,.60),0 0 0 1px rgba(69,242,255,.035) inset,0 0 92px rgba(59,130,255,.10);animation:uxFloat 8s ease-in-out infinite}
+    .login-brand img{border-color:rgba(69,242,255,.24);box-shadow:0 0 22px rgba(69,242,255,.24),0 0 48px rgba(59,130,255,.13),inset 0 0 22px rgba(255,255,255,.03)}
+    .login-brand strong{letter-spacing:.12em;text-shadow:0 0 16px rgba(69,242,255,.18)}
+    #public-landing{position:relative;overflow:clip}
+    #public-landing:before,#public-landing:after{content:"";position:absolute;border-radius:50%;filter:blur(42px);pointer-events:none;z-index:-1}
+    #public-landing:before{width:460px;height:460px;left:-250px;top:4%;background:radial-gradient(circle,rgba(69,242,255,.17),transparent 69%);animation:uxPulse 7s ease-in-out infinite}
+    #public-landing:after{width:500px;height:500px;right:-285px;bottom:0;background:radial-gradient(circle,rgba(255,49,94,.14),transparent 69%);animation:uxPulse 8s ease-in-out infinite reverse}
+
+    .member-tabs,.admin-tabs{border-color:rgba(69,242,255,.12);background:linear-gradient(180deg,rgba(8,17,26,.80),rgba(3,8,14,.86));box-shadow:0 20px 40px rgba(0,0,0,.31),0 0 34px rgba(59,130,255,.055),inset 0 1px 0 rgba(255,255,255,.03);backdrop-filter:blur(16px)}
+    .member-tab,.admin-tab{position:relative;overflow:hidden;border-color:rgba(133,188,212,.11);background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.018));color:#7896a3;transition:transform .2s ease,color .2s ease,border-color .2s ease,box-shadow .2s ease,background .2s ease}
+    .member-tab:after,.admin-tab:after{content:"";position:absolute;top:-100%;bottom:-100%;left:-25%;width:17%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.32),transparent);transform:skewX(-20deg);opacity:.2}
+    .member-tab:hover,.admin-tab:hover{transform:translateY(-2px);color:#e4fbff;border-color:rgba(69,242,255,.25);box-shadow:0 0 25px rgba(69,242,255,.09)}
+    .member-tab:hover:after,.admin-tab:hover:after{animation:uxBeam 1.15s ease 1}
+    .member-tab.active,.admin-tab.active{color:#f2feff;border-color:rgba(69,242,255,.54);background:linear-gradient(135deg,rgba(28,128,192,.26),rgba(98,55,205,.16),rgba(19,215,127,.075));box-shadow:0 0 23px rgba(69,242,255,.13),0 0 46px rgba(59,130,255,.09),inset 0 0 25px rgba(69,242,255,.04),0 10px 25px rgba(0,0,0,.25)}
+
+    input,select,textarea{border-color:rgba(128,180,205,.16);background:linear-gradient(180deg,rgba(3,10,17,.90),rgba(5,13,21,.72));box-shadow:0 9px 24px rgba(0,0,0,.21),inset 0 0 0 1px rgba(255,255,255,.02);transition:border-color .2s,box-shadow .2s,background .2s,transform .2s}
+    input:hover,select:hover,textarea:hover{border-color:rgba(69,242,255,.20);box-shadow:0 10px 25px rgba(0,0,0,.24),0 0 20px rgba(69,242,255,.05)}
+    input:focus,select:focus,textarea:focus{border-color:rgba(69,242,255,.66)!important;box-shadow:0 0 0 3px rgba(69,242,255,.06),0 0 30px rgba(69,242,255,.13),inset 0 0 20px rgba(69,242,255,.025)!important;background:rgba(4,14,23,.98)!important;transform:translateY(-1px)}
+
+    .badge{position:relative;box-shadow:0 0 19px rgba(255,255,255,.04),inset 0 0 13px rgba(255,255,255,.025)}
+    .badge:after{content:"";position:absolute;inset:0;border-radius:inherit;background:linear-gradient(110deg,transparent,rgba(255,255,255,.16),transparent);transform:translateX(-150%);animation:uxBeam 4.5s ease-in-out infinite;pointer-events:none}
+    .badge-green{box-shadow:0 0 21px rgba(32,245,160,.12),inset 0 0 14px rgba(32,245,160,.03)}
+    .badge-blue{box-shadow:0 0 21px rgba(59,130,255,.14),inset 0 0 14px rgba(69,242,255,.025)}
+    .badge-red{box-shadow:0 0 21px rgba(255,49,94,.14),inset 0 0 14px rgba(255,49,94,.03)}
+    .badge-gold{box-shadow:0 0 21px rgba(239,199,90,.11),inset 0 0 14px rgba(239,199,90,.025)}
+
+    .rule-item{border-color:rgba(128,180,205,.10)!important;background:linear-gradient(135deg,rgba(255,255,255,.05),rgba(255,255,255,.012))!important;box-shadow:0 11px 25px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.02)}
+    .rule-item:hover{border-color:rgba(69,242,255,.21)!important;box-shadow:0 16px 31px rgba(0,0,0,.24),0 0 25px rgba(69,242,255,.065)!important;transform:translateY(-2px)}
+    .rule-no{box-shadow:0 0 21px rgba(69,242,255,.09),inset 0 0 16px rgba(69,242,255,.03)!important}
+
+    .admin-table-shell{border-color:rgba(69,242,255,.09);background:linear-gradient(180deg,rgba(3,9,15,.70),rgba(2,7,12,.84));box-shadow:inset 0 1px 0 rgba(255,255,255,.022),0 17px 34px rgba(0,0,0,.20)}
+    .admin-table-shell:before{background:linear-gradient(90deg,transparent,rgba(69,242,255,.45),transparent);box-shadow:0 0 12px rgba(69,242,255,.18)}
+    .admin-table tbody tr:hover,.rank-table tbody tr:hover,.tiny-table tbody tr:hover{background:linear-gradient(90deg,rgba(69,242,255,.065),rgba(59,130,255,.03),rgba(255,49,94,.04));box-shadow:inset 3px 0 rgba(69,242,255,.40),inset -1px 0 rgba(69,242,255,.05)}
+    .tiny-rank,.rank-table td:first-child{color:#6de9ff;text-shadow:0 0 16px rgba(69,242,255,.20)}
+    .tiny-points,.rank-table td:last-child{color:#9bf4c9;text-shadow:0 0 17px rgba(32,245,160,.18)}
+    .challenge-card,.result-card,.bottom-box,.dashboard-note,.admin-section,.search-bar,.modal{border-color:rgba(69,242,255,.10)!important;box-shadow:0 19px 42px rgba(0,0,0,.28),0 0 33px rgba(59,130,255,.045)!important}
+    .challenge-card:hover,.result-card:hover{border-color:rgba(69,242,255,.24)!important;box-shadow:0 23px 52px rgba(0,0,0,.35),0 0 34px rgba(69,242,255,.075)!important;transform:translateY(-2px)}
+    .search-bar{background:linear-gradient(180deg,rgba(6,14,22,.88),rgba(3,9,15,.78))!important}
+    .search-icon{color:#72e9ff!important;text-shadow:0 0 15px rgba(69,242,255,.20)}
+    .modal-backdrop{background:rgba(0,0,0,.80)!important;backdrop-filter:blur(14px) saturate(1.2)}
+    .modal{background:linear-gradient(145deg,rgba(11,21,32,.97),rgba(2,7,13,.99))!important;border-color:rgba(69,242,255,.22)!important;box-shadow:0 42px 110px rgba(0,0,0,.70),0 0 56px rgba(59,130,255,.12)!important}
+    .footer{background:linear-gradient(180deg,rgba(2,6,11,.90),rgba(1,3,7,.99))!important;border-top-color:rgba(69,242,255,.11)!important;box-shadow:0 -20px 45px rgba(0,0,0,.30)}
+    .version-chip{border-color:rgba(69,242,255,.28)!important;color:#79ecff!important;box-shadow:0 0 21px rgba(69,242,255,.08),inset 0 0 17px rgba(69,242,255,.03)}
+
+    @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}}
+    @media(max-width:760px){body:after{opacity:.035}.nav-center:after{width:125px;height:46px}.login-card{animation:none}.card,.admin-panel{box-shadow:0 26px 62px rgba(0,0,0,.48),0 0 36px rgba(59,130,255,.05)}.btn:hover,.member-tab:hover,.admin-tab:hover,.rule-item:hover{transform:none}}
+
 </style>
 </head>
 <body>
@@ -371,9 +513,9 @@
 
   <div id="modal-backdrop" class="modal-backdrop"><div id="modal" class="modal"></div></div>
   <div id="password-recovery-backdrop" class="modal-backdrop"><div class="modal"><div class="modal-head"><div><div class="kicker">Account Recovery</div><h3>SET NEW PASSWORD</h3></div></div><form id="password-recovery-form"><label>NEW PASSWORD<input id="recovery-password" type="password" minlength="8" autocomplete="new-password" placeholder="Minimum 8 characters" required /></label><label style="margin-top:10px">CONFIRM PASSWORD<input id="recovery-password-confirm" type="password" minlength="8" autocomplete="new-password" placeholder="Repeat new password" required /></label><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px"><button class="btn btn-primary" type="submit">UPDATE PASSWORD</button></div><div id="recovery-status" class="status"></div></form></div></div>
-  <footer class="footer"><div class="container footer-inner"><span>7TH UNIVERSE • GUILD VS GUILD</span><span>RULES ARE EQUAL FOR ALL GUILDS</span><span class="version-chip">V10 • FINAL VISUAL UPDATE</span></div></footer>
+  <footer class="footer"><div class="container footer-inner"><span>7TH UNIVERSE • GUILD VS GUILD</span><span>RULES ARE EQUAL FOR ALL GUILDS</span><span class="version-chip">V10 • ULTRA FINAL VISUAL</span></div></footer>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="./script.js?v=10"></script>
+  <script src="./script.js?v=10-ultra"></script>
 </body>
 </html>
