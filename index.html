@@ -700,6 +700,142 @@
       }
     }
 
+
+    /* ============================================================
+       V16 CHALLENGE GLOW FINAL
+       Clean the empty/floating glow visible inside Challenge cards.
+       Glow is moved to the actual card edge + real controls.
+       ============================================================ */
+
+    /* Remove decorative/floating pseudo-elements from challenge cards
+       and their header/status children. */
+    .challenge-card::before,
+    .challenge-card::after,
+    .challenge-card .meta-row::before,
+    .challenge-card .meta-row::after,
+    .challenge-card .meta-row > div::before,
+    .challenge-card .meta-row > div::after,
+    .challenge-card .badge::before,
+    .challenge-card .badge::after,
+    .challenge-card .pill-wrap::before,
+    .challenge-card .pill-wrap::after,
+    .challenge-card .contact-line::before,
+    .challenge-card .contact-line::after{
+      content:none !important;
+      display:none !important;
+      opacity:0 !important;
+      animation:none !important;
+      transform:none !important;
+      filter:none !important;
+      box-shadow:none !important;
+      background:none !important;
+    }
+
+    /* Make every challenge card itself the visual focus. */
+    .challenge-card{
+      position:relative !important;
+      overflow:hidden !important;
+      border:1px solid rgba(69,242,255,.105) !important;
+      border-radius:18px !important;
+      background:
+        linear-gradient(145deg,rgba(10,19,29,.92),rgba(3,9,16,.97)) !important;
+      box-shadow:
+        0 13px 30px rgba(0,0,0,.34),
+        0 0 16px rgba(59,130,255,.045),
+        inset 0 1px 0 rgba(255,255,255,.025) !important;
+      transform:none !important;
+    }
+
+    .challenge-card:hover{
+      border-color:rgba(69,242,255,.20) !important;
+      box-shadow:
+        0 16px 36px rgba(0,0,0,.38),
+        0 0 22px rgba(69,242,255,.065),
+        inset 0 1px 0 rgba(255,255,255,.03) !important;
+      transform:translateY(-1px) !important;
+    }
+
+    /* A very small edge highlight instead of a floating blob. */
+    .challenge-card{
+      border-top-color:rgba(69,242,255,.16) !important;
+      border-left-color:rgba(59,130,255,.13) !important;
+    }
+
+    /* Status badge: compact, intentional glow around OPEN only. */
+    .challenge-card .badge-blue{
+      position:relative !important;
+      z-index:1 !important;
+      border-color:rgba(59,130,255,.26) !important;
+      background:rgba(37,141,255,.055) !important;
+      box-shadow:
+        0 0 10px rgba(59,130,255,.055),
+        inset 0 0 9px rgba(69,242,255,.018) !important;
+    }
+
+    /* Match time + guild title get a clean, restrained esports highlight. */
+    .challenge-card .name{
+      text-shadow:0 0 9px rgba(69,242,255,.055) !important;
+    }
+
+    .challenge-card .challenge-time{
+      text-shadow:0 0 8px rgba(255,255,255,.035) !important;
+    }
+
+    /* Weapon / skill chips remain subtle instead of glowing. */
+    .challenge-card .pill{
+      box-shadow:none !important;
+      background:rgba(255,255,255,.028) !important;
+      border-color:rgba(255,255,255,.065) !important;
+    }
+
+    /* Contact block and submit button carry the useful glow. */
+    .challenge-card .contact-link{
+      box-shadow:
+        0 7px 15px rgba(0,0,0,.20),
+        0 0 10px rgba(37,141,255,.045) !important;
+      border-color:rgba(37,141,255,.15) !important;
+    }
+
+    .challenge-card .btn-primary{
+      box-shadow:
+        0 8px 18px rgba(19,117,230,.18),
+        0 0 14px rgba(69,242,255,.075),
+        inset 0 1px 0 rgba(255,255,255,.18) !important;
+    }
+
+    /* Prevent the global button/badge shine layers from creating
+       misplaced visual artifacts inside challenge cards. */
+    .challenge-card .btn::before,
+    .challenge-card .btn::after,
+    .challenge-card .badge::after{
+      content:none !important;
+      display:none !important;
+      animation:none !important;
+      opacity:0 !important;
+      box-shadow:none !important;
+      background:none !important;
+    }
+
+    /* Keep the rest of the page visually polished but light. */
+    .challenge-list{
+      gap:12px !important;
+    }
+
+    @media(max-width:760px){
+      .challenge-card{
+        box-shadow:
+          0 10px 25px rgba(0,0,0,.32),
+          0 0 12px rgba(59,130,255,.038),
+          inset 0 1px 0 rgba(255,255,255,.022) !important;
+      }
+      .challenge-card:hover{
+        box-shadow:
+          0 11px 27px rgba(0,0,0,.34),
+          0 0 15px rgba(69,242,255,.045),
+          inset 0 1px 0 rgba(255,255,255,.024) !important;
+      }
+    }
+
 </style>
 </head>
 <body>
@@ -842,6 +978,6 @@
   <footer class="footer"><div class="container footer-inner"><span>7TH UNIVERSE • GUILD VS GUILD</span><span>RULES ARE EQUAL FOR ALL GUILDS</span><span class="version-chip">V10 • ULTRA FINAL VISUAL</span></div></footer>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="./script.js?v=15-clean-esports"></script>
+  <script src="./script.js?v=16-challenge-glow"></script>
 </body>
 </html>
