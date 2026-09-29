@@ -394,6 +394,100 @@
     @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}}
     @media(max-width:760px){body:after{opacity:.035}.nav-center:after{width:125px;height:46px}.login-card{animation:none}.card,.admin-panel{box-shadow:0 26px 62px rgba(0,0,0,.48),0 0 36px rgba(59,130,255,.05)}.btn:hover,.member-tab:hover,.admin-tab:hover,.rule-item:hover{transform:none}}
 
+
+    /* ============================================================
+       V13 PERFORMANCE MODE
+       Premium look preserved; GPU-heavy effects removed.
+       ============================================================ */
+    html{scroll-behavior:auto}
+
+    body{
+      background:
+        radial-gradient(circle at 15% 10%,rgba(37,141,255,.08),transparent 22%),
+        radial-gradient(circle at 84% 16%,rgba(255,61,130,.055),transparent 20%),
+        linear-gradient(180deg,#020504 0%,#030707 52%,#020404 100%) !important;
+    }
+
+    body::before{
+      filter:none !important;
+      animation:none !important;
+      opacity:.45 !important;
+      background:
+        radial-gradient(circle at 22% 28%,rgba(79,233,255,.055),transparent 18%),
+        radial-gradient(circle at 78% 34%,rgba(139,92,255,.045),transparent 19%) !important;
+    }
+
+    body::after{
+      animation:none !important;
+      opacity:.055 !important;
+      background-image:
+        linear-gradient(rgba(255,255,255,.022) 1px,transparent 1px),
+        linear-gradient(90deg,rgba(255,255,255,.016) 1px,transparent 1px) !important;
+      background-size:44px 44px !important;
+    }
+
+    /* Disable continuous animation and expensive visual filters. */
+    *,*::before,*::after{
+      animation:none !important;
+      filter:none !important;
+      backdrop-filter:none !important;
+      -webkit-backdrop-filter:none !important;
+    }
+
+    /* Keep interaction smooth without expensive transition storms. */
+    .btn,.member-tab,.admin-tab,.rule-item,.card,.admin-panel,input,select,textarea{
+      transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease,background-color .15s ease !important;
+    }
+
+    /* Replace huge multi-layer shadows with lighter depth. */
+    .card,.admin-panel{
+      box-shadow:
+        0 14px 38px rgba(0,0,0,.38),
+        0 0 0 1px rgba(255,255,255,.018) inset !important;
+    }
+
+    .btn{
+      box-shadow:
+        0 8px 18px rgba(0,0,0,.22),
+        0 0 0 1px rgba(255,255,255,.03) inset !important;
+    }
+
+    .btn:hover,.member-tab:hover,.admin-tab:hover,.rule-item:hover{
+      transform:translateY(-1px) !important;
+    }
+
+    .member-access-gate{
+      box-shadow:
+        0 16px 42px rgba(0,0,0,.40),
+        0 0 0 1px rgba(255,255,255,.018) inset !important;
+    }
+
+    .access-gate-icon{
+      box-shadow:
+        0 10px 24px rgba(0,0,0,.28),
+        0 0 0 1px rgba(255,255,255,.025) inset !important;
+    }
+
+    .nav-center img,.login-brand img,.brand-logo{
+      filter:none !important;
+      animation:none !important;
+    }
+
+    /* Static shine accents only — no moving light sweeps. */
+    .btn::after,.member-tab::after,.admin-tab::after,
+    .card::after,.admin-panel::after{
+      animation:none !important;
+      opacity:0 !important;
+    }
+
+    @media(max-width:760px){
+      body::after{display:none !important}
+      body::before{display:none !important}
+      .card,.admin-panel{
+        box-shadow:0 12px 30px rgba(0,0,0,.34),0 0 0 1px rgba(255,255,255,.016) inset !important;
+      }
+    }
+
 </style>
 </head>
 <body>
@@ -536,6 +630,6 @@
   <footer class="footer"><div class="container footer-inner"><span>7TH UNIVERSE • GUILD VS GUILD</span><span>RULES ARE EQUAL FOR ALL GUILDS</span><span class="version-chip">V10 • ULTRA FINAL VISUAL</span></div></footer>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="./script.js?v=12-approval-gate"></script>
+  <script src="./script.js?v=13-performance"></script>
 </body>
 </html>
