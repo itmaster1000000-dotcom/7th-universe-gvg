@@ -65,7 +65,7 @@ function formatTime(value) { if (!value) return '--:--'; const [hRaw,mRaw='00'] 
 function formatDateTime(value) { try { return new Intl.DateTimeFormat('en-PK',{dateStyle:'medium',timeStyle:'short',timeZone:TIME_ZONE}).format(new Date(value)); } catch { return String(value || ''); } }
 function showStatus(id,type,message){ const el=$(id); if(!el) return; el.className=`status show ${type}`; el.textContent=message; }
 function clearStatus(id){ const el=$(id); if(!el) return; el.className='status'; el.textContent=''; }
-function setBusy(buttonId,busy,label){ const btn=$(buttonId); if(!btn) return; btn.disabled=busy; if(busy) btn.dataset.oldText=btn.textContent; btn.textContent=busy?'PLEASE WAIT…':(label||btn.dataset.oldText||'SUBMIT'); }
+function setBusy(buttonId,busy,label){ let btn=$(buttonId); if(btn?.tagName==='FORM') btn=btn.querySelector('button[type=submit]'); if(!btn) return; btn.disabled=busy; if(busy) btn.dataset.oldText=btn.textContent; btn.textContent=busy?'PLEASE WAIT…':(label||btn.dataset.oldText||'SUBMIT'); }
 function humanizeError(error){ const msg=String(error?.message || error?.error_description || error || 'Unknown error').trim(); return msg.replace(/^(Error:\s*)/i,''); }
 function currentPakistanParts(){ const parts=new Intl.DateTimeFormat('en-CA',{timeZone:TIME_ZONE,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).formatToParts(new Date()); const o={}; for(const p of parts) o[p.type]=p.value; return {year:Number(o.year),month:Number(o.month),day:Number(o.day),hour:Number(o.hour)%24,minute:Number(o.minute)}; }
 function cycleStartDateKey(){ const p=currentPakistanParts(); const d=new Date(Date.UTC(p.year,p.month-1,p.day)); if(p.hour<10) d.setUTCDate(d.getUTCDate()-1); return d.toISOString().slice(0,10); }
@@ -81,9 +81,43 @@ function openView(name){
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
+function memberDashboardAllowed(){
+  return Boolean(state.user && guildApproved());
+}
+
+function setMemberAccessGate(){
+  const gate=$('member-access-gate');
+  const tabs=document.querySelector('.member-tabs');
+  const allowed=memberDashboardAllowed();
+
+  if(gate){
+    gate.classList.toggle('hidden',allowed);
+    const status=$('member-access-gate-status');
+    if(status){
+      if(!state.user) status.textContent='LOGIN REQUIRED';
+      else if(!state.guild) status.textContent='NO GUILD REGISTRATION FOUND';
+      else if(state.guild.approval_status!=='approved') status.textContent='WAITING FOR ADMIN APPROVAL';
+      else if(state.guild.is_banned || (state.guild.ban_until && new Date(state.guild.ban_until)>new Date())) status.textContent='GUILD CURRENTLY BANNED';
+      else status.textContent='MEMBER ACCESS';
+    }
+  }
+
+  if(tabs) tabs.classList.toggle('hidden',!allowed);
+
+  document.querySelectorAll('.member-view').forEach(el=>{
+    if(!allowed) el.classList.remove('active');
+  });
+}
+
 function openMemberSection(name){
   const allowed=['rules','challenges','results','ranking'];
   const section=allowed.includes(name)?name:'rules';
+
+  if(!memberDashboardAllowed()){
+    setMemberAccessGate();
+    return;
+  }
+
   document.querySelectorAll('.member-view').forEach(el=>el.classList.toggle('active',el.id===`member-section-${section}`));
   document.querySelectorAll('[data-member-section]').forEach(btn=>btn.classList.toggle('active',btn.dataset.memberSection===section));
   if(section==='challenges') loadLiveChallenges();
@@ -131,103 +165,211 @@ async function loadMyGuild(){
 function guildApproved(){ return Boolean(state.guild && state.guild.approval_status==='approved' && !state.guild.is_banned && (!state.guild.ban_until || new Date(state.guild.ban_until)<=new Date())); }
 
 async function completePendingRegistration(){
-  const pending=readPendingRegistration(); if(!pending || !state.user) return;
-  if(String(pending.email||'').toLowerCase()!==String(state.user.email||'').toLowerCase()) return;
+  const pending=readPendingRegistration();
+  if(!pending || !state.user) return;
+  if(String(pending.email||'').trim().toLowerCase()!==String(state.user.email||'').trim().toLowerCase()) return;
+
   try{
-    const {data,error}=await db.rpc('register_gvg_guild',{p_guild_name:pending.guild,p_contact:pending.contact});
+    const {data,error}=await db.rpc('register_gvg_guild',{
+      p_guild_name:pending.guild,
+      p_contact:pending.contact
+    });
     if(error) throw error;
-    clearPendingRegistration(); state.guild=data;
+
+    clearPendingRegistration();
+    state.guild=Array.isArray(data)?(data[0]||null):data;
     showStatus('login-status','ok','Account confirmed and guild registration has been submitted. Admin approval is required.');
-  }catch(error){ showStatus('login-status','error',humanizeError(error)); }
+  }catch(error){
+    const message=String(error?.message||error||'').trim();
+
+    /*
+      A pending browser record must never keep retrying forever.
+      If the account already owns a guild, or the registration is blocked,
+      remove the stale pending request and let the leader see the real state.
+    */
+    if(/ALREADY_REGISTERED/i.test(message)){
+      clearPendingRegistration();
+      await loadMyGuild();
+    }
+
+    showStatus('login-status','error',humanizeError(error));
+  }
 }
 
 async function handleLogin(e){
-  e.preventDefault(); clearStatus('login-status');
-  const email=$('login-email').value.trim(), password=$('login-password').value;
-  if(!email||!password){showStatus('login-status','error','Email and password are required.');return;}
+  e.preventDefault();
+  clearStatus('login-status');
+
+  const email=$('login-email').value.trim().toLowerCase();
+  const password=$('login-password').value;
+
+  if(!email||!password){
+    showStatus('login-status','error','Email and password are required.');
+    return;
+  }
+
   try{
-    setBusy('login-form',false);
+    setBusy('login-form',true,'LOGIN TO GVG');
+
     const {data,error}=await db.auth.signInWithPassword({email,password});
     if(error) throw error;
-    state.user=data.user; await loadMyGuild(); await completePendingRegistration(); await enterMember();
-  }catch(error){showStatus('login-status','error',humanizeError(error));}
+
+    state.user=data.user;
+    await loadMyGuild();
+    await completePendingRegistration();
+    await enterMember();
+  }catch(error){
+    showStatus('login-status','error',humanizeError(error));
+  }finally{
+    setBusy('login-form',false,'LOGIN TO GVG');
+  }
 }
 
 async function handleRegister(e){
-  e.preventDefault(); clearStatus('register-status');
-  const guild=$('register-guild').value.trim(), contact=$('register-contact').value.trim(), email=$('register-email').value.trim(), password=$('register-password').value;
-  if(!guild||!contact||!email||!password){showStatus('register-status','error','Guild name, contact, email and password are required.');return;}
-  if(password.length<8){showStatus('register-status','error','Password must be at least 8 characters.');return;}
+  e.preventDefault();
+  clearStatus('register-status');
+
+  const guild=$('register-guild').value.trim();
+  const contact=$('register-contact').value.trim();
+  const email=$('register-email').value.trim().toLowerCase();
+  const password=$('register-password').value;
+
+  if(!guild||!contact||!email||!password){
+    showStatus('register-status','error','Guild name, contact, email and password are required.');
+    return;
+  }
+
+  if(password.length<8){
+    showStatus('register-status','error','Password must be at least 8 characters.');
+    return;
+  }
 
   const registerWithCurrentUser = async () => {
-    const {data:reg,error:regError}=await db.rpc('register_gvg_guild',{p_guild_name:guild,p_contact:contact});
+    const {data:reg,error:regError}=await db.rpc('register_gvg_guild',{
+      p_guild_name:guild,
+      p_contact:contact
+    });
+
     if(regError) throw regError;
+
     clearPendingRegistration();
     state.guild=Array.isArray(reg)?(reg[0]||null):reg;
     openView('member');
     await refreshMember();
+    syncRegisterNav();
   };
 
   try{
-    /* Existing Auth account: login first, then register the new guild.
-       This is important after Admin removes only the guild registry row;
-       the Auth account remains valid and should be reusable. */
-    const {data:existingSession}=await db.auth.getSession();
-    if(existingSession?.session?.user){
-      if(String(existingSession.session.user.email||'').toLowerCase()!==email.toLowerCase()){
+    setBusy('register-form',true,'CREATE ACCOUNT');
+
+    /*
+      Case 1: the browser already has a session for this exact email.
+      If its guild was removed, loadMyGuild() returns null, so the same Auth
+      account can immediately create a fresh guild_registry row.
+    */
+    const {data:sessionData}=await db.auth.getSession();
+    const currentSession=sessionData?.session;
+
+    if(currentSession?.user){
+      const sessionEmail=String(currentSession.user.email||'').trim().toLowerCase();
+
+      if(sessionEmail!==email){
         await db.auth.signOut();
+        state.user=null;
+        state.guild=null;
       }else{
-        state.user=existingSession.session.user;
+        state.user=currentSession.user;
         await loadMyGuild();
+
         if(state.guild){
-          showStatus('register-status','error','This account already has a registered guild. Login with another leader account.');
+          showStatus('register-status','error','This account already has an active guild registration. Login with that account or use a different leader account.');
           return;
         }
+
         await registerWithCurrentUser();
         showStatus('guild-auth-status','ok','Guild registered successfully. Your guild is now pending admin approval.');
         return;
       }
     }
 
-    /* Try existing Auth credentials before creating a new Auth account. */
+    /*
+      Case 2: no matching session.
+      Try the entered credentials first. If they work, reuse the existing
+      Auth account. This is the normal path for a previously removed guild.
+    */
     const loginResult=await db.auth.signInWithPassword({email,password});
+
     if(!loginResult.error){
       state.user=loginResult.data.user;
       await loadMyGuild();
+
       if(state.guild){
-        showStatus('register-status','error','This account already has a registered guild. Login with another leader account.');
+        showStatus('register-status','error','This account already has an active guild registration. Login with that account or use a different leader account.');
         await db.auth.signOut();
         state.user=null;
         state.guild=null;
         return;
       }
+
       await registerWithCurrentUser();
       showStatus('guild-auth-status','ok','Guild registered successfully. Your guild is now pending admin approval.');
       return;
     }
 
-    /* No valid existing login: create a genuinely new Auth account. */
-    const {data,error}=await db.auth.signUp({email,password,options:{data:{account_type:'guild'}}});
-    if(error) throw error;
+    /*
+      Case 3: credentials did not authenticate.
+      Only now do we attempt signUp for a genuinely new account.
+      If Supabase says the email already exists, show a clear Auth-account
+      message — NEVER call it an already-registered guild.
+    */
+    const {data,error}=await db.auth.signUp({
+      email,
+      password,
+      options:{data:{account_type:'guild'}}
+    });
+
+    if(error){
+      const signupMessage=String(error?.message||error||'').trim();
+      if(/already registered|user already exists|already been registered/i.test(signupMessage)){
+        showStatus(
+          'register-status',
+          'error',
+          'THIS EMAIL ALREADY HAS AN ACCOUNT. Login with the correct password, or use FORGOT PASSWORD. Your guild is not marked as registered by this message.'
+        );
+        return;
+      }
+      throw error;
+    }
 
     savePendingRegistration({guild,contact,email});
+
     if(data.session){
       state.user=data.user;
       await registerWithCurrentUser();
       showStatus('guild-auth-status','ok','Guild registered successfully. Your guild is now pending admin approval.');
     }else{
-      showStatus('register-status','info','Account created. Please confirm the email, then login. Your guild registration details are saved and will be submitted automatically after login.');
+      showStatus(
+        'register-status',
+        'info',
+        'Account created. Please confirm the email, then login. Your guild registration details are saved and will be submitted automatically after login.'
+      );
     }
   }catch(error){
-    const message=String(error?.message||error||'');
+    const message=String(error?.message||error||'').trim();
+
     if(/invalid login credentials/i.test(message)){
-      showStatus('register-status','error','This email already has an account, but the password did not match. Use the correct password or Forgot Password, then register this guild.');
+      showStatus(
+        'register-status',
+        'error',
+        'We could not sign in with this password. If this email is already yours, use the correct password or FORGOT PASSWORD. Otherwise, check the email and try again.'
+      );
     }else{
       showStatus('register-status','error',humanizeError(error));
     }
+  }finally{
+    setBusy('register-form',false,'CREATE ACCOUNT');
   }
 }
-
 async function handleForgot(){
   clearStatus('login-status'); const email=$('login-email').value.trim(); if(!email){showStatus('login-status','error','Enter your account email first.');return;}
   try{
@@ -422,11 +564,42 @@ async function loadRanking(){
   }catch(error){console.error(error);}
 }
 
-async function enterMember(){openView('member');openMemberSection('rules');await refreshMember();}
-async function refreshMember(){
-  await loadMyGuild();await renderMemberIdentity();await Promise.all([loadLiveChallenges(),loadGuildOptions(),loadApprovedResults(),loadRanking()]);
+function syncRegisterNav(){
+  const registerButton=$('nav-register'),logoutButton=$('nav-logout');
+  if(!registerButton||!logoutButton) return;
+  if(state.user){
+    logoutButton.classList.remove('hidden');
+    /* A logged-in leader whose registry row was removed must still be able
+       to open REGISTER and recreate the guild registration. */
+    registerButton.classList.toggle('hidden',Boolean(state.guild));
+  }else{
+    logoutButton.classList.add('hidden');
+    registerButton.classList.remove('hidden');
+  }
 }
-async function handleLogout(){try{await db.auth.signOut();}catch{}state.user=null;state.guild=null;openView('public');$('nav-logout').classList.add('hidden');$('nav-register').classList.remove('hidden');$('login-password').value='';await loadPublicTop10();}
+
+async function enterMember(){
+  openView('member');
+  await refreshMember();
+  if(memberDashboardAllowed()) openMemberSection('rules');
+  else setMemberAccessGate();
+}
+async function refreshMember(){
+  await loadMyGuild();
+  await renderMemberIdentity();
+  setMemberAccessGate();
+
+  if(memberDashboardAllowed()){
+    await Promise.all([
+      loadLiveChallenges(),
+      loadGuildOptions(),
+      loadApprovedResults(),
+      loadRanking()
+    ]);
+  }
+  setMemberAccessGate();
+}
+async function handleLogout(){try{await db.auth.signOut();}catch{}state.user=null;state.guild=null;openView('public');syncRegisterNav();$('login-password').value='';await loadPublicTop10();}
 
 /* ------------------------- ADMIN ------------------------- */
 async function isAdmin(){
@@ -577,8 +750,8 @@ db.auth.onAuthStateChange(async(event,session)=>{
     $('password-recovery-backdrop').classList.add('open');
     return;
   }
-  if(session){state.user=session.user;await loadMyGuild();if(!location.hash.includes('admin')){openView('member');await refreshMember();}$('nav-logout').classList.remove('hidden');$('nav-register').classList.add('hidden');}
-  else {state.user=null;state.guild=null;openView('public');$('nav-logout').classList.add('hidden');$('nav-register').classList.remove('hidden');}
+  if(session){state.user=session.user;await loadMyGuild();syncRegisterNav();if(!location.hash.includes('admin')){openView('member');await refreshMember();}}
+  else {state.user=null;state.guild=null;syncRegisterNav();openView('public');}
 });
 
 $('password-recovery-form').addEventListener('submit',async(e)=>{
@@ -598,7 +771,7 @@ $('password-recovery-form').addEventListener('submit',async(e)=>{
 (async function boot(){
   renderRules();renderWeaponSkillChoices();
   const {data:{session}}=await db.auth.getSession();
-  if(session){state.user=session.user;await loadMyGuild();await completePendingRegistration();await enterMember();$('nav-logout').classList.remove('hidden');$('nav-register').classList.add('hidden');}
-  else{openView('public');await loadPublicTop10();}
+  if(session){state.user=session.user;await loadMyGuild();await completePendingRegistration();await enterMember();syncRegisterNav();}
+  else{state.user=null;state.guild=null;syncRegisterNav();openView('public');await loadPublicTop10();}
   await restoreAdmin();
 })();
