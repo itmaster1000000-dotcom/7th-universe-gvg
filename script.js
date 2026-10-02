@@ -692,50 +692,48 @@ async function loadApprovedResults(){
   try{const {data,error}=await db.rpc('get_gvg_approved_results');if(error)throw error;state.results=data||[];const target=$('approved-result-list');target.innerHTML=state.results.length?state.results.map(r=>`<div class="result-slot"><div class="result-teams"><div class="team win"><strong>${escapeHtml(r.winner_guild)}</strong><small>WIN</small></div><div class="vs">VS</div><div class="team loss"><strong>${escapeHtml(r.loser_guild)}</strong><small>DEFEAT</small></div></div><div class="score-line">SCORE • ${escapeHtml(r.score)}</div></div>`).join(''):'<div class="empty">No approved results yet.</div>';}catch(error){console.error(error);$('approved-result-list').innerHTML='<div class="empty">Could not load approved results.</div>';}
 }
 
+async function rpcWithTimeout(name, rpcCall, timeoutMs=8000){
+  return await Promise.race([
+    rpcCall(),
+    new Promise((_,reject)=>setTimeout(()=>reject(new Error(`${name} request timed out. Please refresh the page.`)),timeoutMs))
+  ]);
+}
+
 async function loadRanking(){
   const topTarget=$('member-top20-table');
   const bottomTarget=$('bottom-guild');
 
-  if(topTarget){
-    topTarget.innerHTML='<tr><td colspan="3">Loading ranking…</td></tr>';
-  }
-  if(bottomTarget){
-    bottomTarget.innerHTML='<div class="muted" style="font-size:9px">Loading…</div>';
-  }
+  if(topTarget) topTarget.innerHTML='<tr><td colspan="3">Loading ranking…</td></tr>';
+  if(bottomTarget) bottomTarget.innerHTML='<div class="muted" style="font-size:9px">Loading…</div>';
 
-  const [topResult,bottomResult]=await Promise.all([
-    db.rpc('get_gvg_weekly_top20'),
-    db.rpc('get_gvg_weekly_bottom')
-  ]);
-
-  if(topResult.error){
-    console.error('Top 20 ranking load failed:',topResult.error);
-    if(topTarget){
-      topTarget.innerHTML='<tr><td colspan="3">Could not load Top 20 ranking. Please refresh.</td></tr>';
-    }
-  }else{
-    state.top20=topResult.data||[];
+  try{
+    const topResult=await rpcWithTimeout('Top 20 ranking',()=>db.rpc('get_gvg_weekly_top20'));
+    if(topResult?.error) throw topResult.error;
+    state.top20=topResult?.data||[];
     if(topTarget){
       topTarget.innerHTML=state.top20.length
         ? state.top20.map(r=>`<tr><td class="pos">${escapeHtml(r.rank_no)}</td><td><strong>${escapeHtml(r.guild_name)}</strong></td><td class="pts ${Number(r.points)<0?'pos-red':'pos-green'}">${escapeHtml(r.points)}</td></tr>`).join('')
         : '<tr><td colspan="3">No approved guilds in the current week yet.</td></tr>';
     }
+  }catch(error){
+    console.error('Top 20 ranking load failed:',error);
+    if(topTarget) topTarget.innerHTML=`<tr><td colspan="3">${escapeHtml(humanizeError(error))}</td></tr>`;
   }
 
-  if(bottomResult.error){
-    console.error('Bottom guild load failed:',bottomResult.error);
-    if(bottomTarget){
-      bottomTarget.innerHTML='<div class="muted" style="font-size:9px">Could not load Bottom Guild. Please refresh.</div>';
-    }
-  }else{
-    state.bottom=Array.isArray(bottomResult.data)
+  try{
+    const bottomResult=await rpcWithTimeout('Bottom guild',()=>db.rpc('get_gvg_weekly_bottom'));
+    if(bottomResult?.error) throw bottomResult.error;
+    state.bottom=Array.isArray(bottomResult?.data)
       ? (bottomResult.data[0]||null)
-      : bottomResult.data;
+      : bottomResult?.data;
     if(bottomTarget){
       bottomTarget.innerHTML=state.bottom
         ? `<strong>${escapeHtml(state.bottom.guild_name)}</strong><span>${escapeHtml(state.bottom.points)} points</span>`
         : '<div class="muted" style="font-size:9px">No approved guilds in the current week yet.</div>';
     }
+  }catch(error){
+    console.error('Bottom guild load failed:',error);
+    if(bottomTarget) bottomTarget.innerHTML=`<div class="muted" style="font-size:9px">${escapeHtml(humanizeError(error))}</div>`;
   }
 }
 
