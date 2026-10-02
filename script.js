@@ -706,20 +706,42 @@ async function loadRanking(){
   if(topTarget) topTarget.innerHTML='<tr><td colspan="3">Loading ranking…</td></tr>';
   if(bottomTarget) bottomTarget.innerHTML='<div class="muted" style="font-size:9px">Loading…</div>';
 
+  /*
+     Primary Top 20 source = the original/current-week leaderboard RPC.
+     This RPC already exists in the live project. We use it first so the
+     ranking does not depend on the newer helper RPC being present in the
+     PostgREST schema cache. If it fails, fall back to the V18 helper.
+  */
   try{
-    const topResult=await rpcWithTimeout('Top 20 ranking',()=>db.rpc('get_gvg_weekly_top20'));
+    let topResult=await rpcWithTimeout('Top 20 ranking',()=>db.rpc('get_gvg_weekly_leaderboard'));
     if(topResult?.error) throw topResult.error;
-    state.top20=topResult?.data||[];
+    let rows=(topResult?.data||[]).slice(0,20);
+
+    if(!rows.length){
+      try{
+        const fallback=await rpcWithTimeout('Top 20 fallback',()=>db.rpc('get_gvg_weekly_top20'));
+        if(fallback?.error) throw fallback.error;
+        rows=fallback?.data||[];
+      }catch(fallbackError){
+        console.warn('Top 20 fallback failed:',fallbackError);
+      }
+    }
+
+    state.top20=rows;
     if(topTarget){
       topTarget.innerHTML=state.top20.length
-        ? state.top20.map(r=>`<tr><td class="pos">${escapeHtml(r.rank_no)}</td><td><strong>${escapeHtml(r.guild_name)}</strong></td><td class="pts ${Number(r.points)<0?'pos-red':'pos-green'}">${escapeHtml(r.points)}</td></tr>`).join('')
-        : '<tr><td colspan="3">No approved guilds in the current week yet.</td></tr>';
+        ? state.top20.map((r,i)=>{
+            const rank=Number.isFinite(Number(r.rank_no))?Number(r.rank_no):(i+1);
+            return `<tr><td class="pos">${escapeHtml(rank)}</td><td><strong>${escapeHtml(r.guild_name)}</strong></td><td class="pts ${Number(r.points)<0?'pos-red':'pos-green'}">${escapeHtml(r.points)}</td></tr>`;
+          }).join('')
+        : '<tr><td colspan="3">No current-week ranking records yet.</td></tr>';
     }
   }catch(error){
     console.error('Top 20 ranking load failed:',error);
     if(topTarget) topTarget.innerHTML=`<tr><td colspan="3">${escapeHtml(humanizeError(error))}</td></tr>`;
   }
 
+  /* Bottom Guild remains its own independent request. */
   try{
     const bottomResult=await rpcWithTimeout('Bottom guild',()=>db.rpc('get_gvg_weekly_bottom'));
     if(bottomResult?.error) throw bottomResult.error;
@@ -728,8 +750,8 @@ async function loadRanking(){
       : bottomResult?.data;
     if(bottomTarget){
       bottomTarget.innerHTML=state.bottom
-        ? `<strong>${escapeHtml(state.bottom.guild_name)}</strong><span>${escapeHtml(state.bottom.points)} points</span>`
-        : '<div class="muted" style="font-size:9px">No approved guilds in the current week yet.</div>';
+        ? `<div class="bottom-guild-name">${escapeHtml(state.bottom.guild_name)}</div><div class="bottom-guild-points">${escapeHtml(state.bottom.points)} POINTS</div><div class="bottom-guild-record">WINS ${escapeHtml(state.bottom.wins)} • LOSSES ${escapeHtml(state.bottom.losses)}</div>`
+        : '<div class="muted" style="font-size:9px">No current-week ranking record yet.</div>';
     }
   }catch(error){
     console.error('Bottom guild load failed:',error);
