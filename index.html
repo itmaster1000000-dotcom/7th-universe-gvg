@@ -392,6 +392,16 @@
     @media(max-width:760px){.member-access-gate{padding:28px 16px}.member-access-gate h3{font-size:21px}.member-access-gate p{font-size:10px}}
 
     @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}}
+    /* V18.3 RANKING LAYOUT + BOTTOM GUILD VISIBILITY */
+    .ranking-top{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(280px,.65fr);gap:16px;align-items:start}
+    .ranking-bottom-card{position:relative!important;top:auto!important}
+    .bottom-box{min-height:145px!important;padding:18px 16px!important;display:flex;flex-direction:column;justify-content:center;overflow:visible!important;background:linear-gradient(145deg,rgba(30,6,10,.93),rgba(8,5,8,.98))!important}
+    #bottom-guild{text-align:center;position:relative;z-index:2}
+    .bottom-guild-name{font-family:"Barlow Condensed",sans-serif;font-size:31px;line-height:.95;font-weight:900;letter-spacing:.05em;text-transform:uppercase;color:#fff;word-break:break-word;text-shadow:0 0 18px rgba(244,80,102,.14)}
+    .bottom-guild-points{margin-top:9px;font-family:"Barlow Condensed",sans-serif;font-size:28px;line-height:1;font-weight:900;letter-spacing:.06em;color:#ff8597;text-shadow:0 0 18px rgba(241,36,63,.18)}
+    .bottom-guild-record{margin-top:7px;color:#a9a0a4;font-size:8px;font-weight:900;letter-spacing:.12em;text-transform:uppercase}
+    @media(max-width:900px){.ranking-top{grid-template-columns:1fr;gap:16px}.ranking-bottom-card{position:relative!important;top:auto!important}.bottom-box{min-height:125px!important}}
+
     @media(max-width:760px){body:after{opacity:.035}.nav-center:after{width:125px;height:46px}.login-card{animation:none}.card,.admin-panel{box-shadow:0 26px 62px rgba(0,0,0,.48),0 0 36px rgba(243,71,94,.05)}.btn:hover,.member-tab:hover,.admin-tab:hover,.rule-item:hover{transform:none}}
 
 
@@ -1299,7 +1309,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
               <div class="panel-head"><div><div class="kicker">Current Competitive Week</div><h3>TOP 20 RANKING</h3><div class="subtle">Winner +3 • Loser -1 • Weekly reset every Sunday at 10:00 AM Pakistan time.</div></div><span class="badge badge-green">LIVE</span></div>
               <div class="admin-table-shell"><table class="rank-table"><thead><tr><th>#</th><th>Guild</th><th style="text-align:right">Points</th></tr></thead><tbody id="member-top20-table"><tr><td colspan="3">Loading ranking...</td></tr></tbody></table></div>
             </div>
-            <div class="card sticky-card">
+            <div class="card ranking-bottom-card">
               <div class="panel-head"><div><div class="kicker">Lowest Record</div><h3>BOTTOM GUILD</h3><div class="subtle">Lowest current-week points.</div></div><span class="badge badge-red">LOWEST</span></div>
               <div class="bottom-box"><div id="bottom-guild"><div class="muted" style="font-size:9px">Loading...</div></div></div>
             </div>
@@ -1333,7 +1343,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 
   <div id="modal-backdrop" class="modal-backdrop"><div id="modal" class="modal"></div></div>
   <div id="password-recovery-backdrop" class="modal-backdrop"><div class="modal"><div class="modal-head"><div><div class="kicker">Account Recovery</div><h3>SET NEW PASSWORD</h3></div></div><form id="password-recovery-form"><label>NEW PASSWORD<input id="recovery-password" type="password" minlength="8" autocomplete="new-password" placeholder="Minimum 8 characters" required /></label><label style="margin-top:10px">CONFIRM PASSWORD<input id="recovery-password-confirm" type="password" minlength="8" autocomplete="new-password" placeholder="Repeat new password" required /></label><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px"><button class="btn btn-primary" type="submit">UPDATE PASSWORD</button></div><div id="recovery-status" class="status"></div></form></div></div>
-  <footer class="footer"><div class="container footer-inner"><span>7TH UNIVERSE • GUILD VS GUILD</span><span>RULES ARE EQUAL FOR ALL GUILDS</span><span class="version-chip">V18.2 • PROFESSIONAL FINAL</span></div></footer>
+  <footer class="footer"><div class="container footer-inner"><span>7TH UNIVERSE • GUILD VS GUILD</span><span>RULES ARE EQUAL FOR ALL GUILDS</span><span class="version-chip">V18.3 • RANKING FIX FINAL</span></div></footer>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./script.js?v=18.2-ranking-fix"></script>
