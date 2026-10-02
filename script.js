@@ -693,15 +693,50 @@ async function loadApprovedResults(){
 }
 
 async function loadRanking(){
-  try{
-    const [a,b]=await Promise.all([db.rpc('get_gvg_weekly_top20'),db.rpc('get_gvg_weekly_bottom')]);
-    if(a.error)throw a.error;
-    if(b.error)throw b.error;
-    state.top20=a.data||[];
-    state.bottom=Array.isArray(b.data)?(b.data[0]||null):b.data;
-    $('member-top20-table').innerHTML=state.top20.length?state.top20.map(r=>`<tr><td class="pos">${escapeHtml(r.rank_no)}</td><td><strong>${escapeHtml(r.guild_name)}</strong></td><td class="pts ${Number(r.points)<0?'pos-red':'pos-green'}">${escapeHtml(r.points)}</td></tr>`).join(''):'<tr><td colspan="3">No ranking data yet.</td></tr>';
-    $('bottom-guild').innerHTML=state.bottom?`<strong>${escapeHtml(state.bottom.guild_name)}</strong><span>${escapeHtml(state.bottom.points)} points</span>`:'<div class="muted" style="font-size:9px">No current weekly guilds.</div>';
-  }catch(error){console.error(error);}
+  const topTarget=$('member-top20-table');
+  const bottomTarget=$('bottom-guild');
+
+  if(topTarget){
+    topTarget.innerHTML='<tr><td colspan="3">Loading ranking…</td></tr>';
+  }
+  if(bottomTarget){
+    bottomTarget.innerHTML='<div class="muted" style="font-size:9px">Loading…</div>';
+  }
+
+  const [topResult,bottomResult]=await Promise.all([
+    db.rpc('get_gvg_weekly_top20'),
+    db.rpc('get_gvg_weekly_bottom')
+  ]);
+
+  if(topResult.error){
+    console.error('Top 20 ranking load failed:',topResult.error);
+    if(topTarget){
+      topTarget.innerHTML='<tr><td colspan="3">Could not load Top 20 ranking. Please refresh.</td></tr>';
+    }
+  }else{
+    state.top20=topResult.data||[];
+    if(topTarget){
+      topTarget.innerHTML=state.top20.length
+        ? state.top20.map(r=>`<tr><td class="pos">${escapeHtml(r.rank_no)}</td><td><strong>${escapeHtml(r.guild_name)}</strong></td><td class="pts ${Number(r.points)<0?'pos-red':'pos-green'}">${escapeHtml(r.points)}</td></tr>`).join('')
+        : '<tr><td colspan="3">No approved guilds in the current week yet.</td></tr>';
+    }
+  }
+
+  if(bottomResult.error){
+    console.error('Bottom guild load failed:',bottomResult.error);
+    if(bottomTarget){
+      bottomTarget.innerHTML='<div class="muted" style="font-size:9px">Could not load Bottom Guild. Please refresh.</div>';
+    }
+  }else{
+    state.bottom=Array.isArray(bottomResult.data)
+      ? (bottomResult.data[0]||null)
+      : bottomResult.data;
+    if(bottomTarget){
+      bottomTarget.innerHTML=state.bottom
+        ? `<strong>${escapeHtml(state.bottom.guild_name)}</strong><span>${escapeHtml(state.bottom.points)} points</span>`
+        : '<div class="muted" style="font-size:9px">No approved guilds in the current week yet.</div>';
+    }
+  }
 }
 
 function syncRegisterNav(){
