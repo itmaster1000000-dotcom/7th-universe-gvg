@@ -233,14 +233,20 @@ async function handleRegister(e){
   const contact=$('register-contact').value.trim();
   const email=$('register-email').value.trim().toLowerCase();
   const password=$('register-password').value;
+  const passwordConfirm=$('register-password-confirm').value;
 
-  if(!guild||!contact||!email||!password){
-    showStatus('register-status','error','Guild name, contact, email and password are required.');
+  if(!guild||!contact||!email||!password||!passwordConfirm){
+    showStatus('register-status','error','Guild name, contact, email, password and confirm password are required.');
     return;
   }
 
   if(password.length<8){
     showStatus('register-status','error','Password must be at least 8 characters.');
+    return;
+  }
+
+  if(password!==passwordConfirm){
+    showStatus('register-status','error','Passwords do not match.');
     return;
   }
 
@@ -371,16 +377,68 @@ async function handleRegister(e){
   }
 }
 async function handleForgot(){
-  clearStatus('login-status'); const email=$('login-email').value.trim(); if(!email){showStatus('login-status','error','Enter your account email first.');return;}
+  clearStatus('login-status');
+
+  const email=$('login-email').value.trim().toLowerCase();
+  if(!email){
+    showStatus('login-status','error','Enter your account email first.');
+    return;
+  }
+
   try{
+    setBusy('forgot-password',true,'SENDING...');
     const redirectTo=`${window.location.origin}${window.location.pathname}`;
-    const {error}=await db.auth.resetPasswordForEmail(email,{redirectTo}); if(error) throw error;
-    showStatus('login-status','ok','Password reset email sent. Open the email and choose a new password.');
-  }catch(error){showStatus('login-status','error',humanizeError(error));}
+    const {error}=await db.auth.resetPasswordForEmail(email,{redirectTo});
+    if(error) throw error;
+
+    showStatus(
+      'login-status',
+      'ok',
+      'Password reset email requested. Check your inbox and spam folder, then open the reset link.'
+    );
+  }catch(error){
+    showStatus('login-status','error',humanizeError(error));
+  }finally{
+    setBusy('forgot-password',false,'FORGOT PASSWORD?');
+  }
 }
 
 async function handleUpdatePassword(event){
   event.preventDefault();
+  clearStatus('recovery-status');
+
+  const password=$('recovery-password').value;
+  const confirm=$('recovery-password-confirm').value;
+
+  if(password.length<8){
+    showStatus('recovery-status','error','Password must be at least 8 characters.');
+    return;
+  }
+
+  if(password!==confirm){
+    showStatus('recovery-status','error','Passwords do not match.');
+    return;
+  }
+
+  try{
+    const {error}=await db.auth.updateUser({password});
+    if(error) throw error;
+
+    showStatus(
+      'recovery-status',
+      'ok',
+      'Password updated successfully. You can now login with your new password.'
+    );
+
+    setTimeout(async()=>{
+      try{await db.auth.signOut();}catch{}
+      $('password-recovery-backdrop')?.classList.remove('open');
+      $('password-recovery-form')?.reset();
+      openView('public');
+    },1100);
+  }catch(error){
+    showStatus('recovery-status','error',humanizeError(error));
+  }
 }
 
 async function renderMemberIdentity(){
@@ -395,13 +453,56 @@ async function renderMemberIdentity(){
 
 async function loadLiveChallenges(){
   try{
-    const {data,error}=await db.rpc('get_gvg_live_challenges'); if(error) throw error;
-    state.challenges=data||[]; renderChallenges(); fillResultChallenges();
-  }catch(error){console.error(error); $('live-challenge-list').innerHTML='<div class="empty">Could not load live challenges.</div>';}
+    const {data,error}=await db.rpc('get_gvg_live_challenges');
+    if(error) throw error;
+    state.challenges=data||[];
+    renderChallenges();
+    fillResultChallenges();
+  }catch(error){
+    console.error(error);
+    $('live-challenge-list').innerHTML='<div class="empty">Could not load live challenges.</div>';
+  }
 }
+
+function challengeStatusLabel(status){
+  if(status==='result_pending') return 'RESULT PENDING';
+  if(status==='completed') return 'COMPLETED';
+  if(status==='cancelled') return 'CANCELLED';
+  return 'OPEN';
+}
+
 function renderChallenges(){
-  const target=$('live-challenge-list'); if(!target)return;
-  target.innerHTML=state.challenges.length?state.challenges.map(c=>`<div class="challenge-card"><div class="meta-row"><div><div class="kicker">${escapeHtml(c.challenge_code||'CHALLENGE')}</div><div class="name">${escapeHtml(c.guild_name)}</div></div><span class="badge badge-blue">OPEN</span></div><div class="challenge-time">MATCH ${escapeHtml(formatTime(c.match_time))}</div><div class="pill-wrap">${(c.weapons||[]).map(x=>`<span class="pill">${escapeHtml(x)}</span>`).join('')}${(c.active_skills||[]).map(x=>`<span class="pill">${escapeHtml(x)}</span>`).join('')}</div><div class="contact-line"><a class="contact-link" href="tel:${escapeHtml(normalizeContact(c.contact_number))}">${escapeHtml(formatContact(c.contact_number))}</a><button class="btn btn-primary btn-small" type="button" data-action="result-from-challenge" data-id="${escapeHtml(c.id)}">SUBMIT RESULT</button></div></div>`).join(''):'<div class="empty">No active challenges right now.</div>';
+  const target=$('live-challenge-list');
+  if(!target) return;
+
+  target.innerHTML=state.challenges.length
+    ? state.challenges.map(c=>{
+        const status=String(c.status||'open');
+        const canSubmit=status==='open';
+
+        return `<div class="challenge-card" data-state="${escapeHtml(status)}">
+          <div class="meta-row">
+            <div>
+              <div class="kicker">${escapeHtml(c.challenge_code||'CHALLENGE')}</div>
+              <div class="name">${escapeHtml(c.guild_name)}</div>
+            </div>
+            <span class="badge ${status==='open'?'badge-blue':status==='result_pending'?'badge-gold':'badge-green'}">${escapeHtml(challengeStatusLabel(status))}</span>
+          </div>
+          <div class="challenge-time">MATCH ${escapeHtml(formatTime(c.match_time))}</div>
+          <div class="pill-wrap">
+            ${(c.weapons||[]).map(x=>`<span class="pill">${escapeHtml(x)}</span>`).join('')}
+            ${(c.active_skills||[]).map(x=>`<span class="pill">${escapeHtml(x)}</span>`).join('')}
+          </div>
+          <div class="contact-line">
+            <a class="contact-link" href="tel:${escapeHtml(normalizeContact(c.contact_number))}">${escapeHtml(formatContact(c.contact_number))}</a>
+            ${canSubmit
+              ? `<button class="btn btn-primary btn-small" type="button" data-action="result-from-challenge" data-id="${escapeHtml(c.id)}">SUBMIT RESULT</button>`
+              : `<span class="muted" style="font-size:8px">${status==='result_pending'?'RESULT UNDER ADMIN REVIEW.':'RESULT COMPLETED.'}</span>`
+            }
+          </div>
+        </div>`;
+      }).join('')
+    : '<div class="empty">No current-cycle challenges right now.</div>';
 }
 
 let guildSearchSerial = 0;
@@ -504,7 +605,16 @@ function setupGuildAutocomplete(inputId,listId){
 }
 
 function fillResultChallenges(){
-  const sel=$('result-challenge'); if(!sel)return; const current=sel.value; sel.innerHTML='<option value="">Select an active challenge</option>'+state.challenges.map(c=>`<option value="${escapeHtml(c.id)}">${escapeHtml(c.guild_name)} • ${escapeHtml(formatTime(c.match_time))}</option>`).join(''); if(state.challenges.some(c=>c.id===current))sel.value=current;
+  const sel=$('result-challenge');
+  if(!sel) return;
+
+  const current=sel.value;
+  const openChallenges=state.challenges.filter(c=>String(c.status||'open')==='open');
+
+  sel.innerHTML='<option value="">Select an active challenge</option>'+
+    openChallenges.map(c=>`<option value="${escapeHtml(c.id)}">${escapeHtml(c.guild_name)} • ${escapeHtml(formatTime(c.match_time))}</option>`).join('');
+
+  if(openChallenges.some(c=>c.id===current)) sel.value=current;
 }
 function fillResultGuilds(){
   setupGuildAutocomplete('result-winner','result-winner-suggestions');
@@ -545,7 +655,37 @@ async function handleResultSubmit(e){
   e.preventDefault();clearStatus('result-status');if(!guildApproved())return showStatus('result-status','error','Your guild is not approved or is currently banned.');
   const challengeId=$('result-challenge').value,winner=$('result-winner').value,loser=$('result-loser').value,score=$('result-score').value.trim();const files=[$('result-image-1').files[0],$('result-image-2').files[0]].filter(Boolean);
   if(!challengeId||!winner||!loser||!score)return showStatus('result-status','error','Challenge, winner, loser and score are required.'); if(normalizeGuild(winner)===normalizeGuild(loser))return showStatus('result-status','error','Winner and loser must be different.');if(files.length!==2)return showStatus('result-status','error','Exactly 2 proof screenshots are required.');
-  try{setBusy('result-submit',true);const urls=await uploadResultImages(files);const {error}=await db.rpc('submit_gvg_result',{p_challenge_id:challengeId,p_winner_guild:winner,p_loser_guild:loser,p_score:score,p_image_urls:urls});if(error)throw error;showStatus('result-status','ok','Result submitted for admin approval.');$('result-form').reset();await loadLiveChallenges();await loadApprovedResults();}catch(error){showStatus('result-status','error',humanizeError(error));}finally{setBusy('result-submit',false,'SUBMIT RESULT');}
+  try{setBusy('result-submit',true);const urls=await uploadResultImages(files);const {error}=await db.rpc('submit_gvg_result',{p_challenge_id:challengeId,p_winner_guild:winner,p_loser_guild:loser,p_score:score,p_image_urls:urls});if(error)throw error;showStatus('result-status','ok','Result submitted for admin approval.');$('result-form').reset();await Promise.all([loadLiveChallenges(),loadApprovedResults(),loadMyResultSubmissions()]);}catch(error){showStatus('result-status','error',humanizeError(error));}finally{setBusy('result-submit',false,'SUBMIT RESULT');}
+}
+
+async function loadMyResultSubmissions(){
+  const target=$('my-result-list');
+  if(!target) return;
+
+  try{
+    const {data,error}=await db.rpc('get_my_gvg_result_submissions');
+    if(error) throw error;
+
+    const rows=data||[];
+
+    target.innerHTML=rows.length
+      ? rows.map(r=>{
+          const cls=r.status==='approved'?'status-approved':r.status==='pending'?'status-pending':'status-rejected';
+
+          return `<div class="my-result-item">
+            <div class="result-status-line">
+              <div class="result-match">${escapeHtml(r.winner_guild)} <span class="muted">VS</span> ${escapeHtml(r.loser_guild)}</div>
+              <span class="status-pill ${cls}">${escapeHtml(r.status)}</span>
+            </div>
+            <div class="result-meta">SCORE: ${escapeHtml(r.score)} • SUBMITTED: ${escapeHtml(formatDateTime(r.created_at))}</div>
+            ${r.rejection_reason?`<div class="result-reason"><b>REJECTION:</b> ${escapeHtml(r.rejection_reason)}</div>`:''}
+          </div>`;
+        }).join('')
+      : '<div class="empty">You have no result submissions yet.</div>';
+  }catch(error){
+    console.error(error);
+    target.innerHTML='<div class="empty">Could not load your result submissions.</div>';
+  }
 }
 
 async function loadApprovedResults(){
@@ -594,6 +734,7 @@ async function refreshMember(){
       loadLiveChallenges(),
       loadGuildOptions(),
       loadApprovedResults(),
+      loadMyResultSubmissions(),
       loadRanking()
     ]);
   }
@@ -670,18 +811,48 @@ function openModal(html){$('modal').innerHTML=html;$('modal-backdrop').classList
 function closeModal(){$('modal-backdrop').classList.remove('open');$('modal').innerHTML='';}
 function adminGuildInfo(g){
   const leaders=leaderArray(g);
-  const leaderHtml=leaders.length?leaders.map((l,i)=>`<div class="leader-card"><div class="leader-title">LEADER ${i+1}</div><div class="leader-meta">${escapeHtml(l.email||'Email unavailable')}<br>${escapeHtml(formatContact(l.contact||''))}</div><div class="modal-actions"><button class="btn btn-small btn-gold" type="button" data-action="reset-password" data-email="${escapeHtml(l.email||'')}">RESET PASSWORD</button></div></div>`).join(''):'<div class="empty">No linked leader emails.</div>';
-  const pending=g.approval_status==='pending';
-  openModal(`<div class="modal-head"><div><div class="kicker">Guild Information</div><h3>${escapeHtml(g.guild_name)}</h3></div><button class="close-btn" type="button" data-action="close-modal">×</button></div><div class="info-grid"><div class="info-box"><small>Status</small><strong>${escapeHtml(guildStatusLabel(g))}</strong></div><div class="info-box"><small>Current Points</small><strong>${escapeHtml(g.points)}</strong></div><div class="info-box"><small>Leader Count</small><strong>${escapeHtml(g.leader_count)}</strong></div><div class="info-box"><small>Registered</small><strong>${escapeHtml(formatDateTime(g.created_at))}</strong></div></div><div class="kicker" style="margin-top:13px">Leaders</div><div class="leader-list">${leaderHtml}</div>${pending?`<div class="divider"></div><div class="modal-actions"><button class="btn btn-green" type="button" data-action="approve-guild" data-id="${escapeHtml(g.id)}">APPROVE GUILD</button><button class="btn btn-red" type="button" data-action="reject-guild" data-id="${escapeHtml(g.id)}">REJECT GUILD</button></div>`:''}`);
+
+  const leaderHtml=leaders.length
+    ? leaders.map((l,i)=>{
+        const status=String(l.approval_status||'pending');
+        const cls=status==='approved'?'status-approved':status==='pending'?'status-pending':'status-rejected';
+
+        return `<div class="leader-card">
+          <div class="leader-title">LEADER ${i+1}</div>
+          <div class="leader-meta">${escapeHtml(l.email||'Email unavailable')}<br>${escapeHtml(formatContact(l.contact||''))}</div>
+          <div style="margin-top:8px"><span class="status-pill ${cls}">${escapeHtml(status)}</span></div>
+          <div class="modal-actions">
+            ${status==='pending'
+              ? `<button class="btn btn-green btn-small" type="button" data-action="approve-leader" data-id="${escapeHtml(l.id)}">APPROVE LEADER</button><button class="btn btn-red btn-small" type="button" data-action="reject-leader" data-id="${escapeHtml(l.id)}">REJECT LEADER</button>`
+              : status==='rejected'
+                ? `<button class="btn btn-gold btn-small" type="button" data-action="approve-leader" data-id="${escapeHtml(l.id)}">APPROVE LEADER</button>`
+                : ''
+            }
+            <button class="btn btn-small btn-gold" type="button" data-action="reset-password" data-email="${escapeHtml(l.email||'')}">RESET PASSWORD</button>
+            <button class="btn btn-small btn-red" type="button" data-action="remove-leader" data-id="${escapeHtml(l.id)}" data-guild="${escapeHtml(g.guild_name)}">REMOVE THIS LEADER</button>
+          </div>
+        </div>`;
+      }).join('')
+    : '<div class="empty">No linked leader emails.</div>';
+
+  openModal(`<div class="modal-head"><div><div class="kicker">Guild Information</div><h3>${escapeHtml(g.guild_name)}</h3></div><button class="close-btn" type="button" data-action="close-modal">×</button></div><div class="info-grid"><div class="info-box"><small>Guild Status</small><strong>${escapeHtml(guildStatusLabel(g))}</strong></div><div class="info-box"><small>Current Points</small><strong>${escapeHtml(g.points)}</strong></div><div class="info-box"><small>Leader Count</small><strong>${escapeHtml(g.leader_count)}</strong></div><div class="info-box"><small>Registered</small><strong>${escapeHtml(formatDateTime(g.created_at))}</strong></div></div><div class="kicker" style="margin-top:13px">LEADERS</div><div class="leader-list">${leaderHtml}</div><div class="divider"></div><div class="modal-actions"><button class="btn btn-red" type="button" data-action="guild-remove" data-id="${escapeHtml(g.id)}">REMOVE WHOLE GUILD</button></div>`);
 }
+
 function adminGuildEdit(g){
   const leaders=leaderArray(g);
   const editableLeaders=leaders.filter(l=>l && l.id);
   const first=editableLeaders[0]||{id:g.id,contact:g.contact||'',email:''};
   const leaderOptions=editableLeaders.length?editableLeaders.map((l,i)=>`<option value="${escapeHtml(l.id)}" data-contact="${escapeHtml(l.contact||'')}" data-email="${escapeHtml(l.email||'')}">LEADER ${i+1} • ${escapeHtml(l.email||'Email unavailable')}</option>`).join(''):`<option value="${escapeHtml(g.id)}" data-contact="${escapeHtml(g.contact||'')}">REGISTERED RECORD</option>`;
-  openModal(`<div class="modal-head"><div><div class="kicker">Edit Guild</div><h3>${escapeHtml(g.guild_name)}</h3></div><button class="close-btn" type="button" data-action="close-modal">×</button></div><form id="edit-guild-form"><div class="field-grid"><label class="full">LEADER RECORD<select id="edit-leader-id">${leaderOptions}</select></label><label>CONTACT NUMBER<input id="edit-contact" type="tel" value="${escapeHtml(first.contact||g.contact||'')}" required /></label><label>CURRENT WEEK POINTS<input id="edit-points" type="number" step="1" value="${escapeHtml(g.points)}" required /></label><label class="full">APPROVAL STATUS<select id="edit-status"><option value="approved" ${g.approval_status==='approved'?'selected':''}>Approved</option><option value="pending" ${g.approval_status==='pending'?'selected':''}>Pending</option><option value="rejected" ${g.approval_status==='rejected'?'selected':''}>Rejected</option></select></label></div><div class="hint">Select the leader record whose contact number you want to edit. Weekly points and approval status are shared by the whole guild.</div><div class="modal-actions"><button class="btn btn-primary" type="submit">SAVE CONTACT + POINTS</button><button class="btn btn-gold" id="edit-reset-password" type="button">CHANGE PASSWORD VIA RESET EMAIL</button><button class="btn btn-ghost" type="button" data-action="guild-info" data-id="${escapeHtml(g.id)}">CANCEL</button></div><div id="edit-status-message" class="status"></div></form>`);
+  openModal(`<div class="modal-head"><div><div class="kicker">Edit Guild</div><h3>${escapeHtml(g.guild_name)}</h3></div><button class="close-btn" type="button" data-action="close-modal">×</button></div><form id="edit-guild-form"><div class="field-grid"><label class="full">LEADER RECORD<select id="edit-leader-id">${leaderOptions}</select></label><label>CONTACT NUMBER<input id="edit-contact" type="tel" value="${escapeHtml(first.contact||g.contact||'')}" required /></label><label>CURRENT WEEK POINTS<input id="edit-points" type="number" step="1" value="${escapeHtml(g.points)}" required /></label><label class="full">LEADER APPROVAL STATUS<select id="edit-status"><option value="approved" ${editableLeaders[0]?.approval_status==='approved'?'selected':''}>Approved</option><option value="pending" ${editableLeaders[0]?.approval_status==='pending'?'selected':''}>Pending</option><option value="rejected" ${editableLeaders[0]?.approval_status==='rejected'?'selected':''}>Rejected</option></select></label></div><div class="hint">Select the individual leader record whose contact/status you want to edit. Weekly points remain shared by the guild.</div><div class="modal-actions"><button class="btn btn-primary" type="submit">SAVE CONTACT + POINTS</button><button class="btn btn-gold" id="edit-reset-password" type="button">CHANGE PASSWORD VIA RESET EMAIL</button><button class="btn btn-ghost" type="button" data-action="guild-info" data-id="${escapeHtml(g.id)}">CANCEL</button></div><div id="edit-status-message" class="status"></div></form>`);
   const leaderSelect=$('edit-leader-id');
-  leaderSelect.addEventListener('change',()=>{const o=leaderSelect.options[leaderSelect.selectedIndex];$('edit-contact').value=o?.dataset?.contact||'';});
+  const syncSelectedLeader=()=>{
+    const o=leaderSelect.options[leaderSelect.selectedIndex];
+    $('edit-contact').value=o?.dataset?.contact||'';
+    const leader=editableLeaders.find(l=>String(l.id)===String(leaderSelect.value));
+    if(leader && $('edit-status')) $('edit-status').value=leader.approval_status||'pending';
+  };
+  leaderSelect.addEventListener('change',syncSelectedLeader);
+  syncSelectedLeader();
   $('edit-reset-password').addEventListener('click',()=>{const o=leaderSelect.options[leaderSelect.selectedIndex];resetLeaderPassword(o?.dataset?.email||'');});
   $('edit-guild-form').addEventListener('submit',async(event)=>{event.preventDefault();const leaderId=leaderSelect.value,contact=$('edit-contact').value.trim(),points=Number($('edit-points').value),status=$('edit-status').value;if(!Number.isInteger(points))return showStatus('edit-status-message','error','Points must be a whole number.');try{const {error}=await adminDb.rpc('admin_update_guild_controls',{p_guild_id:leaderId,p_contact:contact,p_points:points,p_approval_status:status});if(error)throw error;closeModal();showStatus('admin-status','ok','Guild controls updated.');await loadAdminGuilds();}catch(error){showStatus('edit-status-message','error',humanizeError(error));}});
 }
@@ -690,7 +861,48 @@ async function resetLeaderPassword(email){
   if(!email)return; if(!confirm(`Send password reset email to ${email}?`))return; try{const redirectTo=`${window.location.origin}${window.location.pathname}`;const {error}=await adminDb.auth.resetPasswordForEmail(email,{redirectTo});if(error)throw error;alert('Password reset email sent.');}catch(error){alert(humanizeError(error));}
 }
 async function removeGuild(id){const g=findGuild(id);if(!g)return;if(!confirm(`ARE YOU SURE TO WANT REMOVE THIS GUILD?\n\n${g.guild_name}`))return;try{const {error}=await adminDb.rpc('admin_remove_guild',{p_guild_id:id});if(error)throw error;closeModal();showStatus('admin-status','ok','Guild removed from registry. Historical challenge/result records remain.');await loadAdminGuilds();}catch(error){showStatus('admin-status','error',humanizeError(error));}}
-async function setGuildApproval(id,status){const g=findGuild(id);if(!g)return;try{const leaders=leaderArray(g);const contact=leaders[0]?.contact||g.contact||'';const {error}=await adminDb.rpc('admin_update_guild_controls',{p_guild_id:id,p_contact:contact,p_points:Number(g.points)||0,p_approval_status:status});if(error)throw error;closeModal();showStatus('admin-status','ok',`Guild ${status}.`);await loadAdminGuilds();}catch(error){showStatus('admin-status','error',humanizeError(error));}}
+async function setLeaderApproval(leaderId,status){
+  let found=null;
+
+  for(const guild of state.guilds){
+    const leader=leaderArray(guild).find(l=>String(l.id)===String(leaderId));
+    if(leader){found={guild,leader};break;}
+  }
+
+  if(!found) return;
+
+  try{
+    const {error}=await adminDb.rpc('admin_update_guild_controls',{
+      p_guild_id:leaderId,
+      p_contact:found.leader.contact||'',
+      p_points:Number(found.guild.points)||0,
+      p_approval_status:status
+    });
+
+    if(error) throw error;
+
+    closeModal();
+    showStatus('admin-status','ok',`Leader ${status}.`);
+    await loadAdminGuilds();
+  }catch(error){
+    showStatus('admin-status','error',humanizeError(error));
+  }
+}
+
+async function removeLeader(leaderId,guildName){
+  if(!confirm(`ARE YOU SURE TO WANT REMOVE THIS LEADER?\n\n${guildName||'Guild Leader'}`)) return;
+
+  try{
+    const {error}=await adminDb.rpc('admin_remove_guild_leader',{p_guild_id:leaderId});
+    if(error) throw error;
+
+    closeModal();
+    showStatus('admin-status','ok','Leader removed. The Auth account remains available for re-registration.');
+    await loadAdminGuilds();
+  }catch(error){
+    showStatus('admin-status','error',humanizeError(error));
+  }
+}
 
 async function loadAdminResults(){
   try{const {data,error}=await adminDb.rpc('admin_get_results');if(error)throw error;const rows=data||[];state.results=rows;const target=$('admin-result-table');target.innerHTML=rows.length?rows.map(r=>{const imgs=Array.isArray(r.image_urls)?r.image_urls.slice(0,2):[];const gallery=imgs.length?`<details class="proof-details"><summary>OPEN ${imgs.length} PROOF SCREENSHOTS</summary><div class="proof-gallery">${imgs.map((u,i)=>`<a href="${escapeHtml(u)}" target="_blank" rel="noopener"><span class="proof-tag">PROOF ${i+1}</span><img src="${escapeHtml(u)}" alt="${escapeHtml(r.winner_guild)} vs ${escapeHtml(r.loser_guild)} proof ${i+1}" /></a>`).join('')}</div></details>`:'<span class="muted">No proof</span>';return `<tr><td><strong>${escapeHtml(r.winner_guild)}</strong><div class="muted" style="margin-top:3px">DEFEAT</div><strong>${escapeHtml(r.loser_guild)}</strong></td><td>${escapeHtml(r.score)}</td><td>${gallery}<div style="margin-top:6px"><span class="status-pill ${r.status==='approved'?'status-approved':r.status==='pending'?'status-pending':'status-rejected'}">${escapeHtml(r.status)}</span></div></td><td>${r.status==='pending'?`<div style="display:flex;gap:5px;flex-wrap:wrap"><button class="btn btn-green btn-small" type="button" data-action="approve-result" data-id="${escapeHtml(r.id)}">APPROVE</button><button class="btn btn-red btn-small" type="button" data-action="reject-result" data-id="${escapeHtml(r.id)}">REJECT</button></div>`:'—'}</td></tr>`;}).join(''):'<tr><td colspan="4">No result submissions.</td></tr>';}catch(error){showStatus('admin-status','error',humanizeError(error));}
@@ -725,7 +937,7 @@ function openAdminSection(name){
 /* ------------------------- Events ------------------------- */
 document.addEventListener('click',async(e)=>{
   const actionEl=e.target.closest('[data-action]');
-  if(actionEl){const action=actionEl.dataset.action,id=actionEl.dataset.id;if(action==='result-from-challenge')return selectChallengeForResult(id);if(action==='close-modal')return closeModal();if(action==='guild-info'){const g=findGuild(id);if(g)adminGuildInfo(g);return;}if(action==='guild-edit'){const g=findGuild(id);if(g)adminGuildEdit(g);return;}if(action==='guild-remove')return removeGuild(id);if(action==='approve-guild')return setGuildApproval(id,'approved');if(action==='reject-guild')return setGuildApproval(id,'rejected');if(action==='reset-password')return resetLeaderPassword(actionEl.dataset.email||'');if(action==='approve-result')return approveResult(id);if(action==='reject-result')return rejectResult(id);if(action==='unban-identity')return unbanIdentity(actionEl.dataset.guild||'',actionEl.dataset.contact||'');}
+  if(actionEl){const action=actionEl.dataset.action,id=actionEl.dataset.id;if(action==='result-from-challenge')return selectChallengeForResult(id);if(action==='close-modal')return closeModal();if(action==='guild-info'){const g=findGuild(id);if(g)adminGuildInfo(g);return;}if(action==='guild-edit'){const g=findGuild(id);if(g)adminGuildEdit(g);return;}if(action==='guild-remove')return removeGuild(id);if(action==='approve-leader')return setLeaderApproval(id,'approved');if(action==='reject-leader')return setLeaderApproval(id,'rejected');if(action==='remove-leader')return removeLeader(id,actionEl.dataset.guild||'');if(action==='reset-password')return resetLeaderPassword(actionEl.dataset.email||'');if(action==='approve-result')return approveResult(id);if(action==='reject-result')return rejectResult(id);if(action==='unban-identity')return unbanIdentity(actionEl.dataset.guild||'',actionEl.dataset.contact||'');}
   const menuBtn=e.target.closest('[data-menu-button]');if(menuBtn){const id=menuBtn.dataset.menuButton;document.querySelectorAll('.dots-menu.open').forEach(x=>{if(x.id!==`menu-${id}`)x.classList.remove('open')});document.getElementById(`menu-${id}`)?.classList.toggle('open');return;}document.querySelectorAll('.dots-menu.open').forEach(x=>x.classList.remove('open'));
 });
 document.querySelectorAll('[data-member-section]').forEach(btn=>btn.addEventListener('click',()=>openMemberSection(btn.dataset.memberSection)));
@@ -748,6 +960,7 @@ $('modal-backdrop').addEventListener('click',(e)=>{if(e.target===$('modal-backdr
 db.auth.onAuthStateChange(async(event,session)=>{
   if(event==='PASSWORD_RECOVERY'){
     $('password-recovery-backdrop').classList.add('open');
+    $('recovery-password')?.focus();
     return;
   }
   if(session){state.user=session.user;await loadMyGuild();syncRegisterNav();if(!location.hash.includes('admin')){openView('member');await refreshMember();}}
