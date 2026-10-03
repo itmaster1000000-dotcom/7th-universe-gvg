@@ -49,7 +49,7 @@
     #public-landing{display:grid;place-items:center;min-height:calc(100vh - 81px);padding:25px 0 44px}.landing-wrap{width:min(680px,100%);display:grid;gap:15px}.login-card{padding:24px 20px}.login-brand{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:17px}.login-brand img{width:66px;height:66px;border-radius:19px}.login-brand strong{font-family:"Barlow Condensed",sans-serif;font-size:31px;letter-spacing:.07em}.login-brand span{display:block;margin-top:4px;color:var(--muted);font-size:8px;font-weight:800;letter-spacing:.18em}.login-head{text-align:center}.login-head .title{font-size:44px}.login-head p{margin:7px auto 0;color:var(--muted);font-size:10px;line-height:1.7}.center-actions{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:14px}.center-actions .btn{min-width:170px}.top10-card{padding:17px}.tiny-table{width:100%;border-collapse:collapse}.tiny-table th,.tiny-table td{padding:10px 9px;border-bottom:1px solid rgba(255,255,255,.05);font-size:10px;text-align:left}.tiny-table th{color:#7d8986;font-size:8px;letter-spacing:.12em;text-transform:uppercase}.tiny-table tr:last-child td{border-bottom:0}.tiny-rank{font-family:"Barlow Condensed",sans-serif;font-size:18px;font-weight:900}.tiny-points{font-family:"Barlow Condensed",sans-serif;font-size:19px;font-weight:900;color:#f099a5;text-align:right}
 
     /* Custom match-time picker: avoids Android/browser native time-picker differences. */
-    .time-picker-trigger{width:100%;min-height:50px;padding:12px 13px;display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid rgba(255,255,255,.09);border-radius:11px;outline:none;color:#faf2f3;background:rgba(2,7,6,.75);text-align:left;font-size:11px;font-weight:900;letter-spacing:.04em;transition:.16s ease}
+    .time-picker-trigger{position:relative;z-index:2;touch-action:manipulation;pointer-events:auto;width:100%;min-height:50px;padding:12px 13px;display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid rgba(255,255,255,.09);border-radius:11px;outline:none;color:#faf2f3;background:rgba(2,7,6,.75);text-align:left;font-size:11px;font-weight:900;letter-spacing:.04em;transition:.16s ease}
     .time-picker-trigger:hover{border-color:rgba(242,50,76,.34);transform:translateY(-1px)}
     .time-picker-trigger:focus{border-color:rgba(242,50,76,.5);box-shadow:0 0 0 3px rgba(242,50,76,.08)}
     .time-picker-trigger.has-value{color:#fff}
@@ -1317,13 +1317,14 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
           <div class="card">
             <div class="panel-head"><div><div class="kicker">Live Arena</div><h3>CHALLENGES</h3><div class="subtle">Post a new challenge from 10:00 AM until 11:59 PM. Live challenges from the current daily cycle are shown below.</div></div><span class="badge badge-blue">LIVE</span></div>
             <form id="challenge-form" novalidate>
-              <div class="field-grid"><label class="full">MATCH TIME
+              <div class="field-grid"><div class="full">
+                <label for="challenge-time-picker">MATCH TIME</label>
                 <input id="challenge-time" type="hidden" required />
                 <button id="challenge-time-picker" class="time-picker-trigger" type="button" aria-haspopup="dialog" aria-controls="time-picker-backdrop" aria-expanded="false">
                   <span id="challenge-time-display">SELECT MATCH TIME</span>
                   <span class="time-picker-arrow">›</span>
                 </button>
-              </label><label class="full">WEAPONS</label></div>
+              </div><label class="full">WEAPONS</label></div>
               <div id="weapon-grid" class="rules-grid"></div>
               <label style="margin-top:11px">ACTIVE SKILLS</label><div id="skill-grid" class="rules-grid"></div>
               <div class="split-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px"><button id="challenge-submit" class="btn btn-primary" type="submit">POST CHALLENGE</button></div>
@@ -1398,9 +1399,115 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 
   <div id="modal-backdrop" class="modal-backdrop"><div id="modal" class="modal"></div></div>
   <div id="password-recovery-backdrop" class="modal-backdrop"><div class="modal"><div class="modal-head"><div><div class="kicker">Account Recovery</div><h3>SET NEW PASSWORD</h3></div></div><form id="password-recovery-form"><label>NEW PASSWORD<input id="recovery-password" type="password" minlength="8" autocomplete="new-password" placeholder="Minimum 8 characters" required /></label><label style="margin-top:10px">CONFIRM PASSWORD<input id="recovery-password-confirm" type="password" minlength="8" autocomplete="new-password" placeholder="Repeat new password" required /></label><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px"><button class="btn btn-primary" type="submit">UPDATE PASSWORD</button></div><div id="recovery-status" class="status"></div></form></div></div>
-  <footer class="footer"><div class="container footer-inner"><span>7TH UNIVERSE • GUILD VS GUILD</span><span>RULES ARE EQUAL FOR ALL GUILDS</span><span class="version-chip">V18.6 • CHALLENGE TIME UPDATE</span></div></footer>
+  <footer class="footer"><div class="container footer-inner"><span>7TH UNIVERSE • GUILD VS GUILD</span><span>RULES ARE EQUAL FOR ALL GUILDS</span><span class="version-chip">V18.9 • CUSTOM TIME PICKER FIX</span></div></footer>
 
+  <script>
+  /* V18.9: Standalone match-time picker. It does not depend on Supabase or the main app script. */
+  (()=>{
+    const state={hour:12,minute:0,period:'AM'};
+    const $=id=>document.getElementById(id);
+    const pad=n=>String(n).padStart(2,'0');
+    const preview=()=>`${state.hour}:${pad(state.minute)} ${state.period}`;
+    const value24=()=>{
+      let h=state.hour%12;
+      if(state.period==='PM') h+=12;
+      return `${pad(h)}:${pad(state.minute)}`;
+    };
+    const from24=value=>{
+      const m=String(value||'').match(/^(\d{1,2}):(\d{2})$/);
+      if(!m) return {hour:12,minute:0,period:'AM'};
+      let h=Math.max(0,Math.min(23,Number(m[1])));
+      const minute=Math.max(0,Math.min(59,Number(m[2])));
+      if(h===0) return {hour:12,minute,period:'AM'};
+      if(h===12) return {hour:12,minute,period:'PM'};
+      if(h>12) return {hour:h-12,minute,period:'PM'};
+      return {hour:h,minute,period:'AM'};
+    };
+    const render=()=>{
+      const hour=$('time-picker-hour'), minute=$('time-picker-minute');
+      if(hour) hour.value=String(state.hour);
+      if(minute) minute.value=String(state.minute);
+      const p=$('time-picker-preview-time'); if(p) p.textContent=preview();
+      $('time-picker-am')?.classList.toggle('active',state.period==='AM');
+      $('time-picker-pm')?.classList.toggle('active',state.period==='PM');
+    };
+    const show=()=>{
+      const backdrop=$('time-picker-backdrop'); if(!backdrop) return;
+      const current=from24($('challenge-time')?.value);
+      state.hour=current.hour; state.minute=current.minute; state.period=current.period;
+      render();
+      backdrop.classList.add('open');
+      backdrop.style.display='flex';
+      backdrop.setAttribute('aria-hidden','false');
+      $('challenge-time-picker')?.setAttribute('aria-expanded','true');
+    };
+    const close=()=>{
+      const backdrop=$('time-picker-backdrop'); if(!backdrop) return;
+      backdrop.classList.remove('open');
+      backdrop.style.display='none';
+      backdrop.setAttribute('aria-hidden','true');
+      $('challenge-time-picker')?.setAttribute('aria-expanded','false');
+    };
+    const emit=el=>{
+      if(!el) return;
+      el.dispatchEvent(new Event('input',{bubbles:true}));
+      el.dispatchEvent(new Event('change',{bubbles:true}));
+    };
+    const clear=()=>{
+      const input=$('challenge-time'), display=$('challenge-time-display'), trigger=$('challenge-time-picker');
+      if(input){input.value='';emit(input);}
+      if(display) display.textContent='SELECT MATCH TIME';
+      trigger?.classList.remove('has-value');
+      close();
+    };
+    const set=()=>{
+      const input=$('challenge-time'), display=$('challenge-time-display'), trigger=$('challenge-time-picker');
+      if(!input||!display) return;
+      input.value=value24();
+      emit(input);
+      display.textContent=preview();
+      trigger?.classList.add('has-value');
+      close();
+    };
+    const init=()=>{
+      const hour=$('time-picker-hour'), minute=$('time-picker-minute');
+      if(!hour||!minute) return;
+      hour.innerHTML=Array.from({length:12},(_,i)=>`<option value="${i+1}">${pad(i+1)}</option>`).join('');
+      minute.innerHTML=Array.from({length:60},(_,i)=>`<option value="${i}">${pad(i)}</option>`).join('');
+      const trigger=$('challenge-time-picker');
+      if(trigger){
+        let last=0;
+        const openGuard=e=>{
+          const now=Date.now();
+          if(now-last<350) return;
+          last=now;
+          e?.preventDefault?.();
+          show();
+        };
+        trigger.addEventListener('pointerup',openGuard,{passive:false});
+        trigger.addEventListener('click',openGuard);
+      }
+      $('time-picker-hour')?.addEventListener('change',e=>{state.hour=Number(e.target.value)||12;render();});
+      $('time-picker-minute')?.addEventListener('change',e=>{state.minute=Number(e.target.value)||0;render();});
+      $('time-picker-am')?.addEventListener('click',()=>{state.period='AM';render();});
+      $('time-picker-pm')?.addEventListener('click',()=>{state.period='PM';render();});
+      $('time-picker-set')?.addEventListener('click',set);
+      $('time-picker-clear')?.addEventListener('click',clear);
+      $('time-picker-cancel')?.addEventListener('click',close);
+      $('time-picker-close')?.addEventListener('click',close);
+      $('time-picker-backdrop')?.addEventListener('click',e=>{if(e.target===$('time-picker-backdrop'))close();});
+      document.addEventListener('keydown',e=>{if(e.key==='Escape')close();});
+      window.openTimePicker=show;
+      window.closeTimePicker=close;
+      window.clearTimePicker=clear;
+      window.setTimePicker=set;
+      render();
+    };
+    if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init,{once:true});
+    else init();
+  })();
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="./script.js?v=18.7-custom-time-picker"></script>
+  <script src="./script.js?v=18.9-custom-time-picker"></script>
 </body>
 </html>
