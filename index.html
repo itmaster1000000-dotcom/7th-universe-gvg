@@ -48,6 +48,34 @@
     /* Public landing */
     #public-landing{display:grid;place-items:center;min-height:calc(100vh - 81px);padding:25px 0 44px}.landing-wrap{width:min(680px,100%);display:grid;gap:15px}.login-card{padding:24px 20px}.login-brand{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:17px}.login-brand img{width:66px;height:66px;border-radius:19px}.login-brand strong{font-family:"Barlow Condensed",sans-serif;font-size:31px;letter-spacing:.07em}.login-brand span{display:block;margin-top:4px;color:var(--muted);font-size:8px;font-weight:800;letter-spacing:.18em}.login-head{text-align:center}.login-head .title{font-size:44px}.login-head p{margin:7px auto 0;color:var(--muted);font-size:10px;line-height:1.7}.center-actions{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:14px}.center-actions .btn{min-width:170px}.top10-card{padding:17px}.tiny-table{width:100%;border-collapse:collapse}.tiny-table th,.tiny-table td{padding:10px 9px;border-bottom:1px solid rgba(255,255,255,.05);font-size:10px;text-align:left}.tiny-table th{color:#7d8986;font-size:8px;letter-spacing:.12em;text-transform:uppercase}.tiny-table tr:last-child td{border-bottom:0}.tiny-rank{font-family:"Barlow Condensed",sans-serif;font-size:18px;font-weight:900}.tiny-points{font-family:"Barlow Condensed",sans-serif;font-size:19px;font-weight:900;color:#f099a5;text-align:right}
 
+    /* Custom match-time picker: avoids Android/browser native time-picker differences. */
+    .time-picker-trigger{width:100%;min-height:50px;padding:12px 13px;display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid rgba(255,255,255,.09);border-radius:11px;outline:none;color:#faf2f3;background:rgba(2,7,6,.75);text-align:left;font-size:11px;font-weight:900;letter-spacing:.04em;transition:.16s ease}
+    .time-picker-trigger:hover{border-color:rgba(242,50,76,.34);transform:translateY(-1px)}
+    .time-picker-trigger:focus{border-color:rgba(242,50,76,.5);box-shadow:0 0 0 3px rgba(242,50,76,.08)}
+    .time-picker-trigger.has-value{color:#fff}
+    .time-picker-arrow{font-family:"Barlow Condensed",sans-serif;font-size:24px;line-height:1;color:#ef9aa5;transform:rotate(0deg)}
+    .time-picker-backdrop{position:fixed;inset:0;z-index:500;display:none;align-items:center;justify-content:center;padding:14px;background:rgba(0,0,0,.74);backdrop-filter:blur(9px)}
+    .time-picker-backdrop.open{display:flex}
+    .time-picker-modal{width:min(420px,100%);padding:17px;border:1px solid rgba(255,255,255,.12);border-radius:22px;background:linear-gradient(180deg,#17090b,#0f0507);box-shadow:0 28px 80px rgba(0,0,0,.65)}
+    .time-picker-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:13px}
+    .time-picker-head h3{margin:0;font-family:"Barlow Condensed",sans-serif;font-size:27px;line-height:1;text-transform:uppercase;letter-spacing:.04em}
+    .time-picker-close{width:34px;height:34px;border:1px solid rgba(255,255,255,.08);border-radius:9px;background:rgba(255,255,255,.03);color:#edd3d6;font-size:18px}
+    .time-picker-preview{padding:17px 14px;border:1px solid rgba(242,50,76,.18);border-radius:16px;background:linear-gradient(135deg,rgba(242,50,76,.07),rgba(215,24,49,.035));text-align:center}
+    .time-picker-preview-time{font-family:"Barlow Condensed",sans-serif;font-size:50px;line-height:.9;font-weight:900;letter-spacing:.03em}
+    .time-picker-preview-note{margin-top:7px;color:var(--muted);font-size:8px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
+    .time-picker-controls{display:grid;grid-template-columns:1fr 1fr auto;gap:9px;margin-top:12px}
+    .time-picker-control{display:grid;gap:7px}
+    .time-picker-control label{font-size:8px;color:#8f9b97;letter-spacing:.11em}
+    .time-picker-select{width:100%;min-height:46px;padding:10px 11px;border:1px solid rgba(255,255,255,.09);border-radius:10px;color:#fff;background:#12070a;outline:none;font-size:12px;font-weight:900}
+    .time-picker-select:focus{border-color:rgba(242,50,76,.5);box-shadow:0 0 0 3px rgba(242,50,76,.08)}
+    .time-picker-ampm{display:grid;gap:7px}
+    .time-picker-ampm-buttons{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+    .time-picker-ampm button{min-height:46px;border:1px solid rgba(255,255,255,.08);border-radius:10px;color:#9da7a4;background:rgba(255,255,255,.03);font-size:10px;font-weight:900}
+    .time-picker-ampm button.active{color:#fff;border-color:rgba(242,50,76,.4);background:rgba(242,50,76,.12);box-shadow:0 7px 18px rgba(0,0,0,.16)}
+    .time-picker-actions{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:14px}
+    .time-picker-actions-right{display:flex;gap:8px;flex-wrap:wrap}
+    @media(max-width:440px){.time-picker-modal{padding:14px}.time-picker-preview-time{font-size:44px}.time-picker-controls{grid-template-columns:1fr 1fr}.time-picker-ampm{grid-column:1/-1}.time-picker-ampm-buttons{grid-template-columns:1fr 1fr}}
+
     /* Member dashboard */
     #member-dashboard{display:none}.member-tabs{display:flex;gap:7px;align-items:center;overflow-x:auto;flex-wrap:nowrap;padding:8px;margin:2px 0 14px;border:1px solid var(--line);border-radius:15px;background:rgba(255,255,255,.018);scrollbar-width:none}.member-tabs::-webkit-scrollbar{display:none}.member-tab{flex:1 0 auto;min-width:122px;border:1px solid rgba(255,255,255,.07);border-radius:11px;padding:11px 13px;color:#8f9b97;background:rgba(255,255,255,.025);font-size:9px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}.member-tab.active{color:#fff;border-color:rgba(242,50,76,.38);background:linear-gradient(135deg,rgba(242,50,76,.16),rgba(215,24,49,.08));box-shadow:0 8px 20px rgba(0,0,0,.16)}.member-view{display:none}.member-view.active{display:block}.rules-card{margin-top:6px}.rules-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.rule-item{display:grid;grid-template-columns:36px 1fr;gap:9px;align-items:center;padding:11px;border:1px solid rgba(255,255,255,.07);border-radius:13px;background:linear-gradient(135deg,rgba(215,24,49,.04),rgba(255,255,255,.015))}.rule-no{display:grid;place-items:center;width:32px;height:32px;border-radius:10px;background:linear-gradient(135deg,rgba(215,24,49,.18),rgba(242,50,76,.13));color:#f8e0e3;font-family:"Barlow Condensed",sans-serif;font-size:18px;font-weight:900}.rule-text{font-size:10px;font-weight:800;line-height:1.4}.rule-text b{color:#f67a8a}.member-grid{display:grid;grid-template-columns:1.02fr 1fr .96fr;gap:14px;align-items:start;margin-top:14px}.sticky-card{position:sticky;top:96px}.challenge-list,.result-list,.rank-list{display:grid;gap:10px}.challenge-card{padding:14px;border:1px solid var(--line);border-radius:15px;background:rgba(255,255,255,.025)}.challenge-card .name,.match-line{font-family:"Barlow Condensed",sans-serif;font-size:23px;line-height:.98;font-weight:900;letter-spacing:.02em;text-transform:uppercase;word-break:break-word}.meta-row{display:flex;align-items:flex-start;justify-content:space-between;gap:9px}.challenge-time{margin-top:9px;font-size:15px;font-weight:900}.pill-wrap{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}.pill{display:inline-flex;align-items:center;min-height:24px;padding:5px 8px;border:1px solid rgba(255,255,255,.07);border-radius:999px;color:#e4bec3;background:rgba(255,255,255,.03);font-size:8px;font-weight:700}.contact-line{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px}.contact-link{display:inline-flex;align-items:center;gap:7px;min-height:34px;padding:7px 9px;border-radius:9px;border:1px solid rgba(242,50,76,.18);background:rgba(242,50,76,.06);color:#f5d4d8;font-size:9px;font-weight:900}
     .result-slot{padding:13px;border:1px solid var(--line);border-radius:15px;background:linear-gradient(135deg,rgba(215,24,49,.035),rgba(243,71,94,.025))}.result-teams{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center}.team{text-align:center}.team strong{display:block;font-family:"Barlow Condensed",sans-serif;font-size:21px;line-height:.95;text-transform:uppercase;word-break:break-word}.team small{display:inline-flex;margin-top:6px;padding:4px 7px;border-radius:999px;font-size:7px;font-weight:900;letter-spacing:.1em}.team.win strong{color:#edb0b8}.team.win small{color:#f1c4ca;background:rgba(215,24,49,.09);border:1px solid rgba(215,24,49,.2)}.team.loss strong{color:#f0bfc6}.team.loss small{color:#f2c6cc;background:rgba(243,71,94,.09);border:1px solid rgba(243,71,94,.2)}.vs{font-family:"Barlow Condensed",sans-serif;font-size:20px;font-weight:900;color:#7f8b88}.score-line{text-align:center;margin-top:9px;color:var(--muted);font-size:9px}.empty{padding:22px 14px;text-align:center;color:var(--muted);border:1px dashed rgba(255,255,255,.09);border-radius:14px;background:rgba(255,255,255,.015);font-size:10px}.rank-table{width:100%;border-collapse:collapse}.rank-table th,.rank-table td{padding:9px 7px;border-bottom:1px solid rgba(255,255,255,.05);font-size:9px}.rank-table th{color:#7e8a86;font-size:8px;letter-spacing:.11em;text-transform:uppercase;text-align:left}.rank-table tr:last-child td{border-bottom:0}.rank-table .pos{font-family:"Barlow Condensed",sans-serif;font-size:18px;font-weight:900}.rank-table .pts{font-family:"Barlow Condensed",sans-serif;font-size:18px;font-weight:900;text-align:right}.pos-green{color:#ef99a4}.pos-red{color:#edb1b9}.bottom-box{margin-top:10px;padding:11px 12px;border:1px solid rgba(243,71,94,.16);border-radius:12px;background:linear-gradient(135deg,rgba(243,71,94,.06),rgba(242,50,76,.03))}.bottom-box .label{color:#e6a8b0;font-size:7px;font-weight:900;letter-spacing:.14em;text-transform:uppercase}.bottom-box strong{display:block;margin-top:4px;font-family:"Barlow Condensed",sans-serif;font-size:23px;line-height:1}.bottom-box span{display:block;margin-top:4px;color:var(--muted);font-size:9px}
@@ -1287,9 +1315,15 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 
         <div id="member-section-challenges" class="member-view">
           <div class="card">
-            <div class="panel-head"><div><div class="kicker">Live Arena</div><h3>CHALLENGES</h3><div class="subtle">Post a new challenge from 10:00 AM until before 12:00 AM. Live challenges from the current daily cycle are shown below.</div></div><span class="badge badge-blue">LIVE</span></div>
+            <div class="panel-head"><div><div class="kicker">Live Arena</div><h3>CHALLENGES</h3><div class="subtle">Post a new challenge from 10:00 AM until 11:59 PM. Live challenges from the current daily cycle are shown below.</div></div><span class="badge badge-blue">LIVE</span></div>
             <form id="challenge-form" novalidate>
-              <div class="field-grid"><label class="full">MATCH TIME<input id="challenge-time" type="time" required /></label><label class="full">WEAPONS</label></div>
+              <div class="field-grid"><label class="full">MATCH TIME
+                <input id="challenge-time" type="hidden" required />
+                <button id="challenge-time-picker" class="time-picker-trigger" type="button" aria-haspopup="dialog" aria-controls="time-picker-backdrop" aria-expanded="false">
+                  <span id="challenge-time-display">SELECT MATCH TIME</span>
+                  <span class="time-picker-arrow">›</span>
+                </button>
+              </label><label class="full">WEAPONS</label></div>
               <div id="weapon-grid" class="rules-grid"></div>
               <label style="margin-top:11px">ACTIVE SKILLS</label><div id="skill-grid" class="rules-grid"></div>
               <div class="split-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px"><button id="challenge-submit" class="btn btn-primary" type="submit">POST CHALLENGE</button></div>
@@ -1349,11 +1383,24 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
     </section>
   </main>
 
+  <div id="time-picker-backdrop" class="time-picker-backdrop" aria-hidden="true">
+    <div class="time-picker-modal" role="dialog" aria-modal="true" aria-labelledby="time-picker-title">
+      <div class="time-picker-head"><div><div class="kicker">Match Schedule</div><h3 id="time-picker-title">SET MATCH TIME</h3></div><button id="time-picker-close" class="time-picker-close" type="button" aria-label="Close">×</button></div>
+      <div class="time-picker-preview"><div id="time-picker-preview-time" class="time-picker-preview-time">12:00 AM</div><div class="time-picker-preview-note">Pakistan time</div></div>
+      <div class="time-picker-controls">
+        <div class="time-picker-control"><label for="time-picker-hour">HOUR</label><select id="time-picker-hour" class="time-picker-select"></select></div>
+        <div class="time-picker-control"><label for="time-picker-minute">MINUTE</label><select id="time-picker-minute" class="time-picker-select"></select></div>
+        <div class="time-picker-control time-picker-ampm"><label>PERIOD</label><div class="time-picker-ampm-buttons"><button id="time-picker-am" type="button" data-period="AM">AM</button><button id="time-picker-pm" type="button" data-period="PM">PM</button></div></div>
+      </div>
+      <div class="time-picker-actions"><button id="time-picker-clear" class="btn btn-ghost" type="button">CLEAR</button><div class="time-picker-actions-right"><button id="time-picker-cancel" class="btn btn-ghost" type="button">CANCEL</button><button id="time-picker-set" class="btn btn-primary" type="button">SET</button></div></div>
+    </div>
+  </div>
+
   <div id="modal-backdrop" class="modal-backdrop"><div id="modal" class="modal"></div></div>
   <div id="password-recovery-backdrop" class="modal-backdrop"><div class="modal"><div class="modal-head"><div><div class="kicker">Account Recovery</div><h3>SET NEW PASSWORD</h3></div></div><form id="password-recovery-form"><label>NEW PASSWORD<input id="recovery-password" type="password" minlength="8" autocomplete="new-password" placeholder="Minimum 8 characters" required /></label><label style="margin-top:10px">CONFIRM PASSWORD<input id="recovery-password-confirm" type="password" minlength="8" autocomplete="new-password" placeholder="Repeat new password" required /></label><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px"><button class="btn btn-primary" type="submit">UPDATE PASSWORD</button></div><div id="recovery-status" class="status"></div></form></div></div>
-  <footer class="footer"><div class="container footer-inner"><span>7TH UNIVERSE • GUILD VS GUILD</span><span>RULES ARE EQUAL FOR ALL GUILDS</span><span class="version-chip">V18.6 • MIDNIGHT CHALLENGE FIX</span></div></footer>
+  <footer class="footer"><div class="container footer-inner"><span>7TH UNIVERSE • GUILD VS GUILD</span><span>RULES ARE EQUAL FOR ALL GUILDS</span><span class="version-chip">V18.6 • CHALLENGE TIME UPDATE</span></div></footer>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="./script.js?v=18.4-ranking-sql-fix"></script>
+  <script src="./script.js?v=18.7-custom-time-picker"></script>
 </body>
 </html>
