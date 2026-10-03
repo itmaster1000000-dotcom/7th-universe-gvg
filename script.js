@@ -69,7 +69,7 @@ function setBusy(buttonId,busy,label){ let btn=$(buttonId); if(btn?.tagName==='F
 function humanizeError(error){ const msg=String(error?.message || error?.error_description || error || 'Unknown error').trim(); return msg.replace(/^(Error:\s*)/i,''); }
 function currentPakistanParts(){ const parts=new Intl.DateTimeFormat('en-CA',{timeZone:TIME_ZONE,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).formatToParts(new Date()); const o={}; for(const p of parts) o[p.type]=p.value; return {year:Number(o.year),month:Number(o.month),day:Number(o.day),hour:Number(o.hour)%24,minute:Number(o.minute)}; }
 function cycleStartDateKey(){ const p=currentPakistanParts(); const d=new Date(Date.UTC(p.year,p.month-1,p.day)); if(p.hour<10) d.setUTCDate(d.getUTCDate()-1); return d.toISOString().slice(0,10); }
-function challengePostingOpen(){ const p=currentPakistanParts(); const mins=p.hour*60+p.minute; return mins>=600 && mins<1380; }
+function challengePostingOpen(){ const p=currentPakistanParts(); const mins=p.hour*60+p.minute; return mins>=600 && mins<1440; }
 function cycleStartForChallenge(challengeCreatedAt){ const d=new Date(new Intl.DateTimeFormat('en-US',{timeZone:TIME_ZONE,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(challengeCreatedAt))); if(Number.isNaN(d.getTime())) return null; const p=new Intl.DateTimeFormat('en-US',{timeZone:TIME_ZONE,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).formatToParts(new Date(challengeCreatedAt)); const o={}; for(const x of p)o[x.type]=x.value; const local=new Date(Date.UTC(Number(o.year),Number(o.month)-1,Number(o.day),Number(o.hour)%24,Number(o.minute))); if(Number(o.hour)<10)local.setUTCDate(local.getUTCDate()-1); return local.toISOString().slice(0,10); }
 
 function openView(name){
@@ -645,13 +645,14 @@ async function uploadResultImages(files){
 }
 
 async function handleChallengeSubmit(e){
-  e.preventDefault();clearStatus('challenge-status');if(!guildApproved())return showStatus('challenge-status','error','Your guild is not approved or is currently banned.');if(!challengePostingOpen())return showStatus('challenge-status','error','New challenges are allowed only from 10:00 AM until before 11:00 PM Pakistan time.');
+  e.preventDefault();clearStatus('challenge-status');if(!guildApproved())return showStatus('challenge-status','error','Your guild is not approved or is currently banned.');if(!challengePostingOpen())return showStatus('challenge-status','error','New challenges are allowed only from 10:00 AM until before 12:00 AM Pakistan time.');
   const time=$('challenge-time').value; const weapons=[...document.querySelectorAll('input[name="weapons"]:checked')].map(x=>x.value); const skills=[...document.querySelectorAll('input[name="skills"]:checked')].map(x=>x.value);
   if(!time||!weapons.length){showStatus('challenge-status','error','Match time and at least one weapon are required.');return;}
   try{setBusy('challenge-submit',true);const {data,error}=await db.rpc('submit_gvg_challenge',{p_challenge_time:time,p_weapons:weapons,p_active_skills:skills});if(error)throw error;showStatus('challenge-status','ok',`Challenge ${data?.challenge_code||''} posted successfully.`);$('challenge-form').reset();await loadLiveChallenges();}catch(error){showStatus('challenge-status','error',humanizeError(error));}finally{setBusy('challenge-submit',false,'POST CHALLENGE');}
 }
 
 async function handleResultSubmit(e){
+  // V18.5: Results may be submitted at any time for an active challenge.
   e.preventDefault();clearStatus('result-status');if(!guildApproved())return showStatus('result-status','error','Your guild is not approved or is currently banned.');
   const challengeId=$('result-challenge').value,winner=$('result-winner').value,loser=$('result-loser').value,score=$('result-score').value.trim();const files=[$('result-image-1').files[0],$('result-image-2').files[0]].filter(Boolean);
   if(!challengeId||!winner||!loser||!score)return showStatus('result-status','error','Challenge, winner, loser and score are required.'); if(normalizeGuild(winner)===normalizeGuild(loser))return showStatus('result-status','error','Winner and loser must be different.');if(files.length!==2)return showStatus('result-status','error','Exactly 2 proof screenshots are required.');
@@ -706,28 +707,21 @@ async function loadRanking(){
   if(topTarget) topTarget.innerHTML='<tr><td colspan="3">Loading ranking…</td></tr>';
   if(bottomTarget) bottomTarget.innerHTML='<div class="muted" style="font-size:9px">Loading…</div>';
 
-  /*
-     Primary Top 20 source = the original/current-week leaderboard RPC.
-     This RPC already exists in the live project. We use it first so the
-     ranking does not depend on the newer helper RPC being present in the
-     PostgREST schema cache. If it fails, fall back to the V18 helper.
-  */
+  // V18.4: use the V18 Top-20 RPC first. The SQL patch below fixes
+  // the rank_no ambiguity in both ranking RPCs.
   try{
-    let topResult=await rpcWithTimeout('Top 20 ranking',()=>db.rpc('get_gvg_weekly_leaderboard'));
+    let topResult=await rpcWithTimeout('Top 20 ranking',()=>db.rpc('get_gvg_weekly_top20'));
     if(topResult?.error) throw topResult.error;
-    let rows=(topResult?.data||[]).slice(0,20);
+    let rows=topResult?.data||[];
 
+    // Compatibility fallback for older deployments.
     if(!rows.length){
-      try{
-        const fallback=await rpcWithTimeout('Top 20 fallback',()=>db.rpc('get_gvg_weekly_top20'));
-        if(fallback?.error) throw fallback.error;
-        rows=fallback?.data||[];
-      }catch(fallbackError){
-        console.warn('Top 20 fallback failed:',fallbackError);
-      }
+      const fallback=await rpcWithTimeout('Top 20 fallback',()=>db.rpc('get_gvg_weekly_leaderboard'));
+      if(fallback?.error) throw fallback.error;
+      rows=fallback?.data||[];
     }
 
-    state.top20=rows;
+    state.top20=rows.slice(0,20);
     if(topTarget){
       topTarget.innerHTML=state.top20.length
         ? state.top20.map((r,i)=>{
@@ -741,7 +735,7 @@ async function loadRanking(){
     if(topTarget) topTarget.innerHTML=`<tr><td colspan="3">${escapeHtml(humanizeError(error))}</td></tr>`;
   }
 
-  /* Bottom Guild remains its own independent request. */
+  // Bottom Guild remains independent so it cannot block Top 20.
   try{
     const bottomResult=await rpcWithTimeout('Bottom guild',()=>db.rpc('get_gvg_weekly_bottom'));
     if(bottomResult?.error) throw bottomResult.error;
