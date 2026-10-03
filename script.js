@@ -644,98 +644,6 @@ async function uploadResultImages(files){
   return urls;
 }
 
-/* --------------------- Custom Match Time Picker --------------------- */
-const timePickerState = { hour: 12, minute: 0, period: 'AM', previousValue: '' };
-
-function pad2(n){ return String(n).padStart(2,'0'); }
-
-function formatPickerTime(){
-  return `${timePickerState.hour}:${pad2(timePickerState.minute)} ${timePickerState.period}`;
-}
-
-function pickerPartsFrom24(value){
-  const m=String(value||'').match(/^(\d{1,2}):(\d{2})$/);
-  if(!m) return {hour:12,minute:0,period:'AM'};
-  let h=Number(m[1]);
-  const minute=Math.min(59,Math.max(0,Number(m[2])));
-  h=Math.max(0,Math.min(23,h));
-  if(h===0)return {hour:12,minute,period:'AM'};
-  if(h===12)return {hour:12,minute,period:'PM'};
-  if(h>12)return {hour:h-12,minute,period:'PM'};
-  return {hour:h,minute,period:'AM'};
-}
-
-function pickerValueTo24(){
-  let h=timePickerState.hour%12;
-  if(timePickerState.period==='PM')h+=12;
-  return `${pad2(h)}:${pad2(timePickerState.minute)}`;
-}
-
-function populateTimePicker(){
-  const hour=$('time-picker-hour'), minute=$('time-picker-minute');
-  if(!hour||!minute)return;
-  hour.innerHTML=Array.from({length:12},(_,i)=>{const n=i+1;return `<option value="${n}">${pad2(n)}</option>`;}).join('');
-  minute.innerHTML=Array.from({length:60},(_,i)=>`<option value="${i}">${pad2(i)}</option>`).join('');
-}
-
-function renderTimePicker(){
-  const hour=$('time-picker-hour'), minute=$('time-picker-minute'), preview=$('time-picker-preview-time'), am=$('time-picker-am'), pm=$('time-picker-pm');
-  if(hour)hour.value=String(timePickerState.hour);
-  if(minute)minute.value=String(timePickerState.minute);
-  if(preview)preview.textContent=formatPickerTime();
-  am?.classList.toggle('active',timePickerState.period==='AM');
-  pm?.classList.toggle('active',timePickerState.period==='PM');
-}
-
-function openTimePicker(){
-  const backdrop=$('time-picker-backdrop');
-  if(!backdrop)return;
-  timePickerState.previousValue=$('challenge-time')?.value||'';
-  const parts=pickerPartsFrom24(timePickerState.previousValue);
-  timePickerState.hour=parts.hour;timePickerState.minute=parts.minute;timePickerState.period=parts.period;
-  renderTimePicker();
-  backdrop.classList.add('open');backdrop.setAttribute('aria-hidden','false');
-  $('challenge-time-picker')?.setAttribute('aria-expanded','true');
-}
-
-function closeTimePicker(){
-  const backdrop=$('time-picker-backdrop');
-  if(!backdrop)return;
-  backdrop.classList.remove('open');backdrop.setAttribute('aria-hidden','true');
-  $('challenge-time-picker')?.setAttribute('aria-expanded','false');
-}
-
-function clearTimePicker(){
-  const input=$('challenge-time'),display=$('challenge-time-display'),trigger=$('challenge-time-picker');
-  if(input)input.value='';
-  if(display)display.textContent='SELECT MATCH TIME';
-  trigger?.classList.remove('has-value');
-  closeTimePicker();
-}
-
-function setTimePicker(){
-  const input=$('challenge-time'),display=$('challenge-time-display'),trigger=$('challenge-time-picker');
-  if(!input||!display)return;
-  input.value=pickerValueTo24();
-  display.textContent=formatPickerTime();
-  trigger?.classList.add('has-value');
-  closeTimePicker();
-}
-
-function initTimePicker(){
-  populateTimePicker();
-  $('challenge-time-picker')?.addEventListener('click',openTimePicker);
-  $('time-picker-close')?.addEventListener('click',closeTimePicker);
-  $('time-picker-cancel')?.addEventListener('click',closeTimePicker);
-  $('time-picker-clear')?.addEventListener('click',clearTimePicker);
-  $('time-picker-set')?.addEventListener('click',setTimePicker);
-  $('time-picker-hour')?.addEventListener('change',(e)=>{timePickerState.hour=Number(e.target.value)||12;renderTimePicker();});
-  $('time-picker-minute')?.addEventListener('change',(e)=>{timePickerState.minute=Number(e.target.value)||0;renderTimePicker();});
-  $('time-picker-am')?.addEventListener('click',()=>{timePickerState.period='AM';renderTimePicker();});
-  $('time-picker-pm')?.addEventListener('click',()=>{timePickerState.period='PM';renderTimePicker();});
-  $('time-picker-backdrop')?.addEventListener('click',(e)=>{if(e.target===$('time-picker-backdrop'))closeTimePicker();});
-}
-
 async function handleChallengeSubmit(e){
   e.preventDefault();clearStatus('challenge-status');if(!guildApproved())return showStatus('challenge-status','error','Your guild is not approved or is currently banned.');if(!challengePostingOpen())return showStatus('challenge-status','error','New challenges are allowed from 10:00 AM until 11:59 PM Pakistan time. At 12:00 AM, challenges close.');
   const time=$('challenge-time').value; const weapons=[...document.querySelectorAll('input[name="weapons"]:checked')].map(x=>x.value); const skills=[...document.querySelectorAll('input[name="skills"]:checked')].map(x=>x.value);
@@ -1092,7 +1000,6 @@ $('login-form').addEventListener('submit',handleLogin);
 $('register-form').addEventListener('submit',handleRegister);
 $('forgot-password').addEventListener('click',handleForgot);
 $('challenge-form').addEventListener('submit',handleChallengeSubmit);
-initTimePicker();
 $('result-form').addEventListener('submit',handleResultSubmit);
 $('admin-login-form').addEventListener('submit',handleAdminLogin);
 $('admin-logout').addEventListener('click',async()=>{try{await adminDb.auth.signOut();}catch{}state.adminUser=null;state.adminOk=false;openView(state.user?'member':'public');});
