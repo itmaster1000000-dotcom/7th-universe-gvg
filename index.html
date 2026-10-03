@@ -1205,6 +1205,14 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
     button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline-color:rgba(255,104,126,.55)!important}
 
 </style>
+
+<style>
+.bottom-box{margin-bottom:18px!important;}
+#bottom-guild{min-height:96px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;text-align:center;}
+.bottom-guild-name{font-family:"Barlow Condensed",sans-serif;font-size:30px;font-weight:900;line-height:1.05;letter-spacing:.03em;text-transform:uppercase;}
+.bottom-guild-points{font-family:"Barlow Condensed",sans-serif;font-size:22px;font-weight:900;line-height:1;color:#f49ba7;}
+.bottom-guild-record{font-size:9px;font-weight:800;letter-spacing:.06em;color:#c9959c;}
+</style>
 </head>
 <body>
   <div class="topline"></div>
@@ -1274,12 +1282,12 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
             <div class="panel-head"><div><div class="kicker">Mandatory Fair Play</div><h3>GVG RULES</h3><div class="subtle">Rules are equal for all guilds in the 7TH UNIVERSE community.</div></div><span class="badge badge-gold">11 RULES</span></div>
             <div class="rules-grid" id="rules-grid"></div>
           </div>
-          <div class="dashboard-note"><span><b>Challenge window:</b> 10:00 AM–10:59 PM Pakistan time. At 11 PM no new challenge is allowed.</span><span><b>Daily cycle:</b> resets at 10:00 AM. Old challenges stay result-eligible until 9:59 AM next cycle.</span></div>
+          <div class="dashboard-note"><span><b>Challenge window:</b> 10:00 AM–11:59 PM Pakistan time. At 12:00 AM no new challenge is allowed.</span><span><b>Daily cycle:</b> resets at 10:00 AM. Old challenges stay result-eligible until 9:59 AM next cycle.</span></div>
         </div>
 
         <div id="member-section-challenges" class="member-view">
           <div class="card">
-            <div class="panel-head"><div><div class="kicker">Live Arena</div><h3>CHALLENGES</h3><div class="subtle">Post a new challenge from 10:00 AM until before 11:00 PM. Live challenges from the current daily cycle are shown below.</div></div><span class="badge badge-blue">LIVE</span></div>
+            <div class="panel-head"><div><div class="kicker">Live Arena</div><h3>CHALLENGES</h3><div class="subtle">Post a new challenge from 10:00 AM until before 12:00 AM. Live challenges from the current daily cycle are shown below.</div></div><span class="badge badge-blue">LIVE</span></div>
             <form id="challenge-form" novalidate>
               <div class="field-grid"><label class="full">MATCH TIME<input id="challenge-time" type="time" required /></label><label class="full">WEAPONS</label></div>
               <div id="weapon-grid" class="rules-grid"></div>
@@ -1296,7 +1304,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
             <div class="panel-head"><div><div class="kicker">Verified Records</div><h3>RESULTS</h3><div class="subtle">Either guild involved in the challenge may submit the result. Exactly 2 proof screenshots are required.</div></div><span class="badge badge-gold">ADMIN REVIEW</span></div>
             <form id="result-form" novalidate>
               <div class="field-grid"><label class="full">CHALLENGE<select id="result-challenge" required><option value="">Select an active challenge</option></select></label><label>WINNER GUILD<div class="autocomplete-wrap"><input id="result-winner" type="text" maxlength="80" placeholder="Enter winner guild name" autocomplete="off" required /><div id="result-winner-suggestions" class="autocomplete-list"></div></div></label><label>LOSER GUILD<div class="autocomplete-wrap"><input id="result-loser" type="text" maxlength="80" placeholder="Enter loser guild name" autocomplete="off" required /><div id="result-loser-suggestions" class="autocomplete-list"></div></div></label><label class="full">SCORE<input id="result-score" type="text" maxlength="80" placeholder="Example: 6 - 4" required /></label><label>PROOF SCREENSHOT 1<input id="result-image-1" type="file" accept="image/jpeg,image/png,image/webp" required /></label><label>PROOF SCREENSHOT 2<input id="result-image-2" type="file" accept="image/jpeg,image/png,image/webp" required /></label></div>
-              <div class="hint">Results can be submitted after 11:00 PM for active challenges, until 9:59 AM. After 10:00 AM the old challenge expires.</div>
+              <div class="hint">Results can be submitted anytime for an active challenge. After 10:00 AM the daily challenge expires.</div>
               <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px"><button id="result-submit" class="btn btn-primary" type="submit">SUBMIT RESULT</button></div><div id="result-status" class="status"></div>
             </form>
             <div class="divider"></div><div class="kicker">My Result Submissions</div><div id="my-result-list" class="result-list" style="margin-top:9px"><div class="empty">Loading your submissions...</div></div><div class="divider"></div><div class="kicker">Approved Results</div><div id="approved-result-list" class="result-list" style="margin-top:9px"><div class="empty">Loading approved results...</div></div>
@@ -1343,9 +1351,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 
   <div id="modal-backdrop" class="modal-backdrop"><div id="modal" class="modal"></div></div>
   <div id="password-recovery-backdrop" class="modal-backdrop"><div class="modal"><div class="modal-head"><div><div class="kicker">Account Recovery</div><h3>SET NEW PASSWORD</h3></div></div><form id="password-recovery-form"><label>NEW PASSWORD<input id="recovery-password" type="password" minlength="8" autocomplete="new-password" placeholder="Minimum 8 characters" required /></label><label style="margin-top:10px">CONFIRM PASSWORD<input id="recovery-password-confirm" type="password" minlength="8" autocomplete="new-password" placeholder="Repeat new password" required /></label><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px"><button class="btn btn-primary" type="submit">UPDATE PASSWORD</button></div><div id="recovery-status" class="status"></div></form></div></div>
-  <footer class="footer"><div class="container footer-inner"><span>7TH UNIVERSE • GUILD VS GUILD</span><span>RULES ARE EQUAL FOR ALL GUILDS</span><span class="version-chip">V18.3 • RANKING FIX FINAL</span></div></footer>
+  <footer class="footer"><div class="container footer-inner"><span>7TH UNIVERSE • GUILD VS GUILD</span><span>RULES ARE EQUAL FOR ALL GUILDS</span><span class="version-chip">V18.6 • MIDNIGHT CHALLENGE FIX</span></div></footer>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="./script.js?v=18.2-ranking-fix"></script>
+  <script src="./script.js?v=18.4-ranking-sql-fix"></script>
 </body>
 </html>
