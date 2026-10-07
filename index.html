@@ -1241,6 +1241,45 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .bottom-guild-points{font-family:"Barlow Condensed",sans-serif;font-size:22px;font-weight:900;line-height:1;color:#f49ba7;}
 .bottom-guild-record{font-size:9px;font-weight:800;letter-spacing:.06em;color:#c9959c;}
 </style>
+<style>
+/* Weekly GVG additions */
+.registered-guilds-card,.weekly-matches-section{position:relative;}
+.registered-guild-intro,.weekly-window{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 12px;padding:10px 12px;border:1px solid rgba(255,255,255,.07);border-radius:12px;background:rgba(255,255,255,.018);color:var(--muted);font-size:8px;font-weight:900;letter-spacing:.11em;text-transform:uppercase;}
+.registered-guild-intro span:first-child,.weekly-window{color:#f0b8c1;}
+.registered-guild-shell{max-height:62vh;}
+.registered-guild-table td,.registered-guild-table th{vertical-align:middle!important;}
+.registered-guild-name{font-family:"Barlow Condensed",sans-serif;font-size:20px;font-weight:900;line-height:1;text-transform:uppercase;}
+.registered-guild-leaders{font-family:"Barlow Condensed",sans-serif;font-size:18px;font-weight:900;}
+.registered-status{display:inline-flex;padding:5px 8px;border-radius:999px;font-size:7px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;}
+.registered-status-approved{color:#f1a6b0;background:rgba(215,24,49,.08);border:1px solid rgba(215,24,49,.2)}
+.registered-status-pending{color:#eeb7be;background:rgba(233,94,113,.08);border:1px solid rgba(233,94,113,.2)}
+.registered-status-rejected{color:#f0c1c7;background:rgba(243,71,94,.07);border:1px solid rgba(243,71,94,.2)}
+.registered-status-banned{color:#fff;background:rgba(243,71,94,.12);border:1px solid rgba(243,71,94,.3)}
+.weekly-window{margin-top:0;border-color:rgba(233,94,113,.16);background:linear-gradient(135deg,rgba(233,94,113,.06),rgba(255,255,255,.02));font-family:"Barlow Condensed",sans-serif;font-size:16px;letter-spacing:.06em;color:#f8dce1;}
+.weekly-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:12px;}
+.weekly-kpi{padding:13px;border:1px solid rgba(255,255,255,.07);border-radius:14px;background:linear-gradient(145deg,rgba(255,255,255,.035),rgba(255,255,255,.012));box-shadow:var(--shadow2);}
+.weekly-kpi span{display:block;color:#7d8985;font-size:7px;font-weight:900;letter-spacing:.14em;}
+.weekly-kpi strong{display:block;margin-top:5px;font-family:"Barlow Condensed",sans-serif;font-size:28px;line-height:1;font-weight:900;color:#f2b5be;}
+.weekly-kpi small{display:block;margin-top:5px;color:var(--muted);font-size:7px;line-height:1.45;}
+.weekly-day-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;}
+.weekly-day-card{padding:12px 9px;border:1px solid rgba(255,255,255,.07);border-radius:12px;background:rgba(255,255,255,.02);text-align:center;}
+.weekly-day-card.today{border-color:rgba(242,50,76,.3);background:linear-gradient(145deg,rgba(242,50,76,.08),rgba(255,255,255,.02));}
+.weekly-day-card span{display:block;color:#87928f;font-size:7px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;}
+.weekly-day-card strong{display:block;margin-top:5px;font-family:"Barlow Condensed",sans-serif;font-size:27px;line-height:1;color:#f5c8ce;}
+.weekly-day-card small{display:block;margin-top:4px;color:var(--muted);font-size:7px;}
+.weekly-guild-shell{overflow:auto;}
+table.weekly-guild-table{min-width:1030px;}
+table.weekly-guild-table th,table.weekly-guild-table td{text-align:center;vertical-align:middle;}
+table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{text-align:left;position:sticky;left:0;z-index:2;background:#12070a;}
+.weekly-guild-row-name{font-family:"Barlow Condensed",sans-serif;font-size:18px;font-weight:900;line-height:1;text-transform:uppercase;white-space:nowrap;}
+.weekly-count{font-family:"Barlow Condensed",sans-serif;font-size:17px;font-weight:900;}
+.weekly-total{color:#f2a9b3;}
+.weekly-win{color:#ec9eaa;}
+.weekly-loss{color:#d99da7;}
+.weekly-guild-table tbody tr.live-row td{background:rgba(215,24,49,.022);}
+@media(max-width:900px){.weekly-kpis{grid-template-columns:repeat(2,minmax(0,1fr));}.weekly-day-grid{grid-template-columns:repeat(4,minmax(0,1fr));}}
+@media(max-width:560px){.weekly-day-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.weekly-kpi strong{font-size:24px;}.registered-guild-table{min-width:610px;}}
+</style>
 </head>
 <body>
   <div class="topline"></div>
@@ -1303,6 +1342,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
           <button class="member-tab" type="button" data-member-section="challenges">CHALLENGES</button>
           <button class="member-tab" type="button" data-member-section="results">RESULTS</button>
           <button class="member-tab" type="button" data-member-section="ranking">RANKING</button>
+          <button class="member-tab" type="button" data-member-section="registered-guilds">REGISTERED GUILDS</button>
         </div>
 
         <div id="member-section-rules" class="member-view active">
@@ -1339,7 +1379,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
             <div class="panel-head"><div><div class="kicker">Verified Records</div><h3>RESULTS</h3><div class="subtle">Either guild involved in the challenge may submit the result. Exactly 2 proof screenshots are required.</div></div><span class="badge badge-gold">ADMIN REVIEW</span></div>
             <form id="result-form" novalidate>
               <div class="field-grid"><label class="full">CHALLENGE<select id="result-challenge" required><option value="">Select an active challenge</option></select></label><label>WINNER GUILD<div class="autocomplete-wrap"><input id="result-winner" type="text" maxlength="80" placeholder="Enter winner guild name" autocomplete="off" required /><div id="result-winner-suggestions" class="autocomplete-list"></div></div></label><label>LOSER GUILD<div class="autocomplete-wrap"><input id="result-loser" type="text" maxlength="80" placeholder="Enter loser guild name" autocomplete="off" required /><div id="result-loser-suggestions" class="autocomplete-list"></div></div></label><label class="full">SCORE<input id="result-score" type="text" maxlength="80" placeholder="Example: 6 - 4" required /></label><label>PROOF SCREENSHOT 1<input id="result-image-1" type="file" accept="image/jpeg,image/png,image/webp" required /></label><label>PROOF SCREENSHOT 2<input id="result-image-2" type="file" accept="image/jpeg,image/png,image/webp" required /></label></div>
-              <div class="hint">Results can be submitted anytime for an active challenge. After 10:00 AM the daily challenge expires.</div>
+              <div class="hint">Results can be submitted anytime for an active challenge. Maximum 8 result submissions per guild per Pakistan day. After 10:00 AM the daily challenge expires.</div>
               <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px"><button id="result-submit" class="btn btn-primary" type="submit">SUBMIT RESULT</button></div><div id="result-status" class="status"></div>
             </form>
             <div class="divider"></div><div class="kicker">My Result Submissions</div><div id="my-result-list" class="result-list" style="margin-top:9px"><div class="empty">Loading your submissions...</div></div><div class="divider"></div><div class="kicker">Approved Results</div><div id="approved-result-list" class="result-list" style="margin-top:9px"><div class="empty">Loading approved results...</div></div>
@@ -1358,6 +1398,29 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
             </div>
           </div>
         </div>
+        <div id="member-section-registered-guilds" class="member-view">
+          <div class="card registered-guilds-card">
+            <div class="panel-head">
+              <div>
+                <div class="kicker">Community Directory</div>
+                <h3>REGISTERED GUILDS</h3>
+                <div class="subtle">All guilds registered in the 7TH UNIVERSE GVG system. Guild names are grouped so a two-leader guild appears once.</div>
+              </div>
+              <span class="badge badge-blue" id="registered-guild-count">LOADING</span>
+            </div>
+            <div class="registered-guild-intro">
+              <span>COMMUNITY GUILD DIRECTORY</span>
+              <span>UPDATED FROM SUPABASE</span>
+            </div>
+            <div class="admin-table-shell registered-guild-shell">
+              <table class="rank-table registered-guild-table">
+                <thead><tr><th>#</th><th>Guild</th><th>Leaders</th><th>Status</th></tr></thead>
+                <tbody id="registered-guild-list"><tr><td colspan="4">Loading registered guilds...</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
       </div>
     </section>
 
@@ -1370,11 +1433,54 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 
         <div id="admin-dashboard" class="hidden">
           <div class="admin-head"><div><div class="kicker">7TH UNIVERSE • ADMIN</div><h2 class="title">CONTROL CENTER</h2><div id="admin-session-label" class="desc">Authenticated admin</div></div><button id="admin-logout" class="btn btn-red btn-small" type="button">ADMIN LOGOUT</button></div>
-          <div class="admin-tabs" role="tablist" aria-label="Admin sections"><button class="admin-tab active" type="button" data-admin-section="guilds" aria-selected="true">GUILDS</button><button class="admin-tab" type="button" data-admin-section="results" aria-selected="false">RESULTS REVIEW</button><button class="admin-tab" type="button" data-admin-section="ban" aria-selected="false">BAN GUILD</button></div>
+          <div class="admin-tabs" role="tablist" aria-label="Admin sections"><button class="admin-tab active" type="button" data-admin-section="guilds" aria-selected="true">GUILDS</button><button class="admin-tab" type="button" data-admin-section="results" aria-selected="false">RESULTS REVIEW</button><button class="admin-tab" type="button" data-admin-section="weekly" aria-selected="false">WEEKLY MATCHES</button><button class="admin-tab" type="button" data-admin-section="ban" aria-selected="false">BAN GUILD</button></div>
           <div class="admin-layout">
             <div id="admin-section-guilds" class="admin-panel-view active"><section class="admin-section"><div class="admin-section-head"><div><div class="kicker">Guild Management</div><h3>GUILDS</h3><div class="subtle">New registrations are reviewed first. All guilds are searchable separately below.</div></div><span class="badge badge-gold">GUILD CONTROL</span></div><div class="admin-section-body"><div class="admin-panel review-section"><div class="panel-head"><div><div class="kicker">First Priority</div><h3>GUILD REVIEW</h3><div class="subtle">Newly registered guilds appear at the top.</div></div><span class="badge badge-gold">NEW FIRST</span></div><div class="admin-table-shell"><table class="admin-table"><thead><tr><th>Guild</th><th>Status</th><th>Menu</th></tr></thead><tbody id="pending-guild-table"><tr><td colspan="3">Loading new guilds...</td></tr></tbody></table></div></div><div class="card"><div class="panel-head"><div><div class="kicker">Directory</div><h3>ALL GUILDS</h3><div class="subtle">Only Guild Name + Status are shown in the list.</div></div><span class="badge badge-blue">SEARCH</span></div><div class="search-bar"><input id="admin-guild-search" type="search" placeholder="Search guild name, contact or email..." autocomplete="off" /><span class="search-icon">⌕</span></div><div class="admin-table-shell" style="margin-top:10px"><table class="admin-table"><thead><tr><th>Guild</th><th>Status</th><th>Menu</th></tr></thead><tbody id="all-guild-table"><tr><td colspan="3">Loading guilds...</td></tr></tbody></table></div></div></div></section></div>
 
             <div id="admin-section-results" class="admin-panel-view"><section class="admin-section"><div class="admin-section-head"><div><div class="kicker">Admin Verification</div><h3>RESULTS REVIEW</h3><div class="subtle">Results are now a separate admin section. Normally only match names, score and status are shown; open a result to view both proofs.</div></div><span class="badge badge-gold">PROOF REVIEW</span></div><div class="admin-table-shell"><table class="admin-table"><thead><tr><th>Match</th><th>Score</th><th>Submitted (PKT)</th><th>Status / Proof</th><th>Action</th></tr></thead><tbody id="admin-result-table"><tr><td colspan="5">Loading results...</td></tr></tbody></table></div></section></div>
+
+            <div id="admin-section-weekly" class="admin-panel-view">
+              <section class="admin-section weekly-matches-section">
+                <div class="admin-section-head">
+                  <div>
+                    <div class="kicker">Live Competition Tracking</div>
+                    <h3>WEEKLY MATCHES</h3>
+                    <div class="subtle">Every submitted result counts as one played match for both participating guilds while it is pending or approved. Rejected results are excluded. The tracker automatically switches to a fresh week every Sunday at 10:00 AM Pakistan time.</div>
+                  </div>
+                  <span class="badge badge-gold">SUNDAY 10 AM RESET</span>
+                </div>
+
+                <div class="weekly-window" id="weekly-window">CURRENT WEEK • LOADING...</div>
+
+                <div class="weekly-kpis">
+                  <div class="weekly-kpi"><span>PLAYED RESULTS</span><strong id="weekly-total-results">0</strong><small>Submitted result records this week</small></div>
+                  <div class="weekly-kpi"><span>ACTIVE GUILDS</span><strong id="weekly-active-guilds">0</strong><small>Guilds with at least one match</small></div>
+                  <div class="weekly-kpi"><span>TOP PLAYING DAY</span><strong id="weekly-top-day">—</strong><small id="weekly-top-day-count">No matches yet</small></div>
+                  <div class="weekly-kpi"><span>LAST REFRESH</span><strong id="weekly-last-refresh">—</strong><small>Pakistan time</small></div>
+                </div>
+
+                <div class="admin-panel weekly-day-panel">
+                  <div class="panel-head">
+                    <div><div class="kicker">Daily Record</div><h3>ALL WEEK DAYS</h3><div class="subtle">How many match results were submitted on each day of the current competitive week.</div></div>
+                    <span class="badge badge-blue">LIVE COUNTER</span>
+                  </div>
+                  <div class="weekly-day-grid" id="weekly-day-grid"><div class="empty">Loading weekly day records...</div></div>
+                </div>
+
+                <div class="admin-panel weekly-guild-panel">
+                  <div class="panel-head">
+                    <div><div class="kicker">Guild Breakdown</div><h3>ALL GUILDS • MATCH PLAYED</h3><div class="subtle">Daily match count for every registered guild, plus the full-week wins/losses total.</div></div>
+                    <span class="badge badge-green">ALL GUILDS</span>
+                  </div>
+                  <div class="admin-table-shell weekly-guild-shell">
+                    <table class="admin-table weekly-guild-table">
+                      <thead><tr><th>Guild</th><th>Sun</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th><th>Total</th><th>W</th><th>L</th></tr></thead>
+                      <tbody id="weekly-guild-table"><tr><td colspan="11">Loading weekly guild records...</td></tr></tbody>
+                    </table>
+                  </div>
+                </div>
+              </section>
+            </div>
 
             <div id="admin-section-ban" class="admin-panel-view"><section class="admin-section"><div class="admin-section-head"><div><div class="kicker">Enforcement</div><h3>BAN GUILD</h3><div class="subtle">Permanent or timed ban by guild name/contact number. Ban is shared across both leaders.</div></div><span class="badge badge-red">BAN CONTROL</span></div><div class="admin-panel"><form id="ban-form" novalidate><div class="field-grid"><label class="full">GUILD NAME<input id="ban-guild" type="text" maxlength="80" placeholder="Guild name" /></label><label class="full">CONTACT NUMBER<input id="ban-contact" type="tel" maxlength="30" placeholder="03XXXXXXXXX" /></label><label class="full">BAN DURATION<select id="ban-duration"><option value="permanent">Permanent</option><option value="1h">1 Hour</option><option value="6h">6 Hours</option><option value="1d">1 Day</option><option value="3d">3 Days</option><option value="7d">7 Days</option></select></label><label class="full">REASON<input id="ban-reason" type="text" maxlength="250" value="Rule violation" /></label></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px"><button class="btn btn-red" type="submit">BAN GUILD</button></div><div id="ban-status" class="status"></div></form><div class="divider"></div><div class="kicker">Active Ban Records</div><div id="ban-list" class="challenge-list" style="margin-top:9px"><div class="empty">Loading bans...</div></div></div></section></div>
           </div>
