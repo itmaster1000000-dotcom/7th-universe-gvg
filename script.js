@@ -47,7 +47,9 @@ const state = {
   guildOptions: [],
   results: [],
   guilds: [],
-  bans: []
+  bans: [],
+  registeredGuilds: [],
+  weeklyMatches: []
 };
 
 const $ = (id) => document.getElementById(id);
@@ -63,6 +65,14 @@ function normalizeContact(value) { let n = String(value || '').replace(/\D/g, ''
 function formatContact(value) { const n = normalizeContact(value); if (!n) return ''; return n.startsWith('92') && n.length === 12 ? `+92 ${n.slice(2,5)} ${n.slice(5,8)} ${n.slice(8)}` : `+${n}`; }
 function formatTime(value) { if (!value) return '--:--'; const [hRaw,mRaw='00'] = String(value).split(':'); const h = Number(hRaw); if (!Number.isFinite(h)) return '--:--'; return `${h % 12 || 12}:${String(mRaw).padStart(2,'0')} ${h >= 12 ? 'PM' : 'AM'}`; }
 function formatDateTime(value) { try { return new Intl.DateTimeFormat('en-PK',{dateStyle:'medium',timeStyle:'short',timeZone:TIME_ZONE}).format(new Date(value)); } catch { return String(value || ''); } }
+function formatWeekRange(startValue){
+  try{
+    const start=new Date(startValue);
+    const end=new Date(start.getTime()+7*24*60*60*1000);
+    const df=new Intl.DateTimeFormat('en-PK',{day:'numeric',month:'short',year:'numeric',timeZone:TIME_ZONE});
+    return `${df.format(start)} 10:00 AM → ${df.format(end)} 10:00 AM PKT`;
+  }catch{return String(startValue||'');}
+}
 function showStatus(id,type,message){ const el=$(id); if(!el) return; el.className=`status show ${type}`; el.textContent=message; }
 function clearStatus(id){ const el=$(id); if(!el) return; el.className='status'; el.textContent=''; }
 function setBusy(buttonId,busy,label){ let btn=$(buttonId); if(btn?.tagName==='FORM') btn=btn.querySelector('button[type=submit]'); if(!btn) return; btn.disabled=busy; if(busy) btn.dataset.oldText=btn.textContent; btn.textContent=busy?'PLEASE WAIT…':(label||btn.dataset.oldText||'SUBMIT'); }
@@ -110,7 +120,7 @@ function setMemberAccessGate(){
 }
 
 function openMemberSection(name){
-  const allowed=['rules','challenges','results','ranking'];
+  const allowed=['rules','challenges','results','ranking','registered-guilds'];
   const section=allowed.includes(name)?name:'rules';
 
   if(!memberDashboardAllowed()){
@@ -123,6 +133,7 @@ function openMemberSection(name){
   if(section==='challenges') loadLiveChallenges();
   if(section==='results') { loadLiveChallenges(); loadGuildOptions(); loadApprovedResults(); }
   if(section==='ranking') loadRanking();
+  if(section==='registered-guilds') loadRegisteredGuilds();
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
@@ -449,6 +460,31 @@ async function renderMemberIdentity(){
   info.textContent=`${g.guild_name} • ${formatContact(g.contact)} • ${state.user.email}`;
   if(g.is_banned || (g.ban_until && new Date(g.ban_until)>new Date())){badge.className='badge badge-red';badge.textContent='BANNED';return;}
   badge.className=g.approval_status==='approved'?'badge badge-green':'badge badge-gold'; badge.textContent=String(g.approval_status||'').toUpperCase();
+}
+
+async function loadRegisteredGuilds(){
+  const target=$('registered-guild-list');
+  const countBadge=$('registered-guild-count');
+  if(!target) return;
+  target.innerHTML='<tr><td colspan="4">Loading registered guilds...</td></tr>';
+  try{
+    const {data,error}=await db.rpc('get_gvg_registered_guilds');
+    if(error) throw error;
+    state.registeredGuilds=data||[];
+    if(countBadge) countBadge.textContent=`${state.registeredGuilds.length} GUILDS`;
+    target.innerHTML=state.registeredGuilds.length
+      ? state.registeredGuilds.map((g,i)=>{
+          const banned=Boolean(g.is_banned);
+          const status=banned?'BANNED':String(g.approval_status||'').toUpperCase();
+          const cls=banned?'registered-status-banned':g.approval_status==='approved'?'registered-status-approved':g.approval_status==='pending'?'registered-status-pending':'registered-status-rejected';
+          return `<tr><td class="pos">${escapeHtml(g.rank_no||i+1)}</td><td><div class="registered-guild-name">${escapeHtml(g.guild_name)}</div></td><td class="registered-guild-leaders">${escapeHtml(g.leader_count||0)}</td><td><span class="registered-status ${cls}">${escapeHtml(status)}</span></td></tr>`;
+        }).join('')
+      : '<tr><td colspan="4">No registered guilds yet.</td></tr>';
+  }catch(error){
+    console.error('Registered guild load failed:',error);
+    target.innerHTML='<tr><td colspan="4">Could not load registered guilds.</td></tr>';
+    if(countBadge) countBadge.textContent='ERROR';
+  }
 }
 
 async function loadLiveChallenges(){
@@ -784,7 +820,8 @@ async function refreshMember(){
       loadGuildOptions(),
       loadApprovedResults(),
       loadMyResultSubmissions(),
-      loadRanking()
+      loadRanking(),
+      loadRegisteredGuilds()
     ]);
   }
   setMemberAccessGate();
@@ -844,7 +881,7 @@ async function restoreAdmin(){
 }
 async function refreshAdmin(){
   if(!state.adminOk)return; $('admin-session-label').textContent=`${state.adminUser?.email||''} • Admin session active`;
-  await Promise.all([loadAdminGuilds(),loadAdminResults(),loadBans()]);
+  await Promise.all([loadAdminGuilds(),loadAdminResults(),loadBans(),loadAdminWeeklyMatches()]);
 }
 function guildStatusLabel(g){ if(g.is_banned || (g.ban_until&&new Date(g.ban_until)>new Date()))return 'BANNED'; return String(g.approval_status||'').toUpperCase(); }
 function guildStatusClass(g){ if(g.is_banned || (g.ban_until&&new Date(g.ban_until)>new Date()))return 'status-banned'; if(g.approval_status==='approved')return 'status-approved'; if(g.approval_status==='pending')return 'status-pending'; return 'status-rejected'; }
@@ -954,7 +991,7 @@ async function removeLeader(leaderId,guildName){
 }
 
 async function loadAdminResults(){
-  try{const {data,error}=await adminDb.rpc('admin_get_results');if(error)throw error;const rows=data||[];state.results=rows;const target=$('admin-result-table');target.innerHTML=rows.length?rows.map(r=>{const imgs=Array.isArray(r.image_urls)?r.image_urls.slice(0,2):[];const gallery=imgs.length?`<details class="proof-details"><summary>OPEN ${imgs.length} PROOF SCREENSHOTS</summary><div class="proof-gallery">${imgs.map((u,i)=>`<a href="${escapeHtml(u)}" target="_blank" rel="noopener"><span class="proof-tag">PROOF ${i+1}</span><img src="${escapeHtml(u)}" alt="${escapeHtml(r.winner_guild)} vs ${escapeHtml(r.loser_guild)} proof ${i+1}" /></a>`).join('')}</div></details>`:'<span class="muted">No proof</span>';return `<tr><td><strong>${escapeHtml(r.winner_guild)}</strong><div class="muted" style="margin-top:3px">DEFEAT</div><strong>${escapeHtml(r.loser_guild)}</strong></td><td>${escapeHtml(r.score)}</td><td>${escapeHtml(r.created_at?formatDateTime(r.created_at):'—')}</td><td>${gallery}<div style="margin-top:6px"><span class="status-pill ${r.status==='approved'?'status-approved':r.status==='pending'?'status-pending':'status-rejected'}">${escapeHtml(r.status)}</span></div></td><td>${r.status==='pending'?`<div style="display:flex;gap:5px;flex-wrap:wrap"><button class="btn btn-green btn-small" type="button" data-action="approve-result" data-id="${escapeHtml(r.id)}">APPROVE</button><button class="btn btn-red btn-small" type="button" data-action="reject-result" data-id="${escapeHtml(r.id)}">REJECT</button></div>`:'—'}</td></tr>`;}).join(''):'<tr><td colspan="5">No result submissions.</td></tr>';}catch(error){showStatus('admin-status','error',humanizeError(error));}
+  try{const {data,error}=await adminDb.rpc('admin_get_results');if(error)throw error;const rows=data||[];state.results=rows;const target=$('admin-result-table');target.innerHTML=rows.length?rows.map(r=>{const imgs=Array.isArray(r.image_urls)?r.image_urls.slice(0,2):[];const gallery=imgs.length?`<details class="proof-details"><summary>OPEN ${imgs.length} PROOF SCREENSHOTS</summary><div class="proof-gallery">${imgs.map((u,i)=>`<a href="${escapeHtml(u)}" target="_blank" rel="noopener"><span class="proof-tag">PROOF ${i+1}</span><img src="${escapeHtml(u)}" alt="${escapeHtml(r.winner_guild)} vs ${escapeHtml(r.loser_guild)} proof ${i+1}" /></a>`).join('')}</div></details>`:'<span class="muted">No proof</span>';return `<tr><td><strong>${escapeHtml(r.winner_guild)}</strong><div class="muted" style="margin-top:3px">DEFEAT</div><strong>${escapeHtml(r.loser_guild)}</strong></td><td>${escapeHtml(r.score)}</td><td><strong style="font-size:9px">${escapeHtml(formatDateTime(r.created_at))}</strong><div class="muted" style="margin-top:4px;font-size:7px">PAKISTAN TIME</div></td><td>${gallery}<div style="margin-top:6px"><span class="status-pill ${r.status==='approved'?'status-approved':r.status==='pending'?'status-pending':'status-rejected'}">${escapeHtml(r.status)}</span></div></td><td>${r.status==='pending'?`<div style="display:flex;gap:5px;flex-wrap:wrap"><button class="btn btn-green btn-small" type="button" data-action="approve-result" data-id="${escapeHtml(r.id)}">APPROVE</button><button class="btn btn-red btn-small" type="button" data-action="reject-result" data-id="${escapeHtml(r.id)}">REJECT</button></div>`:'—'}</td></tr>`;}).join(''):'<tr><td colspan="4">No result submissions.</td></tr>';}catch(error){showStatus('admin-status','error',humanizeError(error));}
 }
 async function approveResult(id){try{const {error}=await adminDb.rpc('admin_approve_result',{p_result_id:id});if(error)throw error;showStatus('admin-status','ok','Result approved and weekly points awarded.');await Promise.all([loadAdminResults(),loadAdminGuilds()]);}catch(error){showStatus('admin-status','error',humanizeError(error));}}
 async function rejectResult(id){const reason=prompt('Reason for rejection:','Proof or result issue');if(reason===null)return;try{const {error}=await adminDb.rpc('admin_reject_result',{p_result_id:id,p_reason:reason.trim()||'Rejected by admin'});if(error)throw error;showStatus('admin-status','ok','Result rejected. The challenge is open again while it is still inside its cycle.');await loadAdminResults();}catch(error){showStatus('admin-status','error',humanizeError(error));}}
@@ -965,8 +1002,80 @@ async function loadBans(){
 }
 async function unbanIdentity(guild,contact){try{const {error}=await adminDb.rpc('admin_unban_guild_identity',{p_guild_name:guild||null,p_contact:contact||null});if(error)throw error;showStatus('admin-status','ok','Guild unbanned.');await Promise.all([loadAdminGuilds(),loadBans()]);}catch(error){showStatus('admin-status','error',humanizeError(error));}}
 
+function weeklyDayDefinitions(weekStart){
+  const start=new Date(weekStart);
+  const labels=['SUN','MON','TUE','WED','THU','FRI','SAT'];
+  const keys=['sunday_matches','monday_matches','tuesday_matches','wednesday_matches','thursday_matches','friday_matches','saturday_matches'];
+  return labels.map((label,i)=>({label,key:keys[i],date:new Date(start.getTime()+i*24*60*60*1000)}));
+}
+
+function renderWeeklyMatches(rows){
+  const dayTarget=$('weekly-day-grid');
+  const guildTarget=$('weekly-guild-table');
+  const windowTarget=$('weekly-window');
+  const totalTarget=$('weekly-total-results');
+  const activeTarget=$('weekly-active-guilds');
+  const topDayTarget=$('weekly-top-day');
+  const topDayCountTarget=$('weekly-top-day-count');
+  const refreshTarget=$('weekly-last-refresh');
+  if(!dayTarget||!guildTarget) return;
+
+  state.weeklyMatches=rows||[];
+  if(!rows.length){
+    dayTarget.innerHTML='<div class="empty">No registered guilds are available for this week.</div>';
+    guildTarget.innerHTML='<tr><td colspan="11">No registered guilds found.</td></tr>';
+    if(totalTarget) totalTarget.textContent='0';
+    if(activeTarget) activeTarget.textContent='0';
+    if(topDayTarget) topDayTarget.textContent='—';
+    if(topDayCountTarget) topDayCountTarget.textContent='No matches yet';
+    return;
+  }
+
+  const first=rows[0];
+  if(windowTarget) windowTarget.textContent=`CURRENT WEEK • ${formatWeekRange(first.week_start)}`;
+  const defs=weeklyDayDefinitions(first.week_start);
+  const dayTotals=defs.map(d=>({label:d.label,count:rows.reduce((sum,r)=>sum+Number(r[d.key]||0),0)}));
+  const totalResults=Number(first.week_end?rows.reduce((sum,r)=>sum+Number(r.total_matches||0),0):0)/2;
+  const activeGuilds=rows.filter(r=>Number(r.total_matches||0)>0).length;
+  const topDay=dayTotals.reduce((a,b)=>b.count>a.count?b:a,{label:'—',count:0});
+  if(totalTarget) totalTarget.textContent=String(Math.round(totalResults));
+  if(activeTarget) activeTarget.textContent=String(activeGuilds);
+  if(topDayTarget) topDayTarget.textContent=topDay.count?topDay.label:'—';
+  if(topDayCountTarget) topDayCountTarget.textContent=topDay.count?`${Math.round(topDay.count/2)} match results`:'No matches yet';
+  if(refreshTarget) refreshTarget.textContent=formatDateTime(new Date());
+
+  dayTarget.innerHTML=dayTotals.map((d,i)=>`<div class="weekly-day-card ${d.count&&d.label===defs[(new Date().getDay())]?.label?'today':''}"><span>${d.label}</span><strong>${escapeHtml(Math.round(d.count/2))}</strong><small>match results</small></div>`).join('');
+
+  guildTarget.innerHTML=rows.map(r=>{
+    const total=Number(r.total_matches||0);
+    const leaderCount=Number(r.leader_count||0);
+    return `<tr class="${total?'live-row':''}">
+      <td><div class="weekly-guild-row-name">${escapeHtml(r.guild_name)}</div><div class="muted" style="margin-top:3px;font-size:7px">${leaderCount} LEADER${leaderCount===1?'':'S'}</div></td>
+      <td class="weekly-count">${escapeHtml(r.sunday_matches||0)}</td><td class="weekly-count">${escapeHtml(r.monday_matches||0)}</td><td class="weekly-count">${escapeHtml(r.tuesday_matches||0)}</td><td class="weekly-count">${escapeHtml(r.wednesday_matches||0)}</td><td class="weekly-count">${escapeHtml(r.thursday_matches||0)}</td><td class="weekly-count">${escapeHtml(r.friday_matches||0)}</td><td class="weekly-count">${escapeHtml(r.saturday_matches||0)}</td>
+      <td class="weekly-count weekly-total">${escapeHtml(total)}</td><td class="weekly-count weekly-win">${escapeHtml(r.wins||0)}</td><td class="weekly-count weekly-loss">${escapeHtml(r.losses||0)}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function loadAdminWeeklyMatches(){
+  const dayTarget=$('weekly-day-grid');
+  const guildTarget=$('weekly-guild-table');
+  if(!dayTarget||!guildTarget) return;
+  dayTarget.innerHTML='<div class="empty">Loading weekly day records...</div>';
+  guildTarget.innerHTML='<tr><td colspan="11">Loading weekly guild records...</td></tr>';
+  try{
+    const {data,error}=await adminDb.rpc('admin_get_weekly_match_stats');
+    if(error) throw error;
+    renderWeeklyMatches(data||[]);
+  }catch(error){
+    console.error('Weekly match analytics failed:',error);
+    dayTarget.innerHTML=`<div class="empty">${escapeHtml(humanizeError(error))}</div>`;
+    guildTarget.innerHTML=`<tr><td colspan="11">${escapeHtml(humanizeError(error))}</td></tr>`;
+  }
+}
+
 function openAdminSection(name){
-  const section=['guilds','results','ban'].includes(name)?name:'guilds';
+  const section=['guilds','results','weekly','ban'].includes(name)?name:'guilds';
   document.querySelectorAll('.admin-panel-view').forEach(el=>{
     const active=el.id===`admin-section-${section}`;
     el.classList.toggle('active',active);
@@ -979,6 +1088,7 @@ function openAdminSection(name){
   });
   if(section==='guilds') loadAdminGuilds();
   if(section==='results') loadAdminResults();
+  if(section==='weekly') loadAdminWeeklyMatches();
   if(section==='ban') loadBans();
   window.scrollTo({top:0,behavior:'smooth'});
 }
