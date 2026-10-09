@@ -1279,7 +1279,12 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
 .weekly-guild-table tbody tr.live-row td{background:rgba(215,24,49,.022);}
 @media(max-width:900px){.weekly-kpis{grid-template-columns:repeat(2,minmax(0,1fr));}.weekly-day-grid{grid-template-columns:repeat(4,minmax(0,1fr));}}
 @media(max-width:560px){.weekly-day-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.weekly-kpi strong{font-size:24px;}.registered-guild-table{min-width:610px;}}
-/* Three-view ranking hub — styled controls and compact mobile leaderboard */
+
+    /* Defensive guard: ranking should never display legacy win/loss cells, even if an old JS response is cached. */
+    .ranking-mode-panel .rank-table th:nth-child(n+4),
+    .ranking-mode-panel .rank-table td:nth-child(n+4){display:none!important;}
+
+    /* Three-view ranking hub — styled controls and compact mobile leaderboard */
     .ranking-hub-card{display:grid;gap:16px;}
     .ranking-mode-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:7px;border:1px solid var(--line);border-radius:15px;background:rgba(255,255,255,.025);}
     .ranking-mode-button{display:flex;align-items:center;justify-content:center;min-width:0;min-height:48px;padding:12px 10px;border:1px solid rgba(255,255,255,.09);border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.018));color:#d8aab1;font-size:10px;font-weight:900;letter-spacing:.045em;line-height:1.35;text-align:center;cursor:pointer;transition:background .18s ease,border-color .18s ease,transform .18s ease;}
@@ -1662,6 +1667,6 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
   })();
   </script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="./script.js?v=18.9-custom-time-picker"></script>
+  <script src="./script.js?v=18.10-ranking-cleanup-20261009"></script>
 </body>
 </html>
