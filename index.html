@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#030303" />
   <meta name="color-scheme" content="dark" />
   <meta name="description" content="7TH UNIVERSE Guild VS Guild — Challenges, verified results and weekly rankings." />
-  <link rel="icon" type="image/png" href="7th-universe-gvg-logo.jpg" />
+  <link rel="icon" type="image/jpeg" href="7th-universe-gvg-logo.jpg" />
   <link rel="apple-touch-icon" href="7th-universe-gvg-logo.jpg" />
   <title>7TH UNIVERSE • GUILD VS GUILD</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -1366,6 +1366,13 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
                 </button>
               </div><label class="full">WEAPONS</label></div>
               <div id="weapon-grid" class="rules-grid"></div>
+              <label class="full" style="margin-top:11px">PC MODE
+                <select id="challenge-pc-allowed" required>
+                  <option value="false" selected>PC NOT ALLOW</option>
+                  <option value="true">PC ALLOW</option>
+                </select>
+              </label>
+              <div class="hint">Choose whether PC is allowed for this challenge. This choice will also appear in the WhatsApp group notice.</div>
               <label style="margin-top:11px">ACTIVE SKILLS</label><div id="skill-grid" class="rules-grid"></div>
               <div class="split-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px"><button id="challenge-submit" class="btn btn-primary" type="submit">POST CHALLENGE</button></div>
               <div id="challenge-status" class="status"></div>
@@ -1379,7 +1386,7 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
             <div class="panel-head"><div><div class="kicker">Verified Records</div><h3>RESULTS</h3><div class="subtle">Either guild involved in the challenge may submit the result. Exactly 2 proof screenshots are required.</div></div><span class="badge badge-gold">ADMIN REVIEW</span></div>
             <form id="result-form" novalidate>
               <div class="field-grid"><label class="full">CHALLENGE<select id="result-challenge" required><option value="">Select an active challenge</option></select></label><label>WINNER GUILD<div class="autocomplete-wrap"><input id="result-winner" type="text" maxlength="80" placeholder="Enter winner guild name" autocomplete="off" required /><div id="result-winner-suggestions" class="autocomplete-list"></div></div></label><label>LOSER GUILD<div class="autocomplete-wrap"><input id="result-loser" type="text" maxlength="80" placeholder="Enter loser guild name" autocomplete="off" required /><div id="result-loser-suggestions" class="autocomplete-list"></div></div></label><label class="full">SCORE<input id="result-score" type="text" maxlength="80" placeholder="Example: 6 - 4" required /></label><label>PROOF SCREENSHOT 1<input id="result-image-1" type="file" accept="image/jpeg,image/png,image/webp" required /></label><label>PROOF SCREENSHOT 2<input id="result-image-2" type="file" accept="image/jpeg,image/png,image/webp" required /></label></div>
-              <div class="hint">Results can be submitted anytime for an active challenge. Maximum 8 result submissions per guild per Pakistan day. After 10:00 AM the daily challenge expires.</div>
+              <div class="hint">Results can be submitted anytime for an active challenge. Maximum 5 result submissions per guild per Pakistan day. After 10:00 AM the daily challenge expires.</div>
               <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px"><button id="result-submit" class="btn btn-primary" type="submit">SUBMIT RESULT</button></div><div id="result-status" class="status"></div>
             </form>
             <div class="divider"></div><div class="kicker">My Result Submissions</div><div id="my-result-list" class="result-list" style="margin-top:9px"><div class="empty">Loading your submissions...</div></div><div class="divider"></div><div class="kicker">Approved Results</div><div id="approved-result-list" class="result-list" style="margin-top:9px"><div class="empty">Loading approved results...</div></div>
