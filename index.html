@@ -1280,6 +1280,20 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
 @media(max-width:900px){.weekly-kpis{grid-template-columns:repeat(2,minmax(0,1fr));}.weekly-day-grid{grid-template-columns:repeat(4,minmax(0,1fr));}}
 @media(max-width:560px){.weekly-day-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.weekly-kpi strong{font-size:24px;}.registered-guild-table{min-width:610px;}}
 </style>
+
+/* Three-view ranking hub */
+.ranking-hub-card{display:grid;gap:14px;}
+.ranking-mode-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:8px;border:1px solid var(--line);border-radius:15px;background:rgba(255,255,255,.018);}
+.ranking-mode-button{min-height:44px;padding:10px 9px;border:1px solid rgba(255,255,255,.07);border-radius:11px;background:rgba(255,255,255,.025);color:#b98d94;font-size:9px;font-weight:900;letter-spacing:.055em;line-height:1.35;text-align:center;cursor:pointer;}
+.ranking-mode-button.active{color:#fff;border-color:rgba(242,50,76,.42);background:linear-gradient(135deg,rgba(242,50,76,.17),rgba(215,24,49,.09));box-shadow:0 8px 20px rgba(0,0,0,.16);}
+.ranking-mode-panel{display:none;}
+.ranking-mode-panel.active{display:block;}
+.ranking-view-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:2px 0 12px;}
+.ranking-view-head h4{margin:4px 0 0;font-family:"Barlow Condensed",sans-serif;font-size:25px;line-height:1;text-transform:uppercase;letter-spacing:.035em;}
+.ranking-view-head .subtle{max-width:650px;}
+.ranking-mode-panel .rank-table{min-width:520px;}
+@media(max-width:560px){.ranking-mode-tabs{grid-template-columns:1fr;}.ranking-mode-button{min-height:40px;text-align:left;padding:11px 13px;}.ranking-view-head{align-items:flex-start;}.ranking-view-head h4{font-size:22px;}}
+
 </head>
 <body>
   <div class="topline"></div>
@@ -1295,7 +1309,7 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
     <section id="public-landing">
       <div id="public-view" class="landing-wrap">
         <div class="card login-card">
-          <div class="login-brand"><img src="7th-universe-gvg-logo.jpg" alt="7TH UNIVERSE logo" /><div><strong>7TH UNIVERSE</strong><span>GUILD VS GUILD COMMUNITY</span></div></div>
+          <div class="login-brand"><img src="7th-universe-gvg-logo.jpg" alt="7TH UNIVERSE logo" /><div><strong>7TH UNIVERSE</strong><span>GUILD VS GUILD • LEADER ARENA</span></div></div>
           <div class="login-head"><div class="kicker">Leader Access</div><h1 class="title">LEADER LOGIN</h1><p>Guild leaders enter their existing account email and password to access the live GVG arena.</p></div>
           <form id="login-form" novalidate style="margin-top:17px">
             <div class="field-grid"><label class="full">ACCOUNT EMAIL<input id="login-email" type="email" autocomplete="email" placeholder="leader@example.com" required /></label><label class="full">PASSWORD<input id="login-password" type="password" autocomplete="current-password" placeholder="Your password" required /></label></div>
@@ -1304,7 +1318,6 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
             <div class="hint" style="text-align:center;margin-top:11px">IF YOU ALREADY HAVE AN ACCOUNT THEN LOGIN • New account? Use the REGISTER NEW ACCOUNT button above.</div>
           </form>
         </div>
-        <div class="card top10-card"><div class="panel-head"><div><div class="kicker">Public Preview</div><h2 class="title" style="font-size:31px">ALL-WEEK TOP 10</h2><div class="subtle">Highest weekly point records across all weeks. Visible without registration.</div></div><span class="badge badge-green">LIVE</span></div><div class="admin-table-shell"><table class="tiny-table"><thead><tr><th>#</th><th>Guild</th><th>Week</th><th style="text-align:right">Points</th></tr></thead><tbody id="public-top10-table"><tr><td colspan="4">Loading Top 10...</td></tr></tbody></table></div></div>
       </div>
 
       <div id="register-view" class="landing-wrap hidden">
@@ -1394,15 +1407,31 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
         </div>
 
         <div id="member-section-ranking" class="member-view">
-          <div class="ranking-top">
-            <div class="card">
-              <div class="panel-head"><div><div class="kicker">Current Competitive Week</div><h3>TOP 20 RANKING</h3><div class="subtle">Winner +3 • Loser -1 • Weekly reset every Sunday at 10:00 AM Pakistan time.</div></div><span class="badge badge-green">LIVE</span></div>
-              <div class="admin-table-shell"><table class="rank-table"><thead><tr><th>#</th><th>Guild</th><th style="text-align:right">Points</th></tr></thead><tbody id="member-top20-table"><tr><td colspan="3">Loading ranking...</td></tr></tbody></table></div>
+          <div class="card ranking-hub-card">
+            <div class="panel-head">
+              <div><div class="kicker">Competitive Leaderboards</div><h3>GVG RANKINGS</h3><div class="subtle">Choose a ranking view. Historical results are retained where records exist in your database.</div></div>
+              <span class="badge badge-green">TOP 10</span>
             </div>
-            <div class="card ranking-bottom-card">
-              <div class="panel-head"><div><div class="kicker">Lowest Record</div><h3>BOTTOM GUILD</h3><div class="subtle">Lowest current-week points.</div></div><span class="badge badge-red">LOWEST</span></div>
-              <div class="bottom-box"><div id="bottom-guild"><div class="muted" style="font-size:9px">Loading...</div></div></div>
+            <div class="ranking-mode-tabs" role="tablist" aria-label="Ranking views">
+              <button class="ranking-mode-button active" type="button" data-ranking-mode="current-week" role="tab" aria-selected="true">CURRENT WEEK RANKING</button>
+              <button class="ranking-mode-button" type="button" data-ranking-mode="week-highest" role="tab" aria-selected="false">WEEK HIGHEST POINTS</button>
+              <button class="ranking-mode-button" type="button" data-ranking-mode="all-weeks" role="tab" aria-selected="false">ALL WEEKS RANKING</button>
             </div>
+
+            <section id="ranking-panel-current-week" class="ranking-mode-panel active" role="tabpanel">
+              <div class="ranking-view-head"><div><div class="kicker">Live competitive week</div><h4>CURRENT WEEK TOP 10</h4><div class="subtle">Winner +3 • Loser -1. Resets every Sunday at 10:00 AM Pakistan time.</div></div><span class="badge badge-blue">THIS WEEK</span></div>
+              <div class="admin-table-shell"><table class="rank-table"><thead><tr><th>#</th><th>Guild</th><th>Points</th><th>Wins</th><th>Losses</th></tr></thead><tbody id="ranking-current-week-table"><tr><td colspan="5">Loading current week ranking...</td></tr></tbody></table></div>
+            </section>
+
+            <section id="ranking-panel-week-highest" class="ranking-mode-panel" role="tabpanel" hidden>
+              <div class="ranking-view-head"><div><div class="kicker">Historical weekly records</div><h4>WEEK HIGHEST POINTS TOP 10</h4><div class="subtle">Each guild appears once, using its highest recorded single-week points across available history.</div></div><span class="badge badge-gold">BEST WEEK</span></div>
+              <div class="admin-table-shell"><table class="rank-table"><thead><tr><th>#</th><th>Guild</th><th>Best weekly points</th><th>Week</th></tr></thead><tbody id="ranking-week-highest-table"><tr><td colspan="4">Loading highest weekly points...</td></tr></tbody></table></div>
+            </section>
+
+            <section id="ranking-panel-all-weeks" class="ranking-mode-panel" role="tabpanel" hidden>
+              <div class="ranking-view-head"><div><div class="kicker">Career leaderboard</div><h4>ALL WEEKS RANKING TOP 10</h4><div class="subtle">Cumulative points do not reset: each win +3, each loss -1, across all recorded weeks.</div></div><span class="badge badge-gold">ALL TIME</span></div>
+              <div class="admin-table-shell"><table class="rank-table"><thead><tr><th>#</th><th>Guild</th><th>Total points</th><th>Wins</th><th>Losses</th></tr></thead><tbody id="ranking-all-weeks-table"><tr><td colspan="5">Loading all-weeks ranking...</td></tr></tbody></table></div>
+            </section>
           </div>
         </div>
         <div id="member-section-registered-guilds" class="member-view">
