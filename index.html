@@ -1279,20 +1279,32 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
 .weekly-guild-table tbody tr.live-row td{background:rgba(215,24,49,.022);}
 @media(max-width:900px){.weekly-kpis{grid-template-columns:repeat(2,minmax(0,1fr));}.weekly-day-grid{grid-template-columns:repeat(4,minmax(0,1fr));}}
 @media(max-width:560px){.weekly-day-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.weekly-kpi strong{font-size:24px;}.registered-guild-table{min-width:610px;}}
+/* Three-view ranking hub — styled controls and compact mobile leaderboard */
+    .ranking-hub-card{display:grid;gap:16px;}
+    .ranking-mode-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:7px;border:1px solid var(--line);border-radius:15px;background:rgba(255,255,255,.025);}
+    .ranking-mode-button{display:flex;align-items:center;justify-content:center;min-width:0;min-height:48px;padding:12px 10px;border:1px solid rgba(255,255,255,.09);border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.018));color:#d8aab1;font-size:10px;font-weight:900;letter-spacing:.045em;line-height:1.35;text-align:center;cursor:pointer;transition:background .18s ease,border-color .18s ease,transform .18s ease;}
+    .ranking-mode-button:hover{color:#fff;border-color:rgba(244,80,102,.32);background:rgba(244,80,102,.08);}
+    .ranking-mode-button:focus-visible{outline:2px solid #ff8194;outline-offset:2px;}
+    .ranking-mode-button.active{color:#fff;border-color:rgba(244,80,102,.55);background:linear-gradient(135deg,rgba(244,80,102,.24),rgba(181,13,48,.14));box-shadow:0 7px 20px rgba(0,0,0,.22),inset 0 1px rgba(255,255,255,.07);}
+    .ranking-mode-panel{display:none;min-width:0;}
+    .ranking-mode-panel.active{display:block;}
+    .ranking-mode-panel[hidden]{display:none!important;}
+    .ranking-view-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:3px 0 13px;}
+    .ranking-view-head h4{margin:4px 0 0;font-family:"Barlow Condensed",sans-serif;font-size:25px;line-height:1.05;text-transform:uppercase;letter-spacing:.035em;}
+    .ranking-view-head .subtle{max-width:650px;line-height:1.6;}
+    .ranking-mode-panel .admin-table-shell{min-width:0;overflow:hidden;border-color:rgba(244,80,102,.14);border-radius:14px;background:linear-gradient(180deg,rgba(3,9,15,.72),rgba(2,7,12,.88));}
+    .ranking-mode-panel .rank-table{width:100%;min-width:0;table-layout:fixed;}
+    .ranking-mode-panel .rank-table th,.ranking-mode-panel .rank-table td{padding:13px 12px;vertical-align:middle;}
+    .ranking-mode-panel .rank-table th:first-child,.ranking-mode-panel .rank-table td:first-child{width:52px;}
+    .ranking-mode-panel .rank-table th:last-child,.ranking-mode-panel .rank-table td:last-child{width:106px;text-align:right;white-space:nowrap;}
+    .ranking-mode-panel .rank-table td strong{display:inline-block;max-width:100%;font-size:11px;line-height:1.35;overflow-wrap:anywhere;}
+    .ranking-mode-panel .rank-table td.pos{font-family:"Barlow Condensed",sans-serif;font-size:22px;font-weight:900;color:#ff718a;}
+    .ranking-mode-panel .rank-table td.pts{font-family:"Barlow Condensed",sans-serif;font-size:24px;font-weight:900;}
+    .ranking-mode-panel .rank-table tbody tr:first-child td{background:rgba(244,80,102,.035);}
+    .ranking-mode-panel .rank-table tbody tr:first-child td.pos{color:#ffb2bf;}
+    @media(max-width:760px){.ranking-mode-tabs{grid-template-columns:1fr;gap:7px;padding:7px;}.ranking-mode-button{justify-content:flex-start;min-height:45px;padding:11px 13px;text-align:left;font-size:10px;}.ranking-mode-button:before{content:"";flex:0 0 7px;width:7px;height:7px;margin-right:8px;border-radius:50%;background:rgba(255,129,148,.38);}.ranking-mode-button.active:before{background:#ff8194;box-shadow:0 0 10px rgba(255,129,148,.55);}.ranking-view-head h4{font-size:22px;}}
+    @media(max-width:440px){.ranking-view-head{gap:8px;}.ranking-view-head h4{font-size:20px;}.ranking-view-head .badge{flex-shrink:0;padding:6px 8px;font-size:7px;}.ranking-mode-panel .rank-table th,.ranking-mode-panel .rank-table td{padding:12px 7px;font-size:9px;}.ranking-mode-panel .rank-table th:first-child,.ranking-mode-panel .rank-table td:first-child{width:40px;}.ranking-mode-panel .rank-table th:last-child,.ranking-mode-panel .rank-table td:last-child{width:82px;}.ranking-mode-panel .rank-table td.pos{font-size:20px;}.ranking-mode-panel .rank-table td.pts{font-size:22px;}.ranking-mode-panel .rank-table td strong{font-size:10px;}}
 </style>
-
-/* Three-view ranking hub */
-.ranking-hub-card{display:grid;gap:14px;}
-.ranking-mode-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:8px;border:1px solid var(--line);border-radius:15px;background:rgba(255,255,255,.018);}
-.ranking-mode-button{min-height:44px;padding:10px 9px;border:1px solid rgba(255,255,255,.07);border-radius:11px;background:rgba(255,255,255,.025);color:#b98d94;font-size:9px;font-weight:900;letter-spacing:.055em;line-height:1.35;text-align:center;cursor:pointer;}
-.ranking-mode-button.active{color:#fff;border-color:rgba(242,50,76,.42);background:linear-gradient(135deg,rgba(242,50,76,.17),rgba(215,24,49,.09));box-shadow:0 8px 20px rgba(0,0,0,.16);}
-.ranking-mode-panel{display:none;}
-.ranking-mode-panel.active{display:block;}
-.ranking-view-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:2px 0 12px;}
-.ranking-view-head h4{margin:4px 0 0;font-family:"Barlow Condensed",sans-serif;font-size:25px;line-height:1;text-transform:uppercase;letter-spacing:.035em;}
-.ranking-view-head .subtle{max-width:650px;}
-.ranking-mode-panel .rank-table{min-width:520px;}
-@media(max-width:560px){.ranking-mode-tabs{grid-template-columns:1fr;}.ranking-mode-button{min-height:40px;text-align:left;padding:11px 13px;}.ranking-view-head{align-items:flex-start;}.ranking-view-head h4{font-size:22px;}}
 
 </head>
 <body>
@@ -1419,18 +1431,18 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
             </div>
 
             <section id="ranking-panel-current-week" class="ranking-mode-panel active" role="tabpanel">
-              <div class="ranking-view-head"><div><div class="kicker">Live competitive week</div><h4>CURRENT WEEK TOP 10</h4><div class="subtle">Winner +3 • Loser -1. Resets every Sunday at 10:00 AM Pakistan time.</div></div><span class="badge badge-blue">THIS WEEK</span></div>
-              <div class="admin-table-shell"><table class="rank-table"><thead><tr><th>#</th><th>Guild</th><th>Points</th><th>Wins</th><th>Losses</th></tr></thead><tbody id="ranking-current-week-table"><tr><td colspan="5">Loading current week ranking...</td></tr></tbody></table></div>
+              <div class="ranking-view-head"><div><div class="kicker">Live competitive week</div><h4>CURRENT WEEK TOP 10</h4><div class="subtle">Points standings for the current competitive week. Resets Sunday at 10:00 AM Pakistan time.</div></div><span class="badge badge-blue">THIS WEEK</span></div>
+              <div class="admin-table-shell"><table class="rank-table"><thead><tr><th>#</th><th>Guild</th><th>Points</th></tr></thead><tbody id="ranking-current-week-table"><tr><td colspan="3">Loading current week ranking...</td></tr></tbody></table></div>
             </section>
 
             <section id="ranking-panel-week-highest" class="ranking-mode-panel" role="tabpanel" hidden>
-              <div class="ranking-view-head"><div><div class="kicker">Historical weekly records</div><h4>WEEK HIGHEST POINTS TOP 10</h4><div class="subtle">Each guild appears once, using its highest recorded single-week points across available history.</div></div><span class="badge badge-gold">BEST WEEK</span></div>
-              <div class="admin-table-shell"><table class="rank-table"><thead><tr><th>#</th><th>Guild</th><th>Best weekly points</th><th>Week</th></tr></thead><tbody id="ranking-week-highest-table"><tr><td colspan="4">Loading highest weekly points...</td></tr></tbody></table></div>
+              <div class="ranking-view-head"><div><div class="kicker">Historical weekly records</div><h4>WEEK HIGHEST POINTS TOP 10</h4><div class="subtle">Each guild appears once, ranked by its highest points in a single recorded week.</div></div><span class="badge badge-gold">BEST WEEK</span></div>
+              <div class="admin-table-shell"><table class="rank-table"><thead><tr><th>#</th><th>Guild</th><th>Best points</th></tr></thead><tbody id="ranking-week-highest-table"><tr><td colspan="3">Loading highest weekly points...</td></tr></tbody></table></div>
             </section>
 
             <section id="ranking-panel-all-weeks" class="ranking-mode-panel" role="tabpanel" hidden>
-              <div class="ranking-view-head"><div><div class="kicker">Career leaderboard</div><h4>ALL WEEKS RANKING TOP 10</h4><div class="subtle">Cumulative points do not reset: each win +3, each loss -1, across all recorded weeks.</div></div><span class="badge badge-gold">ALL TIME</span></div>
-              <div class="admin-table-shell"><table class="rank-table"><thead><tr><th>#</th><th>Guild</th><th>Total points</th><th>Wins</th><th>Losses</th></tr></thead><tbody id="ranking-all-weeks-table"><tr><td colspan="5">Loading all-weeks ranking...</td></tr></tbody></table></div>
+              <div class="ranking-view-head"><div><div class="kicker">Career leaderboard</div><h4>ALL WEEKS RANKING TOP 10</h4><div class="subtle">Cumulative points across all recorded weeks. This leaderboard never resets.</div></div><span class="badge badge-gold">ALL TIME</span></div>
+              <div class="admin-table-shell"><table class="rank-table"><thead><tr><th>#</th><th>Guild</th><th>Total points</th></tr></thead><tbody id="ranking-all-weeks-table"><tr><td colspan="3">Loading all-weeks ranking...</td></tr></tbody></table></div>
             </section>
           </div>
         </div>
@@ -1541,7 +1553,7 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
 
   <div id="modal-backdrop" class="modal-backdrop"><div id="modal" class="modal"></div></div>
   <div id="password-recovery-backdrop" class="modal-backdrop"><div class="modal"><div class="modal-head"><div><div class="kicker">Account Recovery</div><h3>SET NEW PASSWORD</h3></div></div><form id="password-recovery-form"><label>NEW PASSWORD<input id="recovery-password" type="password" minlength="8" autocomplete="new-password" placeholder="Minimum 8 characters" required /></label><label style="margin-top:10px">CONFIRM PASSWORD<input id="recovery-password-confirm" type="password" minlength="8" autocomplete="new-password" placeholder="Repeat new password" required /></label><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px"><button class="btn btn-primary" type="submit">UPDATE PASSWORD</button></div><div id="recovery-status" class="status"></div></form></div></div>
-  <footer class="footer"><div class="container footer-inner"><span>7TH UNIVERSE • GUILD VS GUILD</span><span>RULES ARE EQUAL FOR ALL GUILDS</span><span class="version-chip">V18.9 • CUSTOM TIME PICKER FIX</span></div></footer>
+  <footer class="footer"><div class="container footer-inner"><span>7TH UNIVERSE • GUILD VS GUILD</span><span>RULES ARE EQUAL FOR ALL GUILDS</span><span class="version-chip">V19.0 • RANKING UI FIX</span></div></footer>
 
   <script>
   /* V18.9: Standalone match-time picker. It does not depend on Supabase or the main app script. */
