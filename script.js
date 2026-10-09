@@ -40,9 +40,8 @@ const state = {
   guild: null,
   adminUser: null,
   adminOk: false,
-  top10: [],
-  top20: [],
-  bottom: null,
+  rankingMode: 'current-week',
+  rankingCache: {},
   challenges: [],
   guildOptions: [],
   results: [],
@@ -132,7 +131,7 @@ function openMemberSection(name){
   document.querySelectorAll('[data-member-section]').forEach(btn=>btn.classList.toggle('active',btn.dataset.memberSection===section));
   if(section==='challenges') loadLiveChallenges();
   if(section==='results') { loadLiveChallenges(); loadGuildOptions(); loadApprovedResults(); }
-  if(section==='ranking') loadRanking();
+  if(section==='ranking') setRankingMode(state.rankingMode || 'current-week');
   if(section==='registered-guilds') loadRegisteredGuilds();
   window.scrollTo({top:0,behavior:'smooth'});
 }
@@ -157,15 +156,6 @@ function formatWeekLabel(value){
   catch{return String(value||'');}
 }
 
-async function loadPublicTop10(){
-  try{
-    const {data,error}=await db.rpc('get_gvg_all_time_top10');
-    if(error) throw error;
-    state.top10=data||[];
-    const target=$('public-top10-table');
-    target.innerHTML=state.top10.length?state.top10.map(r=>`<tr><td class="tiny-rank">${escapeHtml(r.rank_no)}</td><td><strong>${escapeHtml(r.guild_name)}</strong></td><td>${escapeHtml(formatWeekLabel(r.week_start))}</td><td class="tiny-points">${escapeHtml(r.points)}</td></tr>`).join(''):'<tr><td colspan="4">No historical weekly records yet.</td></tr>';
-  }catch(error){ console.error(error); $('public-top10-table').innerHTML='<tr><td colspan="4">Could not load Top 10 records.</td></tr>'; }
-}
 
 async function loadMyGuild(){
   if(!state.user){state.guild=null;return;}
@@ -736,59 +726,84 @@ async function rpcWithTimeout(name, rpcCall, timeoutMs=8000){
   ]);
 }
 
-async function loadRanking(){
-  const topTarget=$('member-top20-table');
-  const bottomTarget=$('bottom-guild');
-
-  if(topTarget) topTarget.innerHTML='<tr><td colspan="3">Loading ranking…</td></tr>';
-  if(bottomTarget) bottomTarget.innerHTML='<div class="muted" style="font-size:9px">Loading…</div>';
-
-  // V18.4: use the V18 Top-20 RPC first. The SQL patch below fixes
-  // the rank_no ambiguity in both ranking RPCs.
-  try{
-    let topResult=await rpcWithTimeout('Top 20 ranking',()=>db.rpc('get_gvg_weekly_top20'));
-    if(topResult?.error) throw topResult.error;
-    let rows=topResult?.data||[];
-
-    // Compatibility fallback for older deployments.
-    if(!rows.length){
-      const fallback=await rpcWithTimeout('Top 20 fallback',()=>db.rpc('get_gvg_weekly_leaderboard'));
-      if(fallback?.error) throw fallback.error;
-      rows=fallback?.data||[];
-    }
-
-    state.top20=rows.slice(0,20);
-    if(topTarget){
-      topTarget.innerHTML=state.top20.length
-        ? state.top20.map((r,i)=>{
-            const rank=Number.isFinite(Number(r.rank_no))?Number(r.rank_no):(i+1);
-            return `<tr><td class="pos">${escapeHtml(rank)}</td><td><strong>${escapeHtml(r.guild_name)}</strong></td><td class="pts ${Number(r.points)<0?'pos-red':'pos-green'}">${escapeHtml(r.points)}</td></tr>`;
-          }).join('')
-        : '<tr><td colspan="3">No current-week ranking records yet.</td></tr>';
-    }
-  }catch(error){
-    console.error('Top 20 ranking load failed:',error);
-    if(topTarget) topTarget.innerHTML=`<tr><td colspan="3">${escapeHtml(humanizeError(error))}</td></tr>`;
-  }
-
-  // Bottom Guild remains independent so it cannot block Top 20.
-  try{
-    const bottomResult=await rpcWithTimeout('Bottom guild',()=>db.rpc('get_gvg_weekly_bottom'));
-    if(bottomResult?.error) throw bottomResult.error;
-    state.bottom=Array.isArray(bottomResult?.data)
-      ? (bottomResult.data[0]||null)
-      : bottomResult?.data;
-    if(bottomTarget){
-      bottomTarget.innerHTML=state.bottom
-        ? `<div class="bottom-guild-name">${escapeHtml(state.bottom.guild_name)}</div><div class="bottom-guild-points">${escapeHtml(state.bottom.points)} POINTS</div><div class="bottom-guild-record">WINS ${escapeHtml(state.bottom.wins)} • LOSSES ${escapeHtml(state.bottom.losses)}</div>`
-        : '<div class="muted" style="font-size:9px">No current-week ranking record yet.</div>';
-    }
-  }catch(error){
-    console.error('Bottom guild load failed:',error);
-    if(bottomTarget) bottomTarget.innerHTML=`<div class="muted" style="font-size:9px">${escapeHtml(humanizeError(error))}</div>`;
-  }
+function setRankingMode(mode){
+  const allowed=['current-week','week-highest','all-weeks'];
+  const selected=allowed.includes(mode)?mode:'current-week';
+  state.rankingMode=selected;
+  document.querySelectorAll('[data-ranking-mode]').forEach(button=>{
+    const active=button.dataset.rankingMode===selected;
+    button.classList.toggle('active',active);
+    button.setAttribute('aria-selected',active?'true':'false');
+  });
+  document.querySelectorAll('.ranking-mode-panel').forEach(panel=>{
+    const active=panel.id===`ranking-panel-${selected}`;
+    panel.classList.toggle('active',active);
+    panel.hidden=!active;
+  });
+  loadRanking(selected);
 }
 
+function renderRankingTable(mode,rows){
+  const targets={
+    'current-week':{id:'ranking-current-week-table',cols:5},
+    'week-highest':{id:'ranking-week-highest-table',cols:4},
+    'all-weeks':{id:'ranking-all-weeks-table',cols:5}
+  };
+  const targetInfo=targets[mode];
+  const target=$(targetInfo.id);
+  if(!target) return;
+  if(!rows.length){
+    const emptyText={
+      'current-week':'No current-week ranking records yet.',
+      'week-highest':'No historical weekly point records found yet.',
+      'all-weeks':'No all-weeks point records found yet.'
+    }[mode];
+    target.innerHTML=`<tr><td colspan="${targetInfo.cols}">${emptyText}</td></tr>`;
+    return;
+  }
+  target.innerHTML=rows.slice(0,10).map((r,i)=>{
+    const rank=Number.isFinite(Number(r.rank_no))?Number(r.rank_no):(i+1);
+    const points=Number(r.points)||0;
+    const pointClass=points<0?'pos-red':'pos-green';
+    if(mode==='week-highest'){
+      return `<tr><td class="pos">${escapeHtml(rank)}</td><td><strong>${escapeHtml(r.guild_name)}</strong></td><td class="pts ${pointClass}">${escapeHtml(points)}</td><td><span class="muted" style="font-size:8px">${escapeHtml(formatWeekRange(r.week_start))}</span></td></tr>`;
+    }
+    return `<tr><td class="pos">${escapeHtml(rank)}</td><td><strong>${escapeHtml(r.guild_name)}</strong></td><td class="pts ${pointClass}">${escapeHtml(points)}</td><td>${escapeHtml(Number(r.wins)||0)}</td><td>${escapeHtml(Number(r.losses)||0)}</td></tr>`;
+  }).join('');
+}
+
+async function loadRanking(mode=state.rankingMode || 'current-week'){
+  const configs={
+    'current-week':{rpc:'get_gvg_current_week_top10',name:'Current week ranking'},
+    'week-highest':{rpc:'get_gvg_week_highest_points_top10',name:'Week highest points'},
+    'all-weeks':{rpc:'get_gvg_all_weeks_top10',name:'All weeks ranking'}
+  };
+  const selected=configs[mode]?mode:'current-week';
+  const config=configs[selected];
+  const targetIds={
+    'current-week':'ranking-current-week-table',
+    'week-highest':'ranking-week-highest-table',
+    'all-weeks':'ranking-all-weeks-table'
+  };
+  const target=$(targetIds[selected]);
+  if(target){
+    const cols=selected==='week-highest'?4:5;
+    target.innerHTML=`<tr><td colspan="${cols}">Loading ${escapeHtml(config.name.toLowerCase())}…</td></tr>`;
+  }
+  try{
+    const {data,error}=await rpcWithTimeout(config.name,()=>db.rpc(config.rpc));
+    if(error) throw error;
+    const rows=Array.isArray(data)?data:[];
+    state.rankingCache[selected]=rows;
+    renderRankingTable(selected,rows);
+  }catch(error){
+    console.error(`${config.name} load failed:`,error);
+    if(target){
+      const cols=selected==='week-highest'?4:5;
+      target.innerHTML=`<tr><td colspan="${cols}">${escapeHtml(humanizeError(error))}</td></tr>`;
+    }
+  }
+}
 function syncRegisterNav(){
   const registerButton=$('nav-register'),logoutButton=$('nav-logout');
   if(!registerButton||!logoutButton) return;
@@ -820,13 +835,13 @@ async function refreshMember(){
       loadGuildOptions(),
       loadApprovedResults(),
       loadMyResultSubmissions(),
-      loadRanking(),
+      loadRanking(state.rankingMode || 'current-week'),
       loadRegisteredGuilds()
     ]);
   }
   setMemberAccessGate();
 }
-async function handleLogout(){try{await db.auth.signOut();}catch{}state.user=null;state.guild=null;openView('public');syncRegisterNav();$('login-password').value='';await loadPublicTop10();}
+async function handleLogout(){try{await db.auth.signOut();}catch{}state.user=null;state.guild=null;openView('public');syncRegisterNav();$('login-password').value='';}
 
 /* ------------------------- ADMIN ------------------------- */
 async function isAdmin(){
@@ -1100,6 +1115,7 @@ document.addEventListener('click',async(e)=>{
   const menuBtn=e.target.closest('[data-menu-button]');if(menuBtn){const id=menuBtn.dataset.menuButton;document.querySelectorAll('.dots-menu.open').forEach(x=>{if(x.id!==`menu-${id}`)x.classList.remove('open')});document.getElementById(`menu-${id}`)?.classList.toggle('open');return;}document.querySelectorAll('.dots-menu.open').forEach(x=>x.classList.remove('open'));
 });
 document.querySelectorAll('[data-member-section]').forEach(btn=>btn.addEventListener('click',()=>openMemberSection(btn.dataset.memberSection)));
+document.querySelectorAll('[data-ranking-mode]').forEach(btn=>btn.addEventListener('click',()=>setRankingMode(btn.dataset.rankingMode)));
 document.querySelectorAll('[data-admin-section]').forEach(btn=>btn.addEventListener('click',()=>openAdminSection(btn.dataset.adminSection)));
 $('nav-admin').addEventListener('click',async()=>{openView('admin');await restoreAdmin();});
 $('nav-register').addEventListener('click',()=>openView('register'));
@@ -1144,6 +1160,6 @@ $('password-recovery-form').addEventListener('submit',async(e)=>{
   renderRules();renderWeaponSkillChoices();
   const {data:{session}}=await db.auth.getSession();
   if(session){state.user=session.user;await loadMyGuild();await completePendingRegistration();await enterMember();syncRegisterNav();}
-  else{state.user=null;state.guild=null;syncRegisterNav();openView('public');await loadPublicTop10();}
+  else{state.user=null;state.guild=null;syncRegisterNav();openView('public');}
   await restoreAdmin();
 })();
