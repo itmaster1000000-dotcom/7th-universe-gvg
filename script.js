@@ -745,11 +745,12 @@ function setRankingMode(mode){
 
 function renderRankingTable(mode,rows){
   const targets={
-    'current-week':{id:'ranking-current-week-table',cols:5},
-    'week-highest':{id:'ranking-week-highest-table',cols:4},
-    'all-weeks':{id:'ranking-all-weeks-table',cols:5}
+    'current-week':{id:'ranking-current-week-table',cols:3},
+    'week-highest':{id:'ranking-week-highest-table',cols:3},
+    'all-weeks':{id:'ranking-all-weeks-table',cols:3}
   };
   const targetInfo=targets[mode];
+  if(!targetInfo) return;
   const target=$(targetInfo.id);
   if(!target) return;
   if(!rows.length){
@@ -765,10 +766,7 @@ function renderRankingTable(mode,rows){
     const rank=Number.isFinite(Number(r.rank_no))?Number(r.rank_no):(i+1);
     const points=Number(r.points)||0;
     const pointClass=points<0?'pos-red':'pos-green';
-    if(mode==='week-highest'){
-      return `<tr><td class="pos">${escapeHtml(rank)}</td><td><strong>${escapeHtml(r.guild_name)}</strong></td><td class="pts ${pointClass}">${escapeHtml(points)}</td><td><span class="muted" style="font-size:8px">${escapeHtml(formatWeekRange(r.week_start))}</span></td></tr>`;
-    }
-    return `<tr><td class="pos">${escapeHtml(rank)}</td><td><strong>${escapeHtml(r.guild_name)}</strong></td><td class="pts ${pointClass}">${escapeHtml(points)}</td><td>${escapeHtml(Number(r.wins)||0)}</td><td>${escapeHtml(Number(r.losses)||0)}</td></tr>`;
+    return `<tr><td class="pos">${escapeHtml(rank)}</td><td><strong>${escapeHtml(r.guild_name)}</strong></td><td class="pts ${pointClass}">${escapeHtml(points)}</td></tr>`;
   }).join('');
 }
 
@@ -787,7 +785,7 @@ async function loadRanking(mode=state.rankingMode || 'current-week'){
   };
   const target=$(targetIds[selected]);
   if(target){
-    const cols=selected==='week-highest'?4:5;
+    const cols=3;
     target.innerHTML=`<tr><td colspan="${cols}">Loading ${escapeHtml(config.name.toLowerCase())}…</td></tr>`;
   }
   try{
@@ -799,7 +797,7 @@ async function loadRanking(mode=state.rankingMode || 'current-week'){
   }catch(error){
     console.error(`${config.name} load failed:`,error);
     if(target){
-      const cols=selected==='week-highest'?4:5;
+      const cols=3;
       target.innerHTML=`<tr><td colspan="${cols}">${escapeHtml(humanizeError(error))}</td></tr>`;
     }
   }
