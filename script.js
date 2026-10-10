@@ -47,7 +47,7 @@ const state = {
   moderatorOk: false,
   adminReturnToModerator: false,
   moderatorGuilds: [],
-  moderatorChallenges: [],
+  moderatorResults: [],
   rankingMode: 'current-week',
   rankingCache: {},
   challenges: [],
@@ -1139,7 +1139,8 @@ async function handleModeratorLogin(e){
     if(!ok){await moderatorDb.auth.signOut();throw new Error('This account is not an active moderator. Admin accounts use the separate Admin Access button.');}
     state.moderatorUser=data.user;state.moderatorOk=true;setModeratorPanel(true);openView('moderator');
     $('moderator-session-label').textContent=`${state.moderatorUser?.email||''} • Limited moderator access`;
-    $('moderator-password').value='';showStatus('moderator-guild-status','ok','Moderator login successful. Only assigned actions are available.');
+    $('moderator-password').value='';showStatus('moderator-results-status','ok','Moderator login successful. Review pending results or manage guild approvals.');
+    openModeratorSection('results');
     await loadModeratorData();
   }catch(error){state.moderatorUser=null;state.moderatorOk=false;setModeratorPanel(false);showStatus('moderator-login-status','error',humanizeError(error));}
   finally{setBusy('moderator-login-submit',false,'LOGIN AS MODERATOR');}
@@ -1150,16 +1151,32 @@ async function restoreModerator(){
   state.moderatorUser=session.user;state.moderatorOk=await isModerator();
   if(!state.moderatorOk){await moderatorDb.auth.signOut();state.moderatorUser=null;setModeratorPanel(false);return;}
   setModeratorPanel(true);$('moderator-session-label').textContent=`${state.moderatorUser?.email||''} • Limited moderator access`;
+  openModeratorSection('results');
   await loadModeratorData();
 }
 async function handleModeratorLogout(){
   try{await moderatorDb.auth.signOut();}catch{}
-  state.moderatorUser=null;state.moderatorOk=false;state.moderatorGuilds=[];state.moderatorChallenges=[];
+  state.moderatorUser=null;state.moderatorOk=false;state.moderatorGuilds=[];state.moderatorResults=[];
   setModeratorPanel(false);$('moderator-password').value='';openView(state.user?'member':'public');
 }
 async function loadModeratorData(){
   if(!state.moderatorOk)return;
-  await Promise.all([loadModeratorGuilds(),loadModeratorChallenges()]);
+  await Promise.all([loadModeratorResults(),loadModeratorGuilds()]);
+}
+function openModeratorSection(name){
+  const section=['results','guilds'].includes(name)?name:'results';
+  document.querySelectorAll('[data-moderator-section]').forEach(btn=>{
+    const active=btn.dataset.moderatorSection===section;
+    btn.classList.toggle('active',active);
+    btn.setAttribute('aria-selected',active?'true':'false');
+  });
+  document.querySelectorAll('.moderator-section-view').forEach(panel=>{
+    const active=panel.id===`moderator-section-${section}`;
+    panel.classList.toggle('active',active);
+    panel.style.display=active?'block':'none';
+  });
+  if(section==='results')loadModeratorResults();
+  if(section==='guilds')loadModeratorGuilds();
 }
 function moderatorStatusLabel(g){
   if(g.is_banned || (g.ban_until && new Date(g.ban_until)>new Date()))return 'BANNED';
@@ -1169,91 +1186,72 @@ function renderModeratorGuilds(){
   const target=$('moderator-guild-table');if(!target)return;
   const term=String($('moderator-guild-search')?.value||'').trim().toLowerCase();
   const rows=(state.moderatorGuilds||[]).filter(g=>!term||String(g.guild_name||'').toLowerCase().includes(term));
-  const datalist=$('moderator-guild-names');
-  if(datalist)datalist.innerHTML=(state.moderatorGuilds||[]).filter(g=>g.approval_status==='approved'&&!g.is_banned).map(g=>`<option value="${escapeHtml(g.guild_name)}"></option>`).join('');
   target.innerHTML=rows.length?rows.map(g=>{
     const norm=escapeHtml(g.guild_name_normalized||'');
     const status=moderatorStatusLabel(g);
     const isBanned=Boolean(g.is_banned || (g.ban_until && new Date(g.ban_until)>new Date()));
     const cls=isBanned?'status-banned':g.approval_status==='approved'?'status-approved':g.approval_status==='pending'?'status-pending':'status-rejected';
-    const approve=g.approval_status==='pending'?`<button class="btn btn-green moderator-action-btn" type="button" data-action="mod-approve-guild" data-guild="${norm}">ADD / APPROVE</button>`:'';
-    const ban24=isBanned?'':`<button class="btn btn-gold moderator-action-btn" type="button" data-action="mod-ban-guild" data-guild="${norm}" data-duration="1d">BAN 24H</button><button class="btn btn-red moderator-action-btn" type="button" data-action="mod-ban-guild" data-guild="${norm}" data-duration="permanent">PERMANENT BAN</button>`;
-    return `<tr><td><div class="moderator-guild-name">${escapeHtml(g.guild_name)}</div><div class="muted" style="margin-top:4px">${escapeHtml(g.leader_count||0)} leader(s)</div></td><td><span class="status-pill ${cls}">${escapeHtml(status)}</span></td><td><div class="moderator-actions">${approve}<button class="btn btn-red moderator-action-btn" type="button" data-action="mod-remove-guild" data-guild="${norm}">REMOVE</button>${ban24}</div></td></tr>`;
+    const approve=g.approval_status==='pending'?`<button class="btn btn-green moderator-action-btn" type="button" data-action="mod-approve-guild" data-guild="${norm}">APPROVE</button>`:'';
+    return `<tr><td><div class="moderator-guild-name">${escapeHtml(g.guild_name)}</div><div class="muted" style="margin-top:4px">${escapeHtml(g.leader_count||0)} leader(s)</div></td><td><span class="status-pill ${cls}">${escapeHtml(status)}</span></td><td><div class="moderator-actions">${approve}<button class="btn btn-red moderator-action-btn" type="button" data-action="mod-remove-guild" data-guild="${norm}">REMOVE</button></div></td></tr>`;
   }).join(''):'<tr><td colspan="3">No guilds found.</td></tr>';
 }
 async function loadModeratorGuilds(){
+  const target=$('moderator-guild-table');
   try{
+    if(target)target.innerHTML='<tr><td colspan="3">Loading guilds...</td></tr>';
     const {data,error}=await moderatorDb.rpc('moderator_get_guild_directory');if(error)throw error;
     state.moderatorGuilds=data||[];renderModeratorGuilds();
   }catch(error){console.error(error);showStatus('moderator-guild-status','error',humanizeError(error));}
 }
-async function loadModeratorChallenges(){
-  const select=$('moderator-result-challenge');if(!select)return;
-  select.innerHTML='<option value="">Loading open challenges...</option>';
+async function loadModeratorResults(){
+  const target=$('moderator-result-table');if(!target)return;
+  target.innerHTML='<tr><td colspan="5">Loading result submissions...</td></tr>';
   try{
-    const {data,error}=await moderatorDb.rpc('moderator_get_open_challenges');if(error)throw error;
-    state.moderatorChallenges=data||[];
-    select.innerHTML='<option value="">Select an open challenge</option>'+(state.moderatorChallenges).map(c=>`<option value="${escapeHtml(c.challenge_id)}" data-guild="${escapeHtml(c.guild_name)}">${escapeHtml(c.challenge_code||'CHALLENGE')} • ${escapeHtml(c.guild_name)} • ${escapeHtml(formatTime(c.match_time))}</option>`).join('');
-    if(!state.moderatorChallenges.length)select.innerHTML='<option value="">No open challenges</option>';
-    fillModeratorChallengeDefaults();
-  }catch(error){console.error(error);select.innerHTML='<option value="">Could not load challenges</option>';showStatus('moderator-result-status','error',humanizeError(error));}
-}
-function fillModeratorChallengeDefaults(){
-  const select=$('moderator-result-challenge');const option=select?.options?.[select.selectedIndex];
-  if(option?.dataset?.guild&&!$('moderator-result-winner').value.trim())$('moderator-result-winner').value=option.dataset.guild;
+    const {data,error}=await moderatorDb.rpc('moderator_get_results');if(error)throw error;
+    const rows=data||[];state.moderatorResults=rows;
+    target.innerHTML=rows.length?rows.map(r=>{
+      const imgs=Array.isArray(r.image_urls)?r.image_urls.slice(0,2):[];
+      const gallery=imgs.length?`<details class="proof-details"><summary>OPEN ${imgs.length} PROOF SCREENSHOTS</summary><div class="proof-gallery">${imgs.map((u,i)=>`<a href="${escapeHtml(u)}" target="_blank" rel="noopener"><span class="proof-tag">PROOF ${i+1}</span><img src="${escapeHtml(u)}" alt="${escapeHtml(r.winner_guild)} vs ${escapeHtml(r.loser_guild)} proof ${i+1}" /></a>`).join('')}</div></details>`:'<span class="muted">No proof</span>';
+      const status=String(r.status||'unknown').toLowerCase();
+      const actions=status==='pending'?`<div class="moderator-actions"><button class="btn btn-green btn-small moderator-action-btn" type="button" data-action="mod-approve-result" data-id="${escapeHtml(r.id)}">APPROVE</button><button class="btn btn-red btn-small moderator-action-btn" type="button" data-action="mod-reject-result" data-id="${escapeHtml(r.id)}">REJECT</button></div>`:'—';
+      return `<tr><td><strong>${escapeHtml(r.winner_guild)}</strong><div class="muted" style="margin:3px 0">DEFEAT</div><strong>${escapeHtml(r.loser_guild)}</strong></td><td>${escapeHtml(r.score)}</td><td><strong style="font-size:9px">${escapeHtml(formatDateTime(r.created_at))}</strong><div class="muted" style="margin-top:4px;font-size:7px">PAKISTAN TIME</div></td><td>${gallery}<div style="margin-top:6px"><span class="status-pill ${status==='approved'?'status-approved':status==='pending'?'status-pending':'status-rejected'}">${escapeHtml(status)}</span></div>${r.rejection_reason?`<div class="muted" style="margin-top:5px">${escapeHtml(r.rejection_reason)}</div>`:''}</td><td>${actions}</td></tr>`;
+    }).join(''):'<tr><td colspan="5">No result submissions.</td></tr>';
+  }catch(error){console.error(error);target.innerHTML=`<tr><td colspan="5">${escapeHtml(humanizeError(error))}</td></tr>`;showStatus('moderator-results-status','error',humanizeError(error));}
 }
 async function moderatorApproveGuild(norm){
   const g=state.moderatorGuilds.find(x=>String(x.guild_name_normalized)===String(norm));if(!g)return;
-  if(!confirm(`ADD / APPROVE this registered guild?\n\n${g.guild_name}`))return;
-  try{const {error}=await moderatorDb.rpc('moderator_approve_guild',{p_guild_name_normalized:norm});if(error)throw error;showStatus('moderator-guild-status','ok',`${g.guild_name} has been approved/added to the GVG directory.`);await loadModeratorGuilds();}
+  if(!confirm(`APPROVE this registered guild?\n\n${g.guild_name}`))return;
+  try{const {error}=await moderatorDb.rpc('moderator_approve_guild',{p_guild_name_normalized:norm});if(error)throw error;showStatus('moderator-guild-status','ok',`${g.guild_name} has been approved.`);await loadModeratorGuilds();}
   catch(error){showStatus('moderator-guild-status','error',humanizeError(error));}
 }
 async function moderatorRemoveGuild(norm){
   const g=state.moderatorGuilds.find(x=>String(x.guild_name_normalized)===String(norm));if(!g)return;
   if(!confirm(`PERMANENTLY REMOVE this guild registration?\n\n${g.guild_name}\n\nHistorical challenge/result records may remain.`))return;
-  try{const {error}=await moderatorDb.rpc('moderator_remove_guild',{p_guild_name_normalized:norm});if(error)throw error;showStatus('moderator-guild-status','ok',`${g.guild_name} was removed from the guild registry.`);await loadModeratorData();}
+  try{const {error}=await moderatorDb.rpc('moderator_remove_guild',{p_guild_name_normalized:norm});if(error)throw error;showStatus('moderator-guild-status','ok',`${g.guild_name} was removed from the guild registry.`);await loadModeratorGuilds();}
   catch(error){showStatus('moderator-guild-status','error',humanizeError(error));}
 }
-async function moderatorBanGuild(norm,duration){
-  const g=state.moderatorGuilds.find(x=>String(x.guild_name_normalized)===String(norm));if(!g)return;
-  const permanent=duration==='permanent';
-  if(!confirm(`${permanent?'PERMANENTLY BAN':'BAN FOR 24 HOURS'} this guild?\n\n${g.guild_name}`))return;
-  const banUntil=permanent?null:new Date(Date.now()+24*60*60*1000).toISOString();
-  const reason=prompt('Ban reason:','Rule violation');if(reason===null)return;
-  try{const {error}=await moderatorDb.rpc('moderator_ban_guild',{p_guild_name_normalized:norm,p_ban_until:banUntil,p_reason:reason.trim()||'Rule violation'});if(error)throw error;showStatus('moderator-guild-status','ok',`${g.guild_name} has been ${permanent?'permanently banned':'banned for 24 hours'}.`);await loadModeratorGuilds();}
-  catch(error){showStatus('moderator-guild-status','error',humanizeError(error));}
-}
-async function uploadModeratorResultImages(files){
-  if(files.length!==2)throw new Error('Exactly two proof screenshots are required.');if(!state.moderatorUser)throw new Error('Moderator login is required.');const urls=[];
-  for(const file of files){
-    if(file.size>MAX_IMAGE_SIZE)throw new Error('Each proof picture must be 5 MB or smaller.');
-    if(!['image/jpeg','image/png','image/webp'].includes(file.type))throw new Error('Only JPG, PNG or WEBP images are allowed.');
-    const ext=(file.name.split('.').pop()||'jpg').toLowerCase();const path=`results/${state.moderatorUser.id}/${crypto.randomUUID()}.${ext}`;
-    const {error}=await moderatorDb.storage.from(IMAGE_BUCKET).upload(path,file,{upsert:false,contentType:file.type});if(error)throw error;
-    const {data}=moderatorDb.storage.from(IMAGE_BUCKET).getPublicUrl(path);if(data?.publicUrl)urls.push(data.publicUrl);
-  }
-  return urls;
-}
-async function handleModeratorResultSubmit(e){
-  e.preventDefault();clearStatus('moderator-result-status');if(!state.moderatorOk)return showStatus('moderator-result-status','error','Moderator login required.');
-  const challengeId=$('moderator-result-challenge').value,winner=$('moderator-result-winner').value.trim(),loser=$('moderator-result-loser').value.trim(),score=$('moderator-result-score').value.trim();
-  const files=[$('moderator-result-image-1').files[0],$('moderator-result-image-2').files[0]].filter(Boolean);
-  if(!challengeId||!winner||!loser||!score)return showStatus('moderator-result-status','error','Challenge, winner, loser and score are required.');
-  if(normalizeGuild(winner)===normalizeGuild(loser))return showStatus('moderator-result-status','error','Winner and loser must be different guilds.');
-  if(files.length!==2)return showStatus('moderator-result-status','error','Exactly two proof screenshots are required.');
-  setBusy('moderator-result-submit',true,'SUBMIT FOR ADMIN REVIEW');
+async function moderatorApproveResult(id){
+  const row=state.moderatorResults.find(r=>String(r.id)===String(id));if(!row)return;
+  if(!confirm(`APPROVE RESULT AND AWARD WEEKLY POINTS?\n\n${row.winner_guild} defeated ${row.loser_guild}\nScore: ${row.score}\n\nThis will run the existing weekly point-award function.`))return;
   try{
-    const urls=await uploadModeratorResultImages(files);
-    const {error}=await moderatorDb.rpc('moderator_submit_gvg_result',{p_challenge_id:challengeId,p_winner_guild:winner,p_loser_guild:loser,p_score:score,p_image_urls:urls});if(error)throw error;
-    showStatus('moderator-result-status','ok','Result submitted for Admin review. Points are not awarded until Admin approves it.');$('moderator-result-form').reset();await loadModeratorChallenges();
-  }catch(error){showStatus('moderator-result-status','error',humanizeError(error));}
-  finally{setBusy('moderator-result-submit',false,'SUBMIT FOR ADMIN REVIEW');}
+    const {error}=await moderatorDb.rpc('moderator_approve_result',{p_result_id:id});if(error)throw error;
+    showStatus('moderator-results-status','ok','Result approved. The existing weekly points function has been called.');
+    await loadModeratorResults();
+  }catch(error){showStatus('moderator-results-status','error',humanizeError(error));}
+}
+async function moderatorRejectResult(id){
+  const reason=prompt('Reason for rejection:','Proof or result issue');if(reason===null)return;
+  try{
+    const {error}=await moderatorDb.rpc('moderator_reject_result',{p_result_id:id,p_reason:reason.trim()||'Rejected by moderator'});if(error)throw error;
+    showStatus('moderator-results-status','ok','Result rejected. The challenge was reopened when eligible.');
+    await loadModeratorResults();
+  }catch(error){showStatus('moderator-results-status','error',humanizeError(error));}
 }
 
 /* ------------------------- Events ------------------------- */
 document.addEventListener('click',async(e)=>{
   const actionEl=e.target.closest('[data-action]');
-  if(actionEl){const action=actionEl.dataset.action,id=actionEl.dataset.id;if(action==='result-from-challenge')return selectChallengeForResult(id);if(action==='close-modal')return closeModal();if(action==='guild-info'){const g=findGuild(id);if(g)adminGuildInfo(g);return;}if(action==='guild-edit'){const g=findGuild(id);if(g)adminGuildEdit(g);return;}if(action==='guild-remove')return removeGuild(id);if(action==='approve-leader')return setLeaderApproval(id,'approved');if(action==='reject-leader')return setLeaderApproval(id,'rejected');if(action==='remove-leader')return removeLeader(id,actionEl.dataset.guild||'');if(action==='reset-password')return resetLeaderPassword(actionEl.dataset.email||'');if(action==='approve-result')return approveResult(id);if(action==='reject-result')return rejectResult(id);if(action==='unban-identity')return unbanIdentity(actionEl.dataset.guild||'',actionEl.dataset.contact||'');if(action==='mod-approve-guild')return moderatorApproveGuild(actionEl.dataset.guild||'');if(action==='mod-remove-guild')return moderatorRemoveGuild(actionEl.dataset.guild||'');if(action==='mod-ban-guild')return moderatorBanGuild(actionEl.dataset.guild||'',actionEl.dataset.duration||'permanent');}
+  if(actionEl){const action=actionEl.dataset.action,id=actionEl.dataset.id;if(action==='result-from-challenge')return selectChallengeForResult(id);if(action==='close-modal')return closeModal();if(action==='guild-info'){const g=findGuild(id);if(g)adminGuildInfo(g);return;}if(action==='guild-edit'){const g=findGuild(id);if(g)adminGuildEdit(g);return;}if(action==='guild-remove')return removeGuild(id);if(action==='approve-leader')return setLeaderApproval(id,'approved');if(action==='reject-leader')return setLeaderApproval(id,'rejected');if(action==='remove-leader')return removeLeader(id,actionEl.dataset.guild||'');if(action==='reset-password')return resetLeaderPassword(actionEl.dataset.email||'');if(action==='approve-result')return approveResult(id);if(action==='reject-result')return rejectResult(id);if(action==='unban-identity')return unbanIdentity(actionEl.dataset.guild||'',actionEl.dataset.contact||'');if(action==='mod-approve-guild')return moderatorApproveGuild(actionEl.dataset.guild||'');if(action==='mod-remove-guild')return moderatorRemoveGuild(actionEl.dataset.guild||'');if(action==='mod-approve-result')return moderatorApproveResult(id);if(action==='mod-reject-result')return moderatorRejectResult(id);}
   const menuBtn=e.target.closest('[data-menu-button]');if(menuBtn){const id=menuBtn.dataset.menuButton;document.querySelectorAll('.dots-menu.open').forEach(x=>{if(x.id!==`menu-${id}`)x.classList.remove('open')});document.getElementById(`menu-${id}`)?.classList.toggle('open');return;}document.querySelectorAll('.dots-menu.open').forEach(x=>x.classList.remove('open'));
 });
 document.querySelectorAll('[data-member-section]').forEach(btn=>btn.addEventListener('click',()=>openMemberSection(btn.dataset.memberSection)));
@@ -1267,20 +1265,19 @@ $('moderator-admin-access').addEventListener('click',async()=>{state.adminReturn
 $('moderator-back').addEventListener('click',()=>openView(state.user?'member':'public'));
 $('moderator-logout').addEventListener('click',handleModeratorLogout);
 $('moderator-guild-search').addEventListener('input',renderModeratorGuilds);
-$('moderator-result-form').addEventListener('submit',handleModeratorResultSubmit);
-$('moderator-result-challenge').addEventListener('change',fillModeratorChallengeDefaults);
+document.querySelectorAll('[data-moderator-section]').forEach(btn=>btn.addEventListener('click',()=>openModeratorSection(btn.dataset.moderatorSection)));
 
 $('nav-register').addEventListener('click',()=>openView('register'));
 $('nav-logout').addEventListener('click',handleLogout);
 $('back-login').addEventListener('click',()=>openView('public'));
-$('admin-back').addEventListener('click',()=>openView(state.modOk?'moderator':state.user?'member':'public'));
+$('admin-back').addEventListener('click',()=>openView(state.adminReturnToModerator&&state.moderatorOk?'moderator':state.user?'member':'public'));
 $('login-form').addEventListener('submit',handleLogin);
 $('register-form').addEventListener('submit',handleRegister);
 $('forgot-password').addEventListener('click',handleForgot);
 $('challenge-form').addEventListener('submit',handleChallengeSubmit);
 $('result-form').addEventListener('submit',handleResultSubmit);
 $('admin-login-form').addEventListener('submit',handleAdminLogin);
-$('admin-logout').addEventListener('click',async()=>{try{await adminDb.auth.signOut();}catch{}state.adminUser=null;state.adminOk=false;const target=state.modOk?'moderator':state.user?'member':'public';state.adminReturnToModerator=false;openView(target);});
+$('admin-logout').addEventListener('click',async()=>{try{await adminDb.auth.signOut();}catch{}state.adminUser=null;state.adminOk=false;const target=state.adminReturnToModerator&&state.moderatorOk?'moderator':state.user?'member':'public';state.adminReturnToModerator=false;openView(target);});
 $('admin-guild-search').addEventListener('input',()=>renderGuildTable('all-guild-table',filteredGuilds()));
 $('modal-backdrop').addEventListener('click',(e)=>{if(e.target===$('modal-backdrop'))closeModal();});
 
