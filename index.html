@@ -1325,7 +1325,14 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
 #moderator-page .moderator-toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
 #moderator-page .moderator-note{padding:12px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.018);color:var(--muted);font-size:9px;line-height:1.65;}
 #moderator-page .moderator-card{margin-bottom:14px;}
-@media(max-width:620px){#moderator-page{padding-top:13px;}#moderator-page .moderator-header{align-items:stretch;flex-direction:column;}#moderator-page .moderator-table th,#moderator-page .moderator-table td{padding:9px 7px;}#moderator-page .moderator-action-btn{font-size:7px;padding:7px 6px;}}
+#moderator-page .moderator-section-tabs{display:flex;gap:9px;flex-wrap:wrap;margin:8px 0 16px;padding:8px;border:1px solid var(--line);border-radius:16px;background:rgba(0,0,0,.20)}
+#moderator-page .moderator-section-tab{appearance:none;border:1px solid rgba(255,255,255,.08);border-radius:11px;padding:11px 15px;min-height:42px;background:rgba(255,255,255,.035);color:var(--muted);font-size:10px;font-weight:950;letter-spacing:.10em;cursor:pointer;transition:all .2s ease}
+#moderator-page .moderator-section-tab.active{color:#fff;background:linear-gradient(135deg,rgba(43,204,119,.25),rgba(19,130,76,.14));border-color:rgba(64,235,147,.5);box-shadow:0 0 24px rgba(43,204,119,.10)}
+#moderator-page .moderator-section-view{display:none}
+#moderator-page .moderator-section-view.active{display:block}
+#moderator-page .moderator-results-table{width:100%;min-width:690px;border-collapse:collapse}
+#moderator-page .moderator-results-table th,#moderator-page .moderator-results-table td{vertical-align:middle}
+@media(max-width:620px){#moderator-page{padding-top:13px;}#moderator-page .moderator-header{align-items:stretch;flex-direction:column;}#moderator-page .moderator-table th,#moderator-page .moderator-table td{padding:9px 7px;}#moderator-page .moderator-action-btn{font-size:7px;padding:7px 6px;}#moderator-page .moderator-section-tab{flex:1;padding:10px 9px;font-size:9px;}#moderator-page .moderator-results-table{min-width:670px;}}
 
 </style>
 
@@ -1594,7 +1601,7 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
             </div>
             <div id="moderator-login-status" class="status"></div>
           </form>
-          <div class="moderator-note" style="margin-top:12px">Moderator can approve/add pending guild registrations, remove guilds, ban guilds and submit result proofs for Admin review. Moderator cannot review/approve results, edit points, view weekly admin analytics, manage leader passwords, or use other Admin tools.</div>
+          <div class="moderator-note" style="margin-top:12px">Moderator has two limited sections: Results Review (approve/reject pending results) and Guilds (approve pending registrations or remove a guild). Weekly points are awarded only by the existing approval function. Admin-only tools remain restricted.</div>
         </div>
 
         <div id="moderator-dashboard" class="hidden">
@@ -1603,37 +1610,35 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
             <div class="moderator-toolbar"><button id="moderator-admin-access" class="btn btn-red btn-small" type="button">ADMIN ACCESS</button><button id="moderator-logout" class="btn btn-ghost btn-small" type="button">MODERATOR LOGOUT</button></div>
           </div>
 
-          <section class="admin-section moderator-card">
-            <div class="admin-section-head"><div><div class="kicker">Guild Actions</div><h3>ADD / REMOVE / BAN GUILD</h3><div class="subtle">“ADD GUILD” approves an existing pending registration. A player/leader must register their own account first.</div></div><span class="badge badge-gold">LIMITED CONTROLS</span></div>
-            <div class="search-bar"><input id="moderator-guild-search" type="search" placeholder="Search guild name..." autocomplete="off" /><span class="search-icon">⌕</span></div>
-            <div class="moderator-note" style="margin:10px 0">Guild removal is destructive. Ban applies to all registry entries for the normalized guild name. Results submitted below stay pending until Admin reviews them.</div>
-            <div class="admin-table-shell" style="margin-top:10px"><table class="moderator-table"><thead><tr><th>Guild</th><th>Status</th><th>Actions</th></tr></thead><tbody id="moderator-guild-table"><tr><td colspan="3">Loading guilds...</td></tr></tbody></table></div>
-            <div id="moderator-guild-status" class="status"></div>
-          </section>
+          <div class="moderator-section-tabs" role="tablist" aria-label="Moderator sections">
+            <button id="moderator-tab-results" class="moderator-section-tab active" type="button" role="tab" aria-selected="true" data-moderator-section="results">RESULTS REVIEW</button>
+            <button id="moderator-tab-guilds" class="moderator-section-tab" type="button" role="tab" aria-selected="false" data-moderator-section="guilds">GUILDS</button>
+          </div>
 
-          <section class="admin-section moderator-card">
-            <div class="admin-section-head"><div><div class="kicker">Result Entry</div><h3>SUBMIT RESULT</h3><div class="subtle">Submit the final score and exactly two proof screenshots. This does not approve the result or award points.</div></div><span class="badge badge-gold">ADMIN REVIEW REQUIRED</span></div>
-            <form id="moderator-result-form" novalidate>
-              <div class="field-grid">
-                <label class="full">OPEN CHALLENGE<select id="moderator-result-challenge" required><option value="">Loading open challenges...</option></select></label>
-                <label>WINNER GUILD<input id="moderator-result-winner" type="text" list="moderator-guild-names" maxlength="80" placeholder="Winner guild name" required /></label>
-                <label>LOSER GUILD<input id="moderator-result-loser" type="text" list="moderator-guild-names" maxlength="80" placeholder="Loser guild name" required /></label>
-                <label class="full">FINAL SCORE<input id="moderator-result-score" type="text" maxlength="20" placeholder="Example: 7-4" required /></label>
-                <label>PROOF PICTURE 1<input id="moderator-result-image-1" type="file" accept="image/jpeg,image/png,image/webp" required /></label>
-                <label>PROOF PICTURE 2<input id="moderator-result-image-2" type="file" accept="image/jpeg,image/png,image/webp" required /></label>
-                <datalist id="moderator-guild-names"></datalist>
-              </div>
-              <div class="moderator-toolbar" style="margin-top:13px"><button id="moderator-result-submit" class="btn btn-primary" type="submit">SUBMIT FOR ADMIN REVIEW</button></div>
-              <div id="moderator-result-status" class="status"></div>
-            </form>
-          </section>
+          <div id="moderator-section-results" class="moderator-section-view active">
+            <section class="admin-section moderator-card">
+              <div class="admin-section-head"><div><div class="kicker">Moderator Review</div><h3>RESULTS REVIEW</h3><div class="subtle">Review submitted score and proof pictures. Approving a result runs the existing weekly points-award function; rejecting it follows the existing Admin rejection flow.</div></div><span class="badge badge-gold">PROOF REVIEW</span></div>
+              <div class="admin-table-shell"><table class="admin-table moderator-results-table"><thead><tr><th>Match</th><th>Score</th><th>Submitted (PKT)</th><th>Status / Proof</th><th>Action</th></tr></thead><tbody id="moderator-result-table"><tr><td colspan="5">Loading result submissions...</td></tr></tbody></table></div>
+              <div id="moderator-results-status" class="status"></div>
+            </section>
+          </div>
+
+          <div id="moderator-section-guilds" class="moderator-section-view">
+            <section class="admin-section moderator-card">
+              <div class="admin-section-head"><div><div class="kicker">Guild Management</div><h3>GUILDS</h3><div class="subtle">Approve pending guild registrations or remove guilds. No ban controls or other Admin tools are available here.</div></div><span class="badge badge-gold">LIMITED CONTROLS</span></div>
+              <div class="search-bar"><input id="moderator-guild-search" type="search" placeholder="Search guild name..." autocomplete="off" /><span class="search-icon">⌕</span></div>
+              <div class="moderator-note" style="margin:10px 0">Approval applies to the selected registered guild. Removing a guild deletes its registry entries; historical challenge/result records may remain.</div>
+              <div class="admin-table-shell" style="margin-top:10px"><table class="moderator-table"><thead><tr><th>Guild</th><th>Status</th><th>Actions</th></tr></thead><tbody id="moderator-guild-table"><tr><td colspan="3">Loading guilds...</td></tr></tbody></table></div>
+              <div id="moderator-guild-status" class="status"></div>
+            </section>
+          </div>
         </div>
       </div>
     </section>
 
   <div id="modal-backdrop" class="modal-backdrop"><div id="modal" class="modal"></div></div>
   <div id="password-recovery-backdrop" class="modal-backdrop"><div class="modal"><div class="modal-head"><div><div class="kicker">Account Recovery</div><h3>SET NEW PASSWORD</h3></div></div><form id="password-recovery-form"><label>NEW PASSWORD<input id="recovery-password" type="password" minlength="8" autocomplete="new-password" placeholder="Minimum 8 characters" required /></label><label style="margin-top:10px">CONFIRM PASSWORD<input id="recovery-password-confirm" type="password" minlength="8" autocomplete="new-password" placeholder="Repeat new password" required /></label><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px"><button class="btn btn-primary" type="submit">UPDATE PASSWORD</button></div><div id="recovery-status" class="status"></div></form></div></div>
-  <footer class="footer"><div class="container footer-inner"><span>7TH UNIVERSE • GUILD VS GUILD</span><span>RULES ARE EQUAL FOR ALL GUILDS</span><span class="version-chip">V19.0 • RANKING UI FIX</span></div></footer>
+  <footer class="footer"><div class="container footer-inner"><span>7TH UNIVERSE • GUILD VS GUILD</span><span>RULES ARE EQUAL FOR ALL GUILDS</span><span class="version-chip">V20.0 • MODERATOR REVIEW</span></div></footer>
 
   <script>
   /* V18.9: Standalone match-time picker. It does not depend on Supabase or the main app script. */
@@ -1742,6 +1747,6 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
   })();
   </script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="./script.js?v=19.0-moderator-access-20261010"></script>
+  <script src="./script.js?v=20.0-moderator-results-review-20261010"></script>
 </body>
 </html>
