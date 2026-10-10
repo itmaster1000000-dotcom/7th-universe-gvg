@@ -1309,6 +1309,24 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
     .ranking-mode-panel .rank-table tbody tr:first-child td.pos{color:#ffb2bf;}
     @media(max-width:760px){.ranking-mode-tabs{grid-template-columns:1fr;gap:7px;padding:7px;}.ranking-mode-button{justify-content:flex-start;min-height:45px;padding:11px 13px;text-align:left;font-size:10px;}.ranking-mode-button:before{content:"";flex:0 0 7px;width:7px;height:7px;margin-right:8px;border-radius:50%;background:rgba(255,129,148,.38);}.ranking-mode-button.active:before{background:#ff8194;box-shadow:0 0 10px rgba(255,129,148,.55);}.ranking-view-head h4{font-size:22px;}}
     @media(max-width:440px){.ranking-view-head{gap:8px;}.ranking-view-head h4{font-size:20px;}.ranking-view-head .badge{flex-shrink:0;padding:6px 8px;font-size:7px;}.ranking-mode-panel .rank-table th,.ranking-mode-panel .rank-table td{padding:12px 7px;font-size:9px;}.ranking-mode-panel .rank-table th:first-child,.ranking-mode-panel .rank-table td:first-child{width:40px;}.ranking-mode-panel .rank-table th:last-child,.ranking-mode-panel .rank-table td:last-child{width:82px;}.ranking-mode-panel .rank-table td.pos{font-size:20px;}.ranking-mode-panel .rank-table td.pts{font-size:22px;}.ranking-mode-panel .rank-table td strong{font-size:10px;}}
+
+/* GVG moderator access — independent role/session and minimal controls */
+#moderator-page{display:none;padding:20px 0 40px;}
+#moderator-page .moderator-login{width:min(680px,100%);margin:20px auto;}
+#moderator-page .moderator-header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:5px 0 16px;}
+#moderator-page .moderator-actions{display:flex;flex-wrap:wrap;gap:6px;max-width:430px;}
+#moderator-page .moderator-action-btn{padding:7px 9px;min-height:32px;font-size:8px;white-space:nowrap;}
+#moderator-page .moderator-table{width:100%;min-width:590px;border-collapse:collapse;}
+#moderator-page .moderator-table th,#moderator-page .moderator-table td{padding:10px 9px;border-bottom:1px solid rgba(255,255,255,.055);font-size:9px;text-align:left;vertical-align:middle;}
+#moderator-page .moderator-table th{color:var(--muted);font-size:8px;letter-spacing:.1em;text-transform:uppercase;background:rgba(255,255,255,.025);}
+#moderator-page .moderator-table tr:last-child td{border-bottom:0;}
+#moderator-page .moderator-guild-name{font-weight:900;overflow-wrap:anywhere;}
+#moderator-page .moderator-status-badge{display:inline-flex;padding:5px 7px;border:1px solid var(--line2);border-radius:999px;font-size:7px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;}
+#moderator-page .moderator-toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+#moderator-page .moderator-note{padding:12px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.018);color:var(--muted);font-size:9px;line-height:1.65;}
+#moderator-page .moderator-card{margin-bottom:14px;}
+@media(max-width:620px){#moderator-page{padding-top:13px;}#moderator-page .moderator-header{align-items:stretch;flex-direction:column;}#moderator-page .moderator-table th,#moderator-page .moderator-table td{padding:9px 7px;}#moderator-page .moderator-action-btn{font-size:7px;padding:7px 6px;}}
+
 </style>
 
 </head>
@@ -1316,7 +1334,7 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
   <div class="topline"></div>
   <header>
     <div class="nav">
-      <div class="nav-left"><button id="nav-admin" class="btn btn-red btn-small" type="button">ADMIN</button></div>
+      <div class="nav-left"><button id="nav-moderator" class="btn btn-red btn-small" type="button">MODERATOR</button></div>
       <div class="nav-center"><img class="brand-logo" src="7th-universe-gvg-logo.jpg" alt="7TH UNIVERSE" /><div><div class="brand-title">7TH UNIVERSE</div><div class="brand-sub">GUILD VS GUILD • FAIR PLAY ARENA</div></div></div>
       <div class="nav-right"><button id="nav-register" class="btn btn-primary btn-small" type="button">REGISTER NEW ACCOUNT</button><button id="nav-logout" class="btn btn-red btn-small hidden" type="button">LOGOUT</button></div>
     </div>
@@ -1556,6 +1574,63 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
     </div>
   </div>
 
+
+    <section id="moderator-page">
+      <div class="container">
+        <div id="moderator-login-view" class="moderator-login card">
+          <div class="panel-head">
+            <div><div class="kicker">Restricted Staff Access</div><h3>MODERATOR LOGIN</h3><div class="subtle">Moderator accounts are approved separately. This login does not grant Admin access.</div></div>
+            <span class="badge badge-gold">LIMITED ACCESS</span>
+          </div>
+          <form id="moderator-login-form" novalidate>
+            <div class="field-grid">
+              <label class="full">MODERATOR EMAIL<input id="moderator-email" type="email" autocomplete="username" placeholder="moderator@example.com" required /></label>
+              <label class="full">MODERATOR PASSWORD<input id="moderator-password" type="password" autocomplete="current-password" required /></label>
+            </div>
+            <div class="moderator-toolbar" style="margin-top:13px">
+              <button id="moderator-login-submit" class="btn btn-primary" type="submit">LOGIN AS MODERATOR</button>
+              <button id="moderator-open-admin-login" class="btn btn-red" type="button">ADMIN ACCESS</button>
+              <button id="moderator-back" class="btn btn-ghost" type="button">BACK</button>
+            </div>
+            <div id="moderator-login-status" class="status"></div>
+          </form>
+          <div class="moderator-note" style="margin-top:12px">Moderator can approve/add pending guild registrations, remove guilds, ban guilds and submit result proofs for Admin review. Moderator cannot review/approve results, edit points, view weekly admin analytics, manage leader passwords, or use other Admin tools.</div>
+        </div>
+
+        <div id="moderator-dashboard" class="hidden">
+          <div class="moderator-header">
+            <div><div class="kicker">7TH UNIVERSE • GVG STAFF</div><h2 class="title">MODERATOR CONTROL</h2><div id="moderator-session-label" class="desc">Limited moderator session</div></div>
+            <div class="moderator-toolbar"><button id="moderator-admin-access" class="btn btn-red btn-small" type="button">ADMIN ACCESS</button><button id="moderator-logout" class="btn btn-ghost btn-small" type="button">MODERATOR LOGOUT</button></div>
+          </div>
+
+          <section class="admin-section moderator-card">
+            <div class="admin-section-head"><div><div class="kicker">Guild Actions</div><h3>ADD / REMOVE / BAN GUILD</h3><div class="subtle">“ADD GUILD” approves an existing pending registration. A player/leader must register their own account first.</div></div><span class="badge badge-gold">LIMITED CONTROLS</span></div>
+            <div class="search-bar"><input id="moderator-guild-search" type="search" placeholder="Search guild name..." autocomplete="off" /><span class="search-icon">⌕</span></div>
+            <div class="moderator-note" style="margin:10px 0">Guild removal is destructive. Ban applies to all registry entries for the normalized guild name. Results submitted below stay pending until Admin reviews them.</div>
+            <div class="admin-table-shell" style="margin-top:10px"><table class="moderator-table"><thead><tr><th>Guild</th><th>Status</th><th>Actions</th></tr></thead><tbody id="moderator-guild-table"><tr><td colspan="3">Loading guilds...</td></tr></tbody></table></div>
+            <div id="moderator-guild-status" class="status"></div>
+          </section>
+
+          <section class="admin-section moderator-card">
+            <div class="admin-section-head"><div><div class="kicker">Result Entry</div><h3>SUBMIT RESULT</h3><div class="subtle">Submit the final score and exactly two proof screenshots. This does not approve the result or award points.</div></div><span class="badge badge-gold">ADMIN REVIEW REQUIRED</span></div>
+            <form id="moderator-result-form" novalidate>
+              <div class="field-grid">
+                <label class="full">OPEN CHALLENGE<select id="moderator-result-challenge" required><option value="">Loading open challenges...</option></select></label>
+                <label>WINNER GUILD<input id="moderator-result-winner" type="text" list="moderator-guild-names" maxlength="80" placeholder="Winner guild name" required /></label>
+                <label>LOSER GUILD<input id="moderator-result-loser" type="text" list="moderator-guild-names" maxlength="80" placeholder="Loser guild name" required /></label>
+                <label class="full">FINAL SCORE<input id="moderator-result-score" type="text" maxlength="20" placeholder="Example: 7-4" required /></label>
+                <label>PROOF PICTURE 1<input id="moderator-result-image-1" type="file" accept="image/jpeg,image/png,image/webp" required /></label>
+                <label>PROOF PICTURE 2<input id="moderator-result-image-2" type="file" accept="image/jpeg,image/png,image/webp" required /></label>
+                <datalist id="moderator-guild-names"></datalist>
+              </div>
+              <div class="moderator-toolbar" style="margin-top:13px"><button id="moderator-result-submit" class="btn btn-primary" type="submit">SUBMIT FOR ADMIN REVIEW</button></div>
+              <div id="moderator-result-status" class="status"></div>
+            </form>
+          </section>
+        </div>
+      </div>
+    </section>
+
   <div id="modal-backdrop" class="modal-backdrop"><div id="modal" class="modal"></div></div>
   <div id="password-recovery-backdrop" class="modal-backdrop"><div class="modal"><div class="modal-head"><div><div class="kicker">Account Recovery</div><h3>SET NEW PASSWORD</h3></div></div><form id="password-recovery-form"><label>NEW PASSWORD<input id="recovery-password" type="password" minlength="8" autocomplete="new-password" placeholder="Minimum 8 characters" required /></label><label style="margin-top:10px">CONFIRM PASSWORD<input id="recovery-password-confirm" type="password" minlength="8" autocomplete="new-password" placeholder="Repeat new password" required /></label><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px"><button class="btn btn-primary" type="submit">UPDATE PASSWORD</button></div><div id="recovery-status" class="status"></div></form></div></div>
   <footer class="footer"><div class="container footer-inner"><span>7TH UNIVERSE • GUILD VS GUILD</span><span>RULES ARE EQUAL FOR ALL GUILDS</span><span class="version-chip">V19.0 • RANKING UI FIX</span></div></footer>
@@ -1667,6 +1742,6 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
   })();
   </script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="./script.js?v=18.10-ranking-cleanup-20261009"></script>
+  <script src="./script.js?v=19.0-moderator-access-20261010"></script>
 </body>
 </html>
