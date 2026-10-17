@@ -1334,6 +1334,20 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
 #moderator-page .moderator-results-table th,#moderator-page .moderator-results-table td{vertical-align:middle}
 @media(max-width:620px){#moderator-page{padding-top:13px;}#moderator-page .moderator-header{align-items:stretch;flex-direction:column;}#moderator-page .moderator-table th,#moderator-page .moderator-table td{padding:9px 7px;}#moderator-page .moderator-action-btn{font-size:7px;padding:7px 6px;}#moderator-page .moderator-section-tab{flex:1;padding:10px 9px;font-size:9px;}#moderator-page .moderator-results-table{min-width:670px;}}
 
+
+/* Guild profiles, achievement badges, Hall of Fame and touch-rotated trophies */
+.guild-profile-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.guild-profile-card{min-width:0;display:flex;align-items:center;gap:11px;padding:12px;border:1px solid rgba(87,224,135,.16);border-radius:15px;background:linear-gradient(140deg,rgba(30,124,66,.10),rgba(255,255,255,.018));}
+.guild-profile-avatar{flex:0 0 60px;width:60px;height:60px;display:grid;place-items:center;overflow:hidden;border-radius:13px;border:1px solid rgba(103,255,153,.22);background:rgba(12,50,26,.48);color:#85ffa7}
+.guild-profile-avatar img{width:100%;height:100%;object-fit:cover}
+.guild-profile-main{flex:1;min-width:0}.guild-profile-name{font-family:"Barlow Condensed",sans-serif;font-size:22px;line-height:1.05;font-weight:900;overflow-wrap:anywhere;color:#e8fff0}.guild-profile-uid{font-size:9px;color:#8ba997;margin-top:4px;overflow-wrap:anywhere}.guild-profile-meta{font-size:9px;color:#adc6b5;margin-top:5px}
+.guild-profile-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0}.guild-profile-kpi{padding:11px;border:1px solid rgba(255,255,255,.07);border-radius:12px;background:rgba(255,255,255,.025)}.guild-profile-kpi span{display:block;color:#8fa59a;font-size:8px;font-weight:900;letter-spacing:.08em;text-transform:uppercase}.guild-profile-kpi strong{display:block;font-family:"Barlow Condensed",sans-serif;font-size:27px;color:#f4fff6;margin-top:3px}
+.guild-badge-section-title{margin:16px 0 9px;font-weight:900;font-size:10px;letter-spacing:.13em;color:#85f6a2}.guild-badge-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.guild-badge-item{position:relative;min-width:0;padding:9px 6px;border:1px solid rgba(255,255,255,.075);border-radius:12px;background:rgba(255,255,255,.025);text-align:center}.guild-badge-item img{width:66px;height:66px;max-width:100%;object-fit:contain;display:block;margin:0 auto 7px;filter:drop-shadow(0 5px 10px rgba(0,0,0,.35))}.guild-badge-item strong{display:block;font-size:8px;line-height:1.3;overflow-wrap:anywhere}.guild-badge-item small{display:block;margin-top:4px;color:#8da397;font-size:7px;line-height:1.35}.guild-badge-item.locked{opacity:.37;filter:grayscale(1)}.guild-badge-item.locked:after{content:"🔒";position:absolute;top:5px;right:5px;font-size:12px}
+.hof-main-card{overflow:hidden;position:relative}.hof-main-card:before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 0%,rgba(255,208,91,.08),transparent 55%)}.hof-heading{position:relative;display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.hof-heading h3{font-family:"Barlow Condensed",sans-serif;font-size:32px;line-height:1;margin:0}.hof-type-tabs{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:16px 0}.hof-type-tab{border:1px solid rgba(255,213,113,.2);border-radius:12px;padding:13px 8px;color:#bdcabe;background:rgba(255,255,255,.025);font-size:9px;font-weight:900;letter-spacing:.06em}.hof-type-tab.active{color:#ffe49a;border-color:rgba(255,213,113,.65);background:linear-gradient(140deg,rgba(157,111,25,.22),rgba(255,255,255,.025));box-shadow:0 0 25px rgba(255,204,87,.07)}
+.hof-year-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:12px 0}.hof-year-tile,.hof-period-tile{border:1px solid rgba(255,213,113,.18);border-radius:12px;padding:13px 6px;background:linear-gradient(155deg,rgba(48,38,19,.58),rgba(255,255,255,.02));color:#e4d5a7;font-weight:900}.hof-year-tile.active,.hof-period-tile.active{border-color:#e9c66c;box-shadow:0 0 20px rgba(255,214,110,.13);color:#ffe7a5}.hof-period-heading{font-family:"Barlow Condensed",sans-serif;font-size:23px;font-weight:900;color:#f6dfa0;margin:12px 0 8px}.hof-period-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.hof-period-tile{min-height:66px;display:flex;flex-direction:column;justify-content:center;gap:4px;font-size:11px}.hof-period-tile small{font-size:8px;color:#a5ae9f;font-weight:700}.hof-selected-award{margin-top:14px}.hof-award-card{position:relative;display:grid;grid-template-columns:140px minmax(0,1fr);align-items:center;gap:16px;padding:17px;border:1px solid rgba(235,199,103,.30);border-radius:18px;background:radial-gradient(ellipse at 18% 0%,rgba(244,196,74,.12),transparent 60%),linear-gradient(145deg,rgba(36,30,17,.9),rgba(6,13,10,.94));overflow:hidden}.trophy-3d{width:130px;height:150px;display:grid;place-items:center;perspective:700px;transform-style:preserve-3d;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;filter:drop-shadow(0 15px 14px rgba(0,0,0,.40));transition:filter .2s}.trophy-3d:active{cursor:grabbing;filter:drop-shadow(0 14px 18px rgba(255,197,62,.20))}.trophy-3d svg{width:100%;height:100%;overflow:visible;transform-style:preserve-3d;pointer-events:none}.hof-award-label{color:#ffe197;font-size:9px;letter-spacing:.15em;font-weight:900;text-transform:uppercase}.hof-award-guild{font-family:"Barlow Condensed",sans-serif;font-size:29px;line-height:1.03;color:#fff;overflow-wrap:anywhere;margin:8px 0}.hof-award-uid{font-size:10px;color:#b6c5b6;overflow-wrap:anywhere}.hof-award-notes{font-size:10px;color:#9fac9e;margin-top:9px;line-height:1.4}.hof-award-meta{font-size:8px;color:#d5bf83;margin-top:9px}.admin-hof-award-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px;border-bottom:1px solid rgba(255,255,255,.06)}.admin-hof-award-row:last-child{border-bottom:0}.admin-hof-award-main{min-width:0}.admin-hof-award-main strong{display:block;overflow-wrap:anywhere}.admin-hof-award-main small{display:block;color:#9aa69c;font-size:8px;line-height:1.5;margin-top:3px}
+@media(max-width:760px){.guild-profile-grid{grid-template-columns:1fr}.guild-profile-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.guild-badge-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.hof-year-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.hof-period-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.hof-award-card{grid-template-columns:1fr;text-align:center}.trophy-3d{margin:0 auto}.hof-heading{flex-direction:column}}
+@media(max-width:420px){.guild-badge-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.hof-type-tab{font-size:8px}.hof-period-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.guild-profile-avatar{flex-basis:52px;width:52px;height:52px}}
+
 </style>
 
 </head>
@@ -1397,7 +1411,7 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
           <button class="member-tab" type="button" data-member-section="challenges">CHALLENGES</button>
           <button class="member-tab" type="button" data-member-section="results">RESULTS</button>
           <button class="member-tab" type="button" data-member-section="ranking">RANKING</button>
-          <button class="member-tab" type="button" data-member-section="registered-guilds">REGISTERED GUILDS</button>
+          <button class="member-tab" type="button" data-member-section="registered-guilds">REGISTERED GUILDS</button><button class="member-tab" type="button" data-member-section="guild-profiles">GUILD PROFILES</button><button class="member-tab" type="button" data-member-section="hall-of-fame">HALL OF FAME</button>
         </div>
 
         <div id="member-section-rules" class="member-view active">
@@ -1438,10 +1452,10 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
 
         <div id="member-section-results" class="member-view">
           <div class="card">
-            <div class="panel-head"><div><div class="kicker">Verified Records</div><h3>RESULTS</h3><div class="subtle">Either guild involved in the challenge may submit the result. Exactly 2 proof screenshots are required.</div></div><span class="badge badge-gold">ADMIN REVIEW</span></div>
+            <div class="panel-head"><div><div class="kicker">Verified Records</div><h3>RESULTS</h3><div class="subtle">Either guild involved in the challenge may submit the result. Upload exactly one clear result screenshot.</div></div><span class="badge badge-gold">ADMIN REVIEW</span></div>
             <form id="result-form" novalidate>
-              <div class="field-grid"><label class="full">CHALLENGE<select id="result-challenge" required><option value="">Select an active challenge</option></select></label><label>WINNER GUILD<div class="autocomplete-wrap"><input id="result-winner" type="text" maxlength="80" placeholder="Enter winner guild name" autocomplete="off" required /><div id="result-winner-suggestions" class="autocomplete-list"></div></div></label><label>LOSER GUILD<div class="autocomplete-wrap"><input id="result-loser" type="text" maxlength="80" placeholder="Enter loser guild name" autocomplete="off" required /><div id="result-loser-suggestions" class="autocomplete-list"></div></div></label><label class="full">SCORE<input id="result-score" type="text" maxlength="80" placeholder="Example: 6 - 4" required /></label><label>PROOF SCREENSHOT 1<input id="result-image-1" type="file" accept="image/jpeg,image/png,image/webp" required /></label><label>PROOF SCREENSHOT 2<input id="result-image-2" type="file" accept="image/jpeg,image/png,image/webp" required /></label></div>
-              <div class="hint">Results can be submitted anytime for an active challenge. Maximum 5 result submissions per guild per Pakistan day. After 10:00 AM the daily challenge expires.</div>
+              <div class="field-grid"><label class="full">CHALLENGE<select id="result-challenge" required><option value="">Select an active challenge</option></select></label><label>WINNER GUILD<div class="autocomplete-wrap"><input id="result-winner" type="text" maxlength="80" placeholder="Enter winner guild name" autocomplete="off" required /><div id="result-winner-suggestions" class="autocomplete-list"></div></div></label><label>LOSER GUILD<div class="autocomplete-wrap"><input id="result-loser" type="text" maxlength="80" placeholder="Enter loser guild name" autocomplete="off" required /><div id="result-loser-suggestions" class="autocomplete-list"></div></div></label><label class="full">SCORE<input id="result-score" type="text" maxlength="80" placeholder="Example: 6 - 4" required /></label><label class="full">RESULT PROOF IMAGE<input id="result-image-1" type="file" accept="image/jpeg,image/png,image/webp" required /></label></div>
+              <div class="hint">Upload one clear screenshot showing the final match result. Maximum 5 result submissions per guild per Pakistan day. After 10:00 AM the daily challenge expires.</div>
               <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px"><button id="result-submit" class="btn btn-primary" type="submit">SUBMIT RESULT</button></div><div id="result-status" class="status"></div>
             </form>
             <div class="divider"></div><div class="kicker">My Result Submissions</div><div id="my-result-list" class="result-list" style="margin-top:9px"><div class="empty">Loading your submissions...</div></div><div class="divider"></div><div class="kicker">Approved Results</div><div id="approved-result-list" class="result-list" style="margin-top:9px"><div class="empty">Loading approved results...</div></div>
@@ -1499,6 +1513,37 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
           </div>
         </div>
 
+        <div id="member-section-guild-profiles" class="member-view">
+          <div class="card">
+            <div class="panel-head"><div><div class="kicker">Guild Identity</div><h3>MY GUILD PROFILE</h3><div class="subtle">Set your in-game Guild UID and logo. A changed logo can only be changed again after 3 days.</div></div><span class="badge badge-green">PROFILE</span></div>
+            <form id="guild-profile-form" novalidate>
+              <div class="field-grid">
+                <label class="full">IN-GAME GUILD UID<input id="guild-profile-uid" type="text" maxlength="40" placeholder="Enter your game Guild UID" autocomplete="off" /></label>
+                <label class="full">GUILD LOGO (PNG / JPG / WEBP, MAX 2 MB)<input id="guild-profile-logo" type="file" accept="image/jpeg,image/png,image/webp" /></label>
+              </div>
+              <div id="guild-logo-cooldown-note" class="hint">First logo upload is available immediately. After changing it, a 3-day cooldown applies.</div>
+              <div class="split-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px"><button id="guild-profile-save" class="btn btn-primary" type="submit">SAVE GUILD PROFILE</button></div>
+              <div id="guild-profile-status" class="status"></div>
+            </form>
+          </div>
+          <div class="card" style="margin-top:14px">
+            <div class="panel-head"><div><div class="kicker">Community Profiles</div><h3>ALL GUILD PROFILES</h3><div class="subtle">Tap any guild to view its record, trophies and unlocked achievements.</div></div><span id="public-profile-count" class="badge badge-green">LOADING</span></div>
+            <div class="search-bar"><input id="public-guild-profile-search" type="search" placeholder="Search guild name or Guild UID..." autocomplete="off" /><span class="search-icon">⌕</span></div>
+            <div id="public-guild-profile-grid" class="guild-profile-grid" style="margin-top:12px"><div class="empty">Loading guild profiles...</div></div>
+          </div>
+        </div>
+
+        <div id="member-section-hall-of-fame" class="member-view">
+          <div class="card hof-main-card">
+            <div class="hof-heading"><div><div class="kicker">Champions Legacy</div><h3>HALL OF FAME</h3><div class="subtle">Every official trophy stays here permanently. Weekly and monthly awards are entered by the Admin.</div></div><span class="badge badge-gold">🏆 LEGENDS</span></div>
+            <div class="hof-type-tabs" role="tablist" aria-label="Hall of Fame types"><button class="hof-type-tab active" type="button" data-hof-type="weekly">🏆 WEEKLY CHAMPIONS</button><button class="hof-type-tab" type="button" data-hof-type="monthly">👑 MONTHLY CHAMPIONS</button></div>
+            <div id="hof-year-grid" class="hof-year-grid"><div class="empty">Loading years...</div></div>
+            <div id="hof-period-heading" class="hof-period-heading">SELECT A YEAR</div>
+            <div id="hof-period-grid" class="hof-period-grid"></div>
+            <div id="hof-selected-award" class="hof-selected-award"><div class="empty">Choose a year and week/month to view the champion.</div></div>
+          </div>
+        </div>
+
       </div>
     </section>
 
@@ -1511,11 +1556,11 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
 
         <div id="admin-dashboard" class="hidden">
           <div class="admin-head"><div><div class="kicker">7TH UNIVERSE • ADMIN</div><h2 class="title">CONTROL CENTER</h2><div id="admin-session-label" class="desc">Authenticated admin</div></div><button id="admin-logout" class="btn btn-red btn-small" type="button">ADMIN LOGOUT</button></div>
-          <div class="admin-tabs" role="tablist" aria-label="Admin sections"><button class="admin-tab active" type="button" data-admin-section="guilds" aria-selected="true">GUILDS</button><button class="admin-tab" type="button" data-admin-section="results" aria-selected="false">RESULTS REVIEW</button><button class="admin-tab" type="button" data-admin-section="weekly" aria-selected="false">WEEKLY MATCHES</button><button class="admin-tab" type="button" data-admin-section="ban" aria-selected="false">BAN GUILD</button></div>
+          <div class="admin-tabs" role="tablist" aria-label="Admin sections"><button class="admin-tab active" type="button" data-admin-section="guilds" aria-selected="true">GUILDS</button><button class="admin-tab" type="button" data-admin-section="results" aria-selected="false">RESULTS REVIEW</button><button class="admin-tab" type="button" data-admin-section="weekly" aria-selected="false">WEEKLY MATCHES</button><button class="admin-tab" type="button" data-admin-section="ban" aria-selected="false">BAN GUILD</button><button class="admin-tab" type="button" data-admin-section="trophies" aria-selected="false">HALL OF FAME</button></div>
           <div class="admin-layout">
             <div id="admin-section-guilds" class="admin-panel-view active"><section class="admin-section"><div class="admin-section-head"><div><div class="kicker">Guild Management</div><h3>GUILDS</h3><div class="subtle">New registrations are reviewed first. All guilds are searchable separately below.</div></div><span class="badge badge-gold">GUILD CONTROL</span></div><div class="admin-section-body"><div class="admin-panel review-section"><div class="panel-head"><div><div class="kicker">First Priority</div><h3>GUILD REVIEW</h3><div class="subtle">Newly registered guilds appear at the top.</div></div><span class="badge badge-gold">NEW FIRST</span></div><div class="admin-table-shell"><table class="admin-table"><thead><tr><th>Guild</th><th>Status</th><th>Menu</th></tr></thead><tbody id="pending-guild-table"><tr><td colspan="3">Loading new guilds...</td></tr></tbody></table></div></div><div class="card"><div class="panel-head"><div><div class="kicker">Directory</div><h3>ALL GUILDS</h3><div class="subtle">Only Guild Name + Status are shown in the list.</div></div><span class="badge badge-blue">SEARCH</span></div><div class="search-bar"><input id="admin-guild-search" type="search" placeholder="Search guild name, contact or email..." autocomplete="off" /><span class="search-icon">⌕</span></div><div class="admin-table-shell" style="margin-top:10px"><table class="admin-table"><thead><tr><th>Guild</th><th>Status</th><th>Menu</th></tr></thead><tbody id="all-guild-table"><tr><td colspan="3">Loading guilds...</td></tr></tbody></table></div></div></div></section></div>
 
-            <div id="admin-section-results" class="admin-panel-view"><section class="admin-section"><div class="admin-section-head"><div><div class="kicker">Admin Verification</div><h3>RESULTS REVIEW</h3><div class="subtle">Results are now a separate admin section. Normally only match names, score and status are shown; open a result to view both proofs.</div></div><span class="badge badge-gold">PROOF REVIEW</span></div><div class="admin-table-shell"><table class="admin-table"><thead><tr><th>Match</th><th>Score</th><th>Submitted (PKT)</th><th>Status / Proof</th><th>Action</th></tr></thead><tbody id="admin-result-table"><tr><td colspan="5">Loading results...</td></tr></tbody></table></div></section></div>
+            <div id="admin-section-results" class="admin-panel-view"><section class="admin-section"><div class="admin-section-head"><div><div class="kicker">Admin Verification</div><h3>RESULTS REVIEW</h3><div class="subtle">Results are now a separate admin section. Normally only match names, score and status are shown; open a result to view the single proof image.</div></div><span class="badge badge-gold">PROOF REVIEW</span></div><div class="admin-table-shell"><table class="admin-table"><thead><tr><th>Match</th><th>Score</th><th>Submitted (PKT)</th><th>Status / Proof</th><th>Action</th></tr></thead><tbody id="admin-result-table"><tr><td colspan="5">Loading results...</td></tr></tbody></table></div></section></div>
 
             <div id="admin-section-weekly" class="admin-panel-view">
               <section class="admin-section weekly-matches-section">
@@ -1561,6 +1606,27 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
             </div>
 
             <div id="admin-section-ban" class="admin-panel-view"><section class="admin-section"><div class="admin-section-head"><div><div class="kicker">Enforcement</div><h3>BAN GUILD</h3><div class="subtle">Permanent or timed ban by guild name/contact number. Ban is shared across both leaders.</div></div><span class="badge badge-red">BAN CONTROL</span></div><div class="admin-panel"><form id="ban-form" novalidate><div class="field-grid"><label class="full">GUILD NAME<input id="ban-guild" type="text" maxlength="80" placeholder="Guild name" /></label><label class="full">CONTACT NUMBER<input id="ban-contact" type="tel" maxlength="30" placeholder="03XXXXXXXXX" /></label><label class="full">BAN DURATION<select id="ban-duration"><option value="permanent">Permanent</option><option value="1h">1 Hour</option><option value="6h">6 Hours</option><option value="1d">1 Day</option><option value="3d">3 Days</option><option value="7d">7 Days</option></select></label><label class="full">REASON<input id="ban-reason" type="text" maxlength="250" value="Rule violation" /></label></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px"><button class="btn btn-red" type="submit">BAN GUILD</button></div><div id="ban-status" class="status"></div></form><div class="divider"></div><div class="kicker">Active Ban Records</div><div id="ban-list" class="challenge-list" style="margin-top:9px"><div class="empty">Loading bans...</div></div></div></section></div>
+            <div id="admin-section-trophies" class="admin-panel-view">
+              <section class="admin-section">
+                <div class="admin-section-head"><div><div class="kicker">Official Champion Awards</div><h3>HALL OF FAME CONTROL</h3><div class="subtle">Only Admin can award or remove official weekly/monthly trophies. Changing these records does not alter weekly ranking points.</div></div><span class="badge badge-gold">ADMIN ONLY</span></div>
+                <div class="admin-panel">
+                  <div class="panel-head"><div><div class="kicker">Season Settings</div><h3>CURRENT WEEK</h3><div class="subtle">Set the season year and current competition week (currently defaults to Week 11).</div></div></div>
+                  <form id="hof-season-form"><div class="field-grid"><label>SEASON YEAR<input id="hof-season-year" type="number" min="2020" max="2100" value="2026" required /></label><label>CURRENT WEEK NUMBER<input id="hof-current-week" type="number" min="1" max="60" value="11" required /></label></div><button class="btn btn-primary" type="submit" style="margin-top:12px">SAVE SEASON SETTINGS</button><div id="hof-season-status" class="status"></div></form>
+                </div>
+                <div class="admin-panel" style="margin-top:12px">
+                  <div class="panel-head"><div><div class="kicker">Award a Champion</div><h3>ADD / UPDATE TROPHY</h3><div class="subtle">If that year/week/month already has a trophy, awarding again updates its champion record.</div></div></div>
+                  <form id="hof-award-form" novalidate><div class="field-grid">
+                    <label>AWARD TYPE<select id="hof-award-type"><option value="weekly">Weekly Champion</option><option value="monthly">Monthly Champion</option></select></label>
+                    <label>YEAR<input id="hof-award-year" type="number" min="2020" max="2100" value="2026" required /></label>
+                    <label id="hof-period-number-label">WEEK NUMBER (1–60)<input id="hof-award-period" type="number" min="1" max="60" value="1" required /></label>
+                    <label class="full">WINNING GUILD<select id="hof-award-guild" required><option value="">Loading approved guilds...</option></select></label>
+                    <label class="full">TROPHY LABEL<input id="hof-award-label" type="text" maxlength="100" value="WEEK 1 CHAMPION" required /></label>
+                    <label class="full">NOTES (OPTIONAL)<textarea id="hof-award-notes" maxlength="500" rows="2" placeholder="Quarterfinal / season note, if needed"></textarea></label>
+                  </div><button id="hof-award-submit" class="btn btn-gold" type="submit" style="margin-top:12px">AWARD TROPHY</button><div id="hof-award-status" class="status"></div></form>
+                </div>
+                <div class="admin-panel" style="margin-top:12px"><div class="panel-head"><div><div class="kicker">Permanent Archive</div><h3>RECENT HALL OF FAME RECORDS</h3></div><button id="hof-admin-refresh" class="btn btn-ghost btn-small" type="button">REFRESH</button></div><div id="admin-hof-awards-list" class="admin-hof-awards-list"><div class="empty">Loading Hall of Fame records...</div></div></div>
+              </section>
+            </div>
           </div>
           <div id="admin-status" class="status" style="margin-top:13px"></div>
         </div>
@@ -1617,7 +1683,7 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
 
           <div id="moderator-section-results" class="moderator-section-view active">
             <section class="admin-section moderator-card">
-              <div class="admin-section-head"><div><div class="kicker">Moderator Review</div><h3>RESULTS REVIEW</h3><div class="subtle">Review submitted score and proof pictures. Approving a result runs the existing weekly points-award function; rejecting it follows the existing Admin rejection flow.</div></div><span class="badge badge-gold">PROOF REVIEW</span></div>
+              <div class="admin-section-head"><div><div class="kicker">Moderator Review</div><h3>RESULTS REVIEW</h3><div class="subtle">Review submitted score and the result proof image. Approving a result runs the existing weekly points-award function; rejecting it follows the existing Admin rejection flow.</div></div><span class="badge badge-gold">PROOF REVIEW</span></div>
               <div class="admin-table-shell"><table class="admin-table moderator-results-table"><thead><tr><th>Match</th><th>Score</th><th>Submitted (PKT)</th><th>Status / Proof</th><th>Action</th></tr></thead><tbody id="moderator-result-table"><tr><td colspan="5">Loading result submissions...</td></tr></tbody></table></div>
               <div id="moderator-results-status" class="status"></div>
             </section>
@@ -1747,6 +1813,6 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
   })();
   </script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="./script.js?v=20.0-moderator-results-review-20261010"></script>
+  <script src="./script.js?v=21.0-guild-profiles-hof-single-proof"></script>
 </body>
 </html>
