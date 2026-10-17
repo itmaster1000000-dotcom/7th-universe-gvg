@@ -1315,7 +1315,7 @@ const GVG_BADGES = [
  {id:40,name:'Legacy Guild',file:'40_legacy_guild.png',desc:'Play in at least 12 different months.',metric:'active_months',min:12}
 ];
 function numberMetric(p,key){return Number(p?.[key]||0);}
-function badgeUnlocked(b,p){return numberMetric(p,b.metric)>=b.min && (!b.minPlayed||numberMetric(p,'total_played')>=b.minPlayed);}
+function badgeUnlocked(b,p){return numberMetric(p,`badge_${b.metric}`)>=b.min && (!b.minPlayed||numberMetric(p,'badge_total_played')>=b.minPlayed);}
 function badgeImgPath(file){return `./${file}`;}
 function guildAvatarMarkup(p,small=false){return p?.guild_logo_url?`<div class="guild-profile-avatar" ${small?'style="width:56px;height:56px;flex-basis:56px"':''}><img src="${escapeHtml(p.guild_logo_url)}" alt="${escapeHtml(p.guild_name)} logo" loading="lazy" /></div>`:`<div class="guild-profile-avatar" ${small?'style="width:56px;height:56px;flex-basis:56px"':''}><span style="font-size:27px">🛡️</span></div>`;}
 function renderPublicGuildProfiles(){
@@ -1339,17 +1339,29 @@ function populateMyGuildProfileEditor(){
   if(mine){input.value=mine.guild_uid||'';setLogoCooldownNote(mine);}else{input.value='';setLogoCooldownNote(null);}
 }
 async function loadPublicGuildProfiles(){
-  const target=$('public-guild-profile-grid');if(target)target.innerHTML='<div class="empty">Loading profiles and approved match stats...</div>';
+  const target=$('public-guild-profile-grid');if(target)target.innerHTML='<div class="empty">Loading profiles, match stats and fresh badge missions...</div>';
   try{
-    const {data,error}=await db.rpc('get_gvg_public_guild_profiles');if(error)throw error;
-    state.guildProfiles=Array.isArray(data)?data:[];
+    const [profilesResult,badgeResult]=await Promise.all([
+      db.rpc('get_gvg_public_guild_profiles'),
+      db.rpc('get_gvg_public_badge_progress')
+    ]);
+    if(profilesResult.error)throw profilesResult.error;
+    if(badgeResult.error)throw badgeResult.error;
+    const profiles=Array.isArray(profilesResult.data)?profilesResult.data:[];
+    const progressRows=Array.isArray(badgeResult.data)?badgeResult.data:[];
+    const progressByGuild=new Map(progressRows.map(row=>[String(row.guild_name_normalized||''),row]));
+    state.guildProfiles=profiles.map(profile=>({
+      ...profile,
+      ...(progressByGuild.get(String(profile.guild_name_normalized||''))||{})
+    }));
     renderPublicGuildProfiles();populateMyGuildProfileEditor();
   }catch(error){console.error('Guild profiles failed:',error);if(target)target.innerHTML=`<div class="empty">Could not load profiles: ${escapeHtml(humanizeError(error))}</div>`;showStatus('guild-profile-status','error',humanizeError(error));}
 }
 function renderBadgeGrid(profile,showLocked=true){
   const earned=GVG_BADGES.filter(b=>badgeUnlocked(b,profile));
   const shown=showLocked?GVG_BADGES:earned;
-  return `<div class="guild-badge-section-title">UNLOCKED BADGES • ${earned.length}/40</div><div class="guild-badge-grid">${shown.map(b=>{const ok=badgeUnlocked(b,profile);return `<div class="guild-badge-item ${ok?'unlocked':'locked'}"><img src="${badgeImgPath(b.file)}" alt="${escapeHtml(b.name)}" loading="lazy" /><strong>${escapeHtml(b.name)}</strong><small>${escapeHtml(ok?'UNLOCKED':b.desc)}</small></div>`;}).join('')}</div>`;
+  const started=profile?.badge_program_started_at?formatDateTime(profile.badge_program_started_at):'the program start date';
+  return `<div class="guild-badge-section-title">UNLOCKED BADGES • ${earned.length}/40</div><div class="hint" style="margin:0 0 10px">Badge missions count only approved results from ${escapeHtml(started)} onward. Older match history does not unlock badges; lifetime statistics and Weekly/Monthly Champion trophies are unchanged.</div><div class="guild-badge-grid">${shown.map(b=>{const ok=badgeUnlocked(b,profile);return `<div class="guild-badge-item ${ok?'unlocked':'locked'}"><img src="${badgeImgPath(b.file)}" alt="${escapeHtml(b.name)}" loading="lazy" /><strong>${escapeHtml(b.name)}</strong><small>${escapeHtml(b.desc)}</small><span class="guild-badge-status ${ok?'complete':'pending'}">${ok?'UNLOCKED':'LOCKED'}</span></div>`;}).join('')}</div>`;
 }
 function openPublicGuildProfile(norm){
   const p=(state.guildProfiles||[]).find(x=>String(x.guild_name_normalized)===String(norm));if(!p)return;
