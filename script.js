@@ -56,7 +56,15 @@ const state = {
   guilds: [],
   bans: [],
   registeredGuilds: [],
-  weeklyMatches: []
+  weeklyMatches: [],
+  guildProfiles: [],
+  hofMode: 'weekly',
+  hofYear: null,
+  hofPeriod: null,
+  hofAwards: [],
+  hofYears: [],
+  hofSettings: { season_year: new Date().getFullYear(), current_week: 11 },
+  adminHofAwards: []
 };
 
 const $ = (id) => document.getElementById(id);
@@ -128,7 +136,7 @@ function setMemberAccessGate(){
 }
 
 function openMemberSection(name){
-  const allowed=['rules','challenges','results','ranking','registered-guilds'];
+  const allowed=['rules','challenges','results','ranking','registered-guilds','guild-profiles','hall-of-fame'];
   const section=allowed.includes(name)?name:'rules';
 
   if(!memberDashboardAllowed()){
@@ -142,6 +150,8 @@ function openMemberSection(name){
   if(section==='results') { loadLiveChallenges(); loadGuildOptions(); loadApprovedResults(); }
   if(section==='ranking') setRankingMode(state.rankingMode || 'current-week');
   if(section==='registered-guilds') loadRegisteredGuilds();
+  if(section==='guild-profiles') loadPublicGuildProfiles();
+  if(section==='hall-of-fame') loadHallOfFame();
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
@@ -668,7 +678,7 @@ function selectChallengeForResult(id){
 }
 
 async function uploadResultImages(files){
-  if(files.length!==2)throw new Error('Exactly 2 proof screenshots are required.'); if(!state.user)throw new Error('LOGIN_REQUIRED: Login required.'); const urls=[];
+  if(files.length!==1)throw new Error('Exactly 1 result proof image is required.'); if(!state.user)throw new Error('LOGIN_REQUIRED: Login required.'); const urls=[];
   for(const file of files){
     if(file.size>MAX_IMAGE_SIZE)throw new Error('Each image must be 5 MB or smaller.');
     if(!['image/jpeg','image/png','image/webp'].includes(file.type))throw new Error('Only JPG, PNG and WEBP images are allowed.');
@@ -689,9 +699,12 @@ async function handleChallengeSubmit(e){
 async function handleResultSubmit(e){
   // V18.5: Results may be submitted at any time for an active challenge.
   e.preventDefault();clearStatus('result-status');if(!guildApproved())return showStatus('result-status','error','Your guild is not approved or is currently banned.');
-  const challengeId=$('result-challenge').value,winner=$('result-winner').value,loser=$('result-loser').value,score=$('result-score').value.trim();const files=[$('result-image-1').files[0],$('result-image-2').files[0]].filter(Boolean);
-  if(!challengeId||!winner||!loser||!score)return showStatus('result-status','error','Challenge, winner, loser and score are required.'); if(normalizeGuild(winner)===normalizeGuild(loser))return showStatus('result-status','error','Winner and loser must be different.');if(files.length!==2)return showStatus('result-status','error','Exactly 2 proof screenshots are required.');
-  try{setBusy('result-submit',true);const urls=await uploadResultImages(files);const {error}=await db.rpc('submit_gvg_result',{p_challenge_id:challengeId,p_winner_guild:winner,p_loser_guild:loser,p_score:score,p_image_urls:urls});if(error)throw error;showStatus('result-status','ok','Result submitted for admin approval.');$('result-form').reset();await Promise.all([loadLiveChallenges(),loadApprovedResults(),loadMyResultSubmissions()]);}catch(error){showStatus('result-status','error',humanizeError(error));}finally{setBusy('result-submit',false,'SUBMIT RESULT');}
+  const challengeId=$('result-challenge').value,winner=$('result-winner').value,loser=$('result-loser').value,score=$('result-score').value.trim();const files=[$('result-image-1').files[0]].filter(Boolean);
+  if(!challengeId||!winner||!loser||!score)return showStatus('result-status','error','Challenge, winner, loser and score are required.'); if(normalizeGuild(winner)===normalizeGuild(loser))return showStatus('result-status','error','Winner and loser must be different.');if(files.length!==1)return showStatus('result-status','error','Upload exactly one result proof image.');
+  try{setBusy('result-submit',true);const urls=await uploadResultImages(files);
+    // Upload exactly one proof file. The existing production RPC may enforce its legacy 2-slot array; repeat the same URL as a compatibility pointer, never upload a second image.
+    const proofUrls=urls.length===1?[urls[0],urls[0]]:urls;
+    const {error}=await db.rpc('submit_gvg_result',{p_challenge_id:challengeId,p_winner_guild:winner,p_loser_guild:loser,p_score:score,p_image_urls:proofUrls});if(error)throw error;showStatus('result-status','ok','Result submitted for admin approval.');$('result-form').reset();await Promise.all([loadLiveChallenges(),loadApprovedResults(),loadMyResultSubmissions()]);}catch(error){showStatus('result-status','error',humanizeError(error));}finally{setBusy('result-submit',false,'SUBMIT RESULT');}
 }
 
 async function loadMyResultSubmissions(){
@@ -1012,8 +1025,16 @@ async function removeLeader(leaderId,guildName){
   }
 }
 
+function preferredResultProofUrls(imageUrls){
+  let urls=imageUrls;
+  if(typeof urls==='string'){try{urls=JSON.parse(urls);}catch{urls=[];}}
+  if(!Array.isArray(urls)||!urls.length)return [];
+  // Legacy records had [challenge screenshot, actual result proof]; newer one-upload records contain one URL or two copies of the same URL.
+  return [urls.length>=2?urls[1]:urls[0]];
+}
+
 async function loadAdminResults(){
-  try{const {data,error}=await adminDb.rpc('admin_get_results');if(error)throw error;const rows=data||[];state.results=rows;const target=$('admin-result-table');target.innerHTML=rows.length?rows.map(r=>{const imgs=Array.isArray(r.image_urls)?r.image_urls.slice(0,2):[];const gallery=imgs.length?`<details class="proof-details"><summary>OPEN ${imgs.length} PROOF SCREENSHOTS</summary><div class="proof-gallery">${imgs.map((u,i)=>`<a href="${escapeHtml(u)}" target="_blank" rel="noopener"><span class="proof-tag">PROOF ${i+1}</span><img src="${escapeHtml(u)}" alt="${escapeHtml(r.winner_guild)} vs ${escapeHtml(r.loser_guild)} proof ${i+1}" /></a>`).join('')}</div></details>`:'<span class="muted">No proof</span>';return `<tr><td><strong>${escapeHtml(r.winner_guild)}</strong><div class="muted" style="margin-top:3px">DEFEAT</div><strong>${escapeHtml(r.loser_guild)}</strong></td><td>${escapeHtml(r.score)}</td><td><strong style="font-size:9px">${escapeHtml(formatDateTime(r.created_at))}</strong><div class="muted" style="margin-top:4px;font-size:7px">PAKISTAN TIME</div></td><td>${gallery}<div style="margin-top:6px"><span class="status-pill ${r.status==='approved'?'status-approved':r.status==='pending'?'status-pending':'status-rejected'}">${escapeHtml(r.status)}</span></div></td><td>${r.status==='pending'?`<div style="display:flex;gap:5px;flex-wrap:wrap"><button class="btn btn-green btn-small" type="button" data-action="approve-result" data-id="${escapeHtml(r.id)}">APPROVE</button><button class="btn btn-red btn-small" type="button" data-action="reject-result" data-id="${escapeHtml(r.id)}">REJECT</button></div>`:'—'}</td></tr>`;}).join(''):'<tr><td colspan="4">No result submissions.</td></tr>';}catch(error){showStatus('admin-status','error',humanizeError(error));}
+  try{const {data,error}=await adminDb.rpc('admin_get_results');if(error)throw error;const rows=data||[];state.results=rows;const target=$('admin-result-table');target.innerHTML=rows.length?rows.map(r=>{const imgs=preferredResultProofUrls(r.image_urls);const gallery=imgs.length?`<details class="proof-details"><summary>OPEN RESULT PROOF</summary><div class="proof-gallery">${imgs.map((u,i)=>`<a href="${escapeHtml(u)}" target="_blank" rel="noopener"><span class="proof-tag">RESULT PROOF</span><img src="${escapeHtml(u)}" alt="${escapeHtml(r.winner_guild)} vs ${escapeHtml(r.loser_guild)} result proof" /></a>`).join('')}</div></details>`:'<span class="muted">No proof</span>';return `<tr><td><strong>${escapeHtml(r.winner_guild)}</strong><div class="muted" style="margin-top:3px">DEFEAT</div><strong>${escapeHtml(r.loser_guild)}</strong></td><td>${escapeHtml(r.score)}</td><td><strong style="font-size:9px">${escapeHtml(formatDateTime(r.created_at))}</strong><div class="muted" style="margin-top:4px;font-size:7px">PAKISTAN TIME</div></td><td>${gallery}<div style="margin-top:6px"><span class="status-pill ${r.status==='approved'?'status-approved':r.status==='pending'?'status-pending':'status-rejected'}">${escapeHtml(r.status)}</span></div></td><td>${r.status==='pending'?`<div style="display:flex;gap:5px;flex-wrap:wrap"><button class="btn btn-green btn-small" type="button" data-action="approve-result" data-id="${escapeHtml(r.id)}">APPROVE</button><button class="btn btn-red btn-small" type="button" data-action="reject-result" data-id="${escapeHtml(r.id)}">REJECT</button></div>`:'—'}</td></tr>`;}).join(''):'<tr><td colspan="4">No result submissions.</td></tr>';}catch(error){showStatus('admin-status','error',humanizeError(error));}
 }
 async function approveResult(id){try{const {error}=await adminDb.rpc('admin_approve_result',{p_result_id:id});if(error)throw error;showStatus('admin-status','ok','Result approved and weekly points awarded.');await Promise.all([loadAdminResults(),loadAdminGuilds()]);}catch(error){showStatus('admin-status','error',humanizeError(error));}}
 async function rejectResult(id){const reason=prompt('Reason for rejection:','Proof or result issue');if(reason===null)return;try{const {error}=await adminDb.rpc('admin_reject_result',{p_result_id:id,p_reason:reason.trim()||'Rejected by admin'});if(error)throw error;showStatus('admin-status','ok','Result rejected. The challenge is open again while it is still inside its cycle.');await loadAdminResults();}catch(error){showStatus('admin-status','error',humanizeError(error));}}
@@ -1097,7 +1118,7 @@ async function loadAdminWeeklyMatches(){
 }
 
 function openAdminSection(name){
-  const section=['guilds','results','weekly','ban'].includes(name)?name:'guilds';
+  const section=['guilds','results','weekly','ban','trophies'].includes(name)?name:'guilds';
   document.querySelectorAll('.admin-panel-view').forEach(el=>{
     const active=el.id===`admin-section-${section}`;
     el.classList.toggle('active',active);
@@ -1112,6 +1133,7 @@ function openAdminSection(name){
   if(section==='results') loadAdminResults();
   if(section==='weekly') loadAdminWeeklyMatches();
   if(section==='ban') loadBans();
+  if(section==='trophies') loadHofAdmin();
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
@@ -1210,8 +1232,8 @@ async function loadModeratorResults(){
     const {data,error}=await moderatorDb.rpc('moderator_get_results');if(error)throw error;
     const rows=data||[];state.moderatorResults=rows;
     target.innerHTML=rows.length?rows.map(r=>{
-      const imgs=Array.isArray(r.image_urls)?r.image_urls.slice(0,2):[];
-      const gallery=imgs.length?`<details class="proof-details"><summary>OPEN ${imgs.length} PROOF SCREENSHOTS</summary><div class="proof-gallery">${imgs.map((u,i)=>`<a href="${escapeHtml(u)}" target="_blank" rel="noopener"><span class="proof-tag">PROOF ${i+1}</span><img src="${escapeHtml(u)}" alt="${escapeHtml(r.winner_guild)} vs ${escapeHtml(r.loser_guild)} proof ${i+1}" /></a>`).join('')}</div></details>`:'<span class="muted">No proof</span>';
+      const imgs=preferredResultProofUrls(r.image_urls);
+      const gallery=imgs.length?`<details class="proof-details"><summary>OPEN RESULT PROOF</summary><div class="proof-gallery">${imgs.map((u,i)=>`<a href="${escapeHtml(u)}" target="_blank" rel="noopener"><span class="proof-tag">RESULT PROOF</span><img src="${escapeHtml(u)}" alt="${escapeHtml(r.winner_guild)} vs ${escapeHtml(r.loser_guild)} result proof" /></a>`).join('')}</div></details>`:'<span class="muted">No proof</span>';
       const status=String(r.status||'unknown').toLowerCase();
       const actions=status==='pending'?`<div class="moderator-actions"><button class="btn btn-green btn-small moderator-action-btn" type="button" data-action="mod-approve-result" data-id="${escapeHtml(r.id)}">APPROVE</button><button class="btn btn-red btn-small moderator-action-btn" type="button" data-action="mod-reject-result" data-id="${escapeHtml(r.id)}">REJECT</button></div>`:'—';
       return `<tr><td><strong>${escapeHtml(r.winner_guild)}</strong><div class="muted" style="margin:3px 0">DEFEAT</div><strong>${escapeHtml(r.loser_guild)}</strong></td><td>${escapeHtml(r.score)}</td><td><strong style="font-size:9px">${escapeHtml(formatDateTime(r.created_at))}</strong><div class="muted" style="margin-top:4px;font-size:7px">PAKISTAN TIME</div></td><td>${gallery}<div style="margin-top:6px"><span class="status-pill ${status==='approved'?'status-approved':status==='pending'?'status-pending':'status-rejected'}">${escapeHtml(status)}</span></div>${r.rejection_reason?`<div class="muted" style="margin-top:5px">${escapeHtml(r.rejection_reason)}</div>`:''}</td><td>${actions}</td></tr>`;
@@ -1248,10 +1270,179 @@ async function moderatorRejectResult(id){
   }catch(error){showStatus('moderator-results-status','error',humanizeError(error));}
 }
 
+
+/* ---------------- GUILD PROFILES, 40 BADGES & HALL OF FAME ---------------- */
+const GVG_BADGES = [
+ {id:1,name:'First Battle',file:'01_first_battle.png',desc:'Complete 1 match.',metric:'total_played',min:1},
+ {id:2,name:'Active Guild',file:'02_active_guild.png',desc:'Complete 5 matches.',metric:'total_played',min:5},
+ {id:3,name:'Battle Ready',file:'03_battle_ready.png',desc:'Complete 10 matches.',metric:'total_played',min:10},
+ {id:4,name:'Challenger',file:'04_challenger.png',desc:'Complete 25 matches.',metric:'total_played',min:25},
+ {id:5,name:'Arena Regular',file:'05_arena_regular.png',desc:'Complete 50 matches.',metric:'total_played',min:50},
+ {id:6,name:'Elite Presence',file:'06_elite_presence.png',desc:'Complete 100 matches.',metric:'total_played',min:100},
+ {id:7,name:'Legendary Presence',file:'07_legendary_presence.png',desc:'Complete 200 matches.',metric:'total_played',min:200},
+ {id:8,name:'First Victory',file:'08_first_victory.png',desc:'Win 1 match.',metric:'wins',min:1},
+ {id:9,name:'Triple Threat',file:'09_triple_threat.png',desc:'Win 3 matches.',metric:'wins',min:3},
+ {id:10,name:'Five Victories',file:'10_five_victories.png',desc:'Win 5 matches.',metric:'wins',min:5},
+ {id:11,name:'Victory Hunter',file:'11_victory_hunter.png',desc:'Win 10 matches.',metric:'wins',min:10},
+ {id:12,name:'Battle Master',file:'12_battle_master.png',desc:'Win 25 matches.',metric:'wins',min:25},
+ {id:13,name:'Elite Winner',file:'13_elite_winner.png',desc:'Win 50 matches.',metric:'wins',min:50},
+ {id:14,name:'Century of Victories',file:'14_century_of_victories.png',desc:'Win 100 matches.',metric:'wins',min:100},
+ {id:15,name:'Legendary Conqueror',file:'15_legendary_conqueror.png',desc:'Win 200 matches.',metric:'wins',min:200},
+ {id:16,name:'Hot Streak',file:'16_hot_streak.png',desc:'Win 3 consecutive matches.',metric:'max_win_streak',min:3},
+ {id:17,name:'Unstoppable',file:'17_unstoppable.png',desc:'Win 5 consecutive matches.',metric:'max_win_streak',min:5},
+ {id:18,name:'Dominator',file:'18_dominator.png',desc:'Win 7 consecutive matches.',metric:'max_win_streak',min:7},
+ {id:19,name:'Perfect Ten',file:'19_perfect_ten.png',desc:'Win 10 consecutive matches.',metric:'max_win_streak',min:10},
+ {id:20,name:'Unbroken Legend',file:'20_unbroken_legend.png',desc:'Win 15 consecutive matches.',metric:'max_win_streak',min:15},
+ {id:21,name:'Sharp Tacticians',file:'21_sharp_tacticians.png',desc:'Reach 60% win rate with at least 10 matches.',metric:'win_rate',min:60,minPlayed:10},
+ {id:22,name:'Elite Tacticians',file:'22_elite_tacticians.png',desc:'Reach 70% win rate with at least 10 matches.',metric:'win_rate',min:70,minPlayed:10},
+ {id:23,name:'Champion Standard',file:'23_champion_standard.png',desc:'Reach 80% win rate with at least 10 matches.',metric:'win_rate',min:80,minPlayed:10},
+ {id:24,name:'Supreme Guild',file:'24_supreme_guild.png',desc:'Reach 90% win rate with at least 10 matches.',metric:'win_rate',min:90,minPlayed:10},
+ {id:25,name:'Near Perfect',file:'25_near_perfect.png',desc:'Reach 95% win rate with at least 20 matches.',metric:'win_rate',min:95,minPlayed:20},
+ {id:26,name:'Top Ten Debut',file:'26_top_ten_debut.png',desc:'Finish in weekly Top 10 once.',metric:'top10_weeks',min:1},
+ {id:27,name:'Top Ten Regular',file:'27_top_ten_regular.png',desc:'Finish in weekly Top 10 for 5 different weeks.',metric:'top10_weeks',min:5},
+ {id:28,name:'Top Five Finisher',file:'28_top_five_finisher.png',desc:'Finish in weekly Top 5 for 3 different weeks.',metric:'top5_weeks',min:3},
+ {id:29,name:'Podium Contender',file:'29_podium_contender.png',desc:'Finish in weekly Top 3 for 3 different weeks.',metric:'top3_weeks',min:3},
+ {id:30,name:'Weekly Number One',file:'30_weekly_number_one.png',desc:'Finish first in weekly ranking once.',metric:'weekly_number_one_count',min:1},
+ {id:31,name:'Weekly Dominator',file:'31_weekly_dominator.png',desc:'Finish in weekly Top 5 for 5 different weeks.',metric:'top5_weeks',min:5},
+ {id:32,name:'Consistent Challenger',file:'32_consistent_challenger.png',desc:'Finish in weekly Top 10 for 10 different weeks.',metric:'top10_weeks',min:10},
+ {id:33,name:'Four-Week Commitment',file:'33_four_week_commitment.png',desc:'Complete matches in 4 consecutive competition weeks.',metric:'max_consecutive_active_weeks',min:4},
+ {id:34,name:'Eight-Week Commitment',file:'34_eight_week_commitment.png',desc:'Complete matches in 8 consecutive competition weeks.',metric:'max_consecutive_active_weeks',min:8},
+ {id:35,name:'Rival Collector',file:'35_rival_collector.png',desc:'Play against 10 different guilds.',metric:'opponents_count',min:10},
+ {id:36,name:'Rival Breaker',file:'36_rival_breaker.png',desc:'Defeat 10 different guilds.',metric:'opponent_wins',min:10},
+ {id:37,name:'Guild Conqueror',file:'37_guild_conqueror.png',desc:'Defeat 25 different guilds.',metric:'opponent_wins',min:25},
+ {id:38,name:'Monthly Marathon',file:'38_monthly_marathon.png',desc:'Complete 20 matches in one month.',metric:'max_month_matches',min:20},
+ {id:39,name:'Veteran Guild',file:'39_veteran_guild.png',desc:'Play in at least 6 different months.',metric:'active_months',min:6},
+ {id:40,name:'Legacy Guild',file:'40_legacy_guild.png',desc:'Play in at least 12 different months.',metric:'active_months',min:12}
+];
+function numberMetric(p,key){return Number(p?.[key]||0);}
+function badgeUnlocked(b,p){return numberMetric(p,b.metric)>=b.min && (!b.minPlayed||numberMetric(p,'total_played')>=b.minPlayed);}
+function badgeImgPath(file){return `./${file}`;}
+function guildAvatarMarkup(p,small=false){return p?.guild_logo_url?`<div class="guild-profile-avatar" ${small?'style="width:56px;height:56px;flex-basis:56px"':''}><img src="${escapeHtml(p.guild_logo_url)}" alt="${escapeHtml(p.guild_name)} logo" loading="lazy" /></div>`:`<div class="guild-profile-avatar" ${small?'style="width:56px;height:56px;flex-basis:56px"':''}><span style="font-size:27px">🛡️</span></div>`;}
+function renderPublicGuildProfiles(){
+  const target=$('public-guild-profile-grid'); if(!target)return;
+  const q=String($('public-guild-profile-search')?.value||'').trim().toLowerCase();
+  const rows=(state.guildProfiles||[]).filter(p=>!q||String(p.guild_name||'').toLowerCase().includes(q)||String(p.guild_uid||'').toLowerCase().includes(q));
+  const count=$('public-profile-count');if(count)count.textContent=`${rows.length} GUILDS`;
+  target.innerHTML=rows.length?rows.map(p=>`<article class="guild-profile-card">${guildAvatarMarkup(p,true)}<div class="guild-profile-main"><div class="guild-profile-name">${escapeHtml(p.guild_name)}</div><div class="guild-profile-uid">UID: ${escapeHtml(p.guild_uid||'Not added')}</div><div class="guild-profile-meta">${numberMetric(p,'total_played')} PLAYED · ${numberMetric(p,'wins')}W / ${numberMetric(p,'losses')}L</div><div class="guild-profile-meta">🏆 ${numberMetric(p,'weekly_trophies')} weekly · ${numberMetric(p,'monthly_trophies')} monthly</div><button class="btn btn-green btn-small" style="margin-top:8px" type="button" data-action="open-public-guild-profile" data-guild="${escapeHtml(p.guild_name_normalized)}">VIEW PROFILE</button></div></article>`).join(''):'<div class="empty">No approved guild profiles match this search.</div>';
+}
+function setLogoCooldownNote(profile){
+  const note=$('guild-logo-cooldown-note'),file=$('guild-profile-logo');if(!note||!file)return;
+  const changed=profile?.guild_logo_changed_at?new Date(profile.guild_logo_changed_at).getTime():0;
+  const readyAt=changed?changed+3*24*60*60*1000:Date.now();
+  const remaining=readyAt-Date.now();
+  if(remaining>0){const days=Math.floor(remaining/86400000),hours=Math.ceil((remaining%86400000)/3600000);note.textContent=`Logo change cooldown active. You can change the logo again in approximately ${days} day(s), ${hours} hour(s). Guild UID can still be edited.`;file.disabled=true;}
+  else{note.textContent=changed?'Logo change is available. After saving a new logo, the next change is locked for 3 days.':'First logo upload is available immediately. After changing it, a 3-day cooldown applies.';file.disabled=false;}
+}
+function populateMyGuildProfileEditor(){
+  const input=$('guild-profile-uid');if(!input||!state.guild)return;
+  const mine=(state.guildProfiles||[]).find(p=>String(p.guild_name_normalized||'')===String(state.guild.guild_name_normalized||normalizeGuild(state.guild.guild_name)));
+  if(mine){input.value=mine.guild_uid||'';setLogoCooldownNote(mine);}else{input.value='';setLogoCooldownNote(null);}
+}
+async function loadPublicGuildProfiles(){
+  const target=$('public-guild-profile-grid');if(target)target.innerHTML='<div class="empty">Loading profiles and approved match stats...</div>';
+  try{
+    const {data,error}=await db.rpc('get_gvg_public_guild_profiles');if(error)throw error;
+    state.guildProfiles=Array.isArray(data)?data:[];
+    renderPublicGuildProfiles();populateMyGuildProfileEditor();
+  }catch(error){console.error('Guild profiles failed:',error);if(target)target.innerHTML=`<div class="empty">Could not load profiles: ${escapeHtml(humanizeError(error))}</div>`;showStatus('guild-profile-status','error',humanizeError(error));}
+}
+function renderBadgeGrid(profile,showLocked=true){
+  const earned=GVG_BADGES.filter(b=>badgeUnlocked(b,profile));
+  const shown=showLocked?GVG_BADGES:earned;
+  return `<div class="guild-badge-section-title">UNLOCKED BADGES • ${earned.length}/40</div><div class="guild-badge-grid">${shown.map(b=>{const ok=badgeUnlocked(b,profile);return `<div class="guild-badge-item ${ok?'unlocked':'locked'}"><img src="${badgeImgPath(b.file)}" alt="${escapeHtml(b.name)}" loading="lazy" /><strong>${escapeHtml(b.name)}</strong><small>${escapeHtml(ok?'UNLOCKED':b.desc)}</small></div>`;}).join('')}</div>`;
+}
+function openPublicGuildProfile(norm){
+  const p=(state.guildProfiles||[]).find(x=>String(x.guild_name_normalized)===String(norm));if(!p)return;
+  const unlocked=GVG_BADGES.filter(b=>badgeUnlocked(b,p)).length;
+  const html=`<div class="modal-head"><div><div class="kicker">Public Guild Profile</div><h3>${escapeHtml(p.guild_name)}</h3></div><button class="close-btn" type="button" data-action="close-modal">×</button></div>
+    <div style="display:flex;align-items:center;gap:12px;margin:12px 0">${guildAvatarMarkup(p,true)}<div><div style="font-weight:900">GUILD UID</div><div class="guild-profile-uid">${escapeHtml(p.guild_uid||'Not added yet')}</div><div class="guild-profile-meta">${unlocked}/40 achievements unlocked</div></div></div>
+    <div class="guild-profile-kpis"><div class="guild-profile-kpi"><span>Played</span><strong>${numberMetric(p,'total_played')}</strong></div><div class="guild-profile-kpi"><span>Wins</span><strong>${numberMetric(p,'wins')}</strong></div><div class="guild-profile-kpi"><span>Losses</span><strong>${numberMetric(p,'losses')}</strong></div><div class="guild-profile-kpi"><span>Win Rate</span><strong>${Number(p.win_rate||0).toFixed(1)}%</strong></div></div>
+    <div class="guild-profile-kpis"><div class="guild-profile-kpi"><span>Weekly trophies</span><strong>🏆 ${numberMetric(p,'weekly_trophies')}</strong></div><div class="guild-profile-kpi"><span>Monthly trophies</span><strong>👑 ${numberMetric(p,'monthly_trophies')}</strong></div><div class="guild-profile-kpi"><span>Top 10 weeks</span><strong>${numberMetric(p,'top10_weeks')}</strong></div><div class="guild-profile-kpi"><span>Longest streak</span><strong>${numberMetric(p,'max_win_streak')}</strong></div></div>
+    ${renderBadgeGrid(p,true)}<div class="hint" style="margin-top:12px">Statistics use approved results only. Trophies are official awards added by the GVG Admin.</div>`;
+  openModal(html);
+}
+async function uploadGuildLogo(file){
+  if(!state.user)throw new Error('LOGIN_REQUIRED: Login to update your guild profile.');
+  if(file.size>2*1024*1024)throw new Error('Guild logo must be 2 MB or smaller.');
+  if(!['image/jpeg','image/png','image/webp'].includes(file.type))throw new Error('Use JPG, PNG or WEBP for the guild logo.');
+  const ext=(file.name.split('.').pop()||'png').toLowerCase().replace(/[^a-z0-9]/g,'')||'png';
+  const path=`${state.user.id}/${crypto.randomUUID()}.${ext}`;
+  const {error}=await db.storage.from('guild-logos').upload(path,file,{upsert:false,contentType:file.type});if(error)throw error;
+  const {data}=db.storage.from('guild-logos').getPublicUrl(path);if(!data?.publicUrl)throw new Error('Could not create public Guild Logo URL.');return data.publicUrl;
+}
+async function saveMyGuildProfile(e){
+  e.preventDefault();clearStatus('guild-profile-status');
+  if(!guildApproved())return showStatus('guild-profile-status','error','Only an approved, active guild can update its profile.');
+  const myNorm=String(state.guild?.guild_name_normalized||normalizeGuild(state.guild?.guild_name));
+  const profile=(state.guildProfiles||[]).find(p=>String(p.guild_name_normalized)===myNorm);
+  const file=$('guild-profile-logo').files?.[0]||null;
+  if(file){const changed=profile?.guild_logo_changed_at?new Date(profile.guild_logo_changed_at).getTime():0;if(changed&&Date.now()<changed+3*24*60*60*1000)return showStatus('guild-profile-status','error','LOGO COOLDOWN: Your guild logo can only be changed once every 3 days.');}
+  try{
+    setBusy('guild-profile-save',true,'SAVE GUILD PROFILE');
+    let logoUrl=profile?.guild_logo_url ?? state.guild?.guild_logo_url ?? null;if(file)logoUrl=await uploadGuildLogo(file);
+    const {data,error}=await db.rpc('save_gvg_guild_profile',{p_guild_uid:$('guild-profile-uid').value.trim()||null,p_logo_url:logoUrl});if(error)throw error;
+    $('guild-profile-logo').value='';
+    showStatus('guild-profile-status','ok','Guild profile saved. Logo cooldown is enforced by the database for 3 days.');
+    await loadPublicGuildProfiles();
+  }catch(error){showStatus('guild-profile-status','error',humanizeError(error));}
+  finally{setBusy('guild-profile-save',false,'SAVE GUILD PROFILE');}
+}
+function trophySvg(){return `<svg viewBox="0 0 160 180" role="img" aria-label="3D gold championship trophy"><defs><linearGradient id="gvg-trophy-gold" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#fff4b0"/><stop offset=".24" stop-color="#d99b2d"/><stop offset=".48" stop-color="#fff0a0"/><stop offset=".73" stop-color="#8b5712"/><stop offset="1" stop-color="#ffe28b"/></linearGradient><linearGradient id="gvg-trophy-side" x1="0" x2="1"><stop offset="0" stop-color="#6c4514"/><stop offset=".5" stop-color="#e7b94d"/><stop offset="1" stop-color="#51320b"/></linearGradient><linearGradient id="gvg-trophy-green" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#e7ffbf"/><stop offset=".45" stop-color="#21dc73"/><stop offset="1" stop-color="#07572d"/></linearGradient><filter id="gvg-trophy-shadow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="3"/></filter></defs><ellipse cx="80" cy="164" rx="45" ry="8" fill="#e9b94a" opacity=".2" filter="url(#gvg-trophy-shadow)"/><g stroke="#5b390d" stroke-width="2" stroke-linejoin="round"><path d="M48 24H112L107 72Q105 91 89 99L92 120H68L71 99Q55 91 53 72Z" fill="url(#gvg-trophy-side)"/><path d="M52 25H108L103 68Q101 84 80 95Q59 84 57 68Z" fill="url(#gvg-trophy-gold)"/><path d="M52 34H30Q29 61 47 72L57 74L55 61Q43 56 43 43H53Z" fill="url(#gvg-trophy-gold)"/><path d="M108 34H130Q131 61 113 72L103 74L105 61Q117 56 117 43H107Z" fill="url(#gvg-trophy-gold)"/><path d="M68 98H92L95 124H65Z" fill="url(#gvg-trophy-side)"/><path d="M58 123H102L112 139H48Z" fill="url(#gvg-trophy-gold)"/><path d="M42 140H118L128 151H32Z" fill="url(#gvg-trophy-side)"/><path d="M36 151H124L133 161H27Z" fill="url(#gvg-trophy-gold)"/><path d="M80 40L89 55L80 70L71 55Z" fill="url(#gvg-trophy-green)"/><path d="M80 48L84 55L80 62L76 55Z" fill="#eaffb8" stroke="none"/></g><path d="M60 30L65 67M73 30L75 39" stroke="#fffbd3" stroke-width="3" stroke-linecap="round" opacity=".68"/><path d="M24 169H136" stroke="#47ef86" stroke-width="2" opacity=".55"/></svg>`;}
+function bindTrophy3D(root=document){root.querySelectorAll('[data-trophy-3d]:not([data-trophy-bound])').forEach(el=>{el.dataset.trophyBound='1';let down=false,lastX=0,lastY=0,rx=-8,ry=0;const apply=()=>{el.style.transform=`perspective(700px) rotateX(${rx}deg) rotateY(${ry}deg)`;};el.addEventListener('pointerdown',e=>{down=true;lastX=e.clientX;lastY=e.clientY;try{el.setPointerCapture(e.pointerId);}catch{};});el.addEventListener('pointermove',e=>{if(!down)return;const dx=e.clientX-lastX,dy=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;ry+=dx*.9;rx=Math.max(-35,Math.min(35,rx-dy*.7));apply();});const end=()=>{down=false;};el.addEventListener('pointerup',end);el.addEventListener('pointercancel',end);el.addEventListener('lostpointercapture',end);});}
+function hallPeriodLabel(type,number){return type==='weekly'?`WEEK ${number}`:new Intl.DateTimeFormat('en',{month:'long'}).format(new Date(Date.UTC(2020,number-1,1)));}
+async function loadHallOfFame(){
+  try{
+    const [settingsRes,yearsRes]=await Promise.all([db.rpc('get_gvg_hof_settings'),db.rpc('get_gvg_hall_of_fame_years',{p_award_type:state.hofMode})]);
+    if(settingsRes.error)throw settingsRes.error;if(yearsRes.error)throw yearsRes.error;
+    const s=Array.isArray(settingsRes.data)?settingsRes.data[0]:settingsRes.data;if(s)state.hofSettings=s;
+    const years=(yearsRes.data||[]).map(x=>Number(x.award_year));state.hofYears=years;if(!state.hofYear||!years.includes(Number(state.hofYear)))state.hofYear=Number(state.hofSettings.season_year||years[0]||new Date().getFullYear());
+    document.querySelectorAll('[data-hof-type]').forEach(b=>b.classList.toggle('active',b.dataset.hofType===state.hofMode));
+    renderHofYearGrid(years);await loadHallOfFameYear();
+  }catch(error){console.error('Hall of Fame load failed:',error);$('hof-year-grid').innerHTML=`<div class="empty">Could not load Hall of Fame. Run the supplied Supabase migration first. ${escapeHtml(humanizeError(error))}</div>`;}
+}
+function renderHofYearGrid(years){const target=$('hof-year-grid');if(!target)return;target.innerHTML=(years||[]).length?years.map(y=>`<button class="hof-year-tile ${Number(y)===Number(state.hofYear)?'active':''}" type="button" data-action="hof-select-year" data-year="${Number(y)}">${Number(y)}<small style="display:block;margin-top:5px;font-size:8px">${state.hofMode==='weekly'?'WEEKLY SEASON':'MONTHLY ARCHIVE'}</small></button>`).join(''):'<div class="empty">No years available.</div>';}
+async function loadHallOfFameYear(){
+  const target=$('hof-selected-award');if(target)target.innerHTML='<div class="empty">Loading trophy archive...</div>';
+  const {data,error}=await db.rpc('get_gvg_hall_of_fame',{p_award_type:state.hofMode,p_award_year:Number(state.hofYear)});if(error)throw error;state.hofAwards=data||[];
+  const heading=$('hof-period-heading');if(heading)heading.textContent=state.hofMode==='weekly'?`${state.hofYear} • SELECT WEEK`:`${state.hofYear} • SELECT MONTH`;
+  const maxAwardWeek=Math.max(0,...state.hofAwards.filter(a=>a.award_type==='weekly').map(a=>Number(a.period_number)||0));const selectedYear=Number(state.hofYear);const seasonYear=Number(state.hofSettings.season_year);const maxWeek=selectedYear===seasonYear?Number(state.hofSettings.current_week||11):(selectedYear<seasonYear?Math.max(53,maxAwardWeek):Math.max(1,maxAwardWeek));
+  const count=state.hofMode==='weekly'?Math.max(1,Math.min(60,maxWeek)):12;
+  $('hof-period-grid').innerHTML=Array.from({length:count},(_,i)=>i+1).map(n=>{const found=state.hofAwards.find(a=>Number(a.period_number)===n);return `<button class="hof-period-tile ${Number(state.hofPeriod)===n?'active':''}" type="button" data-action="hof-select-period" data-period="${n}">${escapeHtml(hallPeriodLabel(state.hofMode,n))}<small>${found?'🏆 CHAMPION ADDED':'AWAITING CHAMPION'}</small></button>`;}).join('');
+  if(!state.hofPeriod||state.hofPeriod>count)state.hofPeriod=1;renderHallSelectedAward();
+}
+function renderHallSelectedAward(){
+  const target=$('hof-selected-award');if(!target)return;
+  document.querySelectorAll('[data-action="hof-select-period"]').forEach(b=>b.classList.toggle('active',Number(b.dataset.period)===Number(state.hofPeriod)));
+  const a=(state.hofAwards||[]).find(x=>Number(x.period_number)===Number(state.hofPeriod));
+  if(!a){target.innerHTML=`<div class="empty" style="padding:25px 12px;border:1px dashed rgba(255,213,113,.20);border-radius:14px"><strong>${escapeHtml(hallPeriodLabel(state.hofMode,state.hofPeriod))} CHAMPION NOT ADDED YET</strong><div style="margin-top:7px">Official champion record will appear here after Admin awards the trophy.</div></div>`;return;}
+  const date=a.awarded_at?formatDateTime(a.awarded_at):'';
+  target.innerHTML=`<article class="hof-award-card"><div class="trophy-3d" data-trophy-3d aria-label="Drag to rotate trophy">${trophySvg()}</div><div><div class="hof-award-label">${escapeHtml(a.trophy_label||hallPeriodLabel(state.hofMode,state.hofPeriod)+' CHAMPION')}</div><div class="hof-award-guild">${escapeHtml(a.guild_name)}</div><div class="hof-award-uid">GUILD UID: ${escapeHtml(a.guild_uid||'Not added')}</div><div class="hof-award-meta">${escapeHtml(String(a.award_year))} · ${escapeHtml(hallPeriodLabel(a.award_type,Number(a.period_number)))}${date?' · AWARDED '+escapeHtml(date):''}</div>${a.notes?`<div class="hof-award-notes">${escapeHtml(a.notes)}</div>`:''}<div class="hint" style="margin-top:11px">Touch and drag the trophy left/right or up/down to rotate it.</div></div></article>`;bindTrophy3D(target);
+}
+async function changeHallType(type){if(!['weekly','monthly'].includes(type))return;state.hofMode=type;state.hofYear=null;state.hofPeriod=1;await loadHallOfFame();}
+function renderAdminHofAwards(){const target=$('admin-hof-awards-list');if(!target)return;const rows=(state.adminHofAwards||[]).sort((a,b)=>String(b.awarded_at).localeCompare(String(a.awarded_at)));target.innerHTML=rows.length?rows.slice(0,60).map(a=>`<div class="admin-hof-award-row"><div class="admin-hof-award-main"><strong>${escapeHtml(a.trophy_label)} — ${escapeHtml(a.guild_name)}</strong><small>${escapeHtml(String(a.award_year))} · ${escapeHtml(hallPeriodLabel(a.award_type,Number(a.period_number)))} · UID ${escapeHtml(a.guild_uid||'not added')}</small></div><button class="btn btn-red btn-small" type="button" data-action="admin-remove-hof-award" data-id="${escapeHtml(a.id)}">REMOVE</button></div>`).join(''):'<div class="empty">No official trophies have been awarded yet.</div>';}
+async function loadHofAdmin(){
+  try{
+    const [profileRes,settingsRes,weeklyYearsRes,monthlyYearsRes]=await Promise.all([
+      adminDb.rpc('get_gvg_public_guild_profiles'),adminDb.rpc('get_gvg_hof_settings'),
+      adminDb.rpc('get_gvg_hall_of_fame_years',{p_award_type:'weekly'}),adminDb.rpc('get_gvg_hall_of_fame_years',{p_award_type:'monthly'})
+    ]);
+    for(const r of [profileRes,settingsRes,weeklyYearsRes,monthlyYearsRes])if(r.error)throw r.error;
+    const profiles=profileRes.data||[];state.guildProfiles=profiles;
+    $('hof-award-guild').innerHTML=profiles.length?profiles.map(p=>`<option value="${escapeHtml(p.guild_name_normalized)}">${escapeHtml(p.guild_name)}${p.guild_uid?' • UID '+escapeHtml(p.guild_uid):''}</option>`).join(''):'<option value="">No approved guilds found</option>';
+    const settings=Array.isArray(settingsRes.data)?settingsRes.data[0]:settingsRes.data;if(settings){state.hofSettings=settings;$('hof-season-year').value=settings.season_year;$('hof-current-week').value=settings.current_week;$('hof-award-year').value=settings.season_year;$('hof-award-period').value=settings.current_week;$('hof-award-label').value=`WEEK ${settings.current_week} CHAMPION`;}
+    const pairs=[['weekly',weeklyYearsRes.data||[]],['monthly',monthlyYearsRes.data||[]]],all=[];
+    for(const [type,years] of pairs){for(const y of years){const result=await adminDb.rpc('get_gvg_hall_of_fame',{p_award_type:type,p_award_year:Number(y.award_year)});if(result.error)throw result.error;all.push(...(result.data||[]));}}
+    state.adminHofAwards=all;renderAdminHofAwards();
+  }catch(error){console.error('Admin HoF load failed:',error);showStatus('admin-status','error',`Hall of Fame controls: ${humanizeError(error)}. Apply database/05 migration first.`);const list=$('admin-hof-awards-list');if(list)list.innerHTML=`<div class="empty">${escapeHtml(humanizeError(error))}</div>`;}
+}
+async function saveHofSeasonSettings(e){e.preventDefault();clearStatus('hof-season-status');try{const year=Number($('hof-season-year').value),week=Number($('hof-current-week').value);const {error}=await adminDb.rpc('admin_update_gvg_hof_settings',{p_season_year:year,p_current_week:week});if(error)throw error;state.hofSettings={season_year:year,current_week:week};showStatus('hof-season-status','ok','Current Hall of Fame season settings saved.');await loadHofAdmin();}catch(error){showStatus('hof-season-status','error',humanizeError(error));}}
+async function awardHofTrophy(e){e.preventDefault();clearStatus('hof-award-status');const type=$('hof-award-type').value,year=Number($('hof-award-year').value),period=Number($('hof-award-period').value),guildNorm=$('hof-award-guild').value,label=$('hof-award-label').value.trim(),notes=$('hof-award-notes').value.trim();if(!guildNorm||!label)return showStatus('hof-award-status','error','Choose an approved guild and enter a trophy label.');const already=state.adminHofAwards.find(a=>a.award_type===type&&Number(a.award_year)===year&&Number(a.period_number)===period);if(already&&!confirm(`${hallPeriodLabel(type,period)} ${year} already has a champion: ${already.guild_name}. Replace it with the selected guild?`))return;try{setBusy('hof-award-submit',true,'SAVING AWARD');const {error}=await adminDb.rpc('admin_add_gvg_hall_of_fame_award',{p_guild_name_normalized:guildNorm,p_award_type:type,p_award_year:year,p_period_number:period,p_trophy_label:label,p_notes:notes||null});if(error)throw error;showStatus('hof-award-status','ok','Official champion trophy saved to Hall of Fame and guild profile.');await loadHofAdmin();}catch(error){showStatus('hof-award-status','error',humanizeError(error));}finally{setBusy('hof-award-submit',false,'AWARD TROPHY');}}
+async function removeHofAward(id){const a=state.adminHofAwards.find(x=>String(x.id)===String(id));if(!a)return;if(!confirm(`Remove the official Hall of Fame award?\n\n${a.trophy_label} — ${a.guild_name}\n\nThis does not delete match results or ranking points.`))return;try{const {error}=await adminDb.rpc('admin_remove_gvg_hall_of_fame_award',{p_award_id:id});if(error)throw error;showStatus('admin-status','ok','Hall of Fame trophy removed.');await loadHofAdmin();}catch(error){showStatus('admin-status','error',humanizeError(error));}}
+
 /* ------------------------- Events ------------------------- */
 document.addEventListener('click',async(e)=>{
   const actionEl=e.target.closest('[data-action]');
-  if(actionEl){const action=actionEl.dataset.action,id=actionEl.dataset.id;if(action==='result-from-challenge')return selectChallengeForResult(id);if(action==='close-modal')return closeModal();if(action==='guild-info'){const g=findGuild(id);if(g)adminGuildInfo(g);return;}if(action==='guild-edit'){const g=findGuild(id);if(g)adminGuildEdit(g);return;}if(action==='guild-remove')return removeGuild(id);if(action==='approve-leader')return setLeaderApproval(id,'approved');if(action==='reject-leader')return setLeaderApproval(id,'rejected');if(action==='remove-leader')return removeLeader(id,actionEl.dataset.guild||'');if(action==='reset-password')return resetLeaderPassword(actionEl.dataset.email||'');if(action==='approve-result')return approveResult(id);if(action==='reject-result')return rejectResult(id);if(action==='unban-identity')return unbanIdentity(actionEl.dataset.guild||'',actionEl.dataset.contact||'');if(action==='mod-approve-guild')return moderatorApproveGuild(actionEl.dataset.guild||'');if(action==='mod-remove-guild')return moderatorRemoveGuild(actionEl.dataset.guild||'');if(action==='mod-approve-result')return moderatorApproveResult(id);if(action==='mod-reject-result')return moderatorRejectResult(id);}
+  if(actionEl){const action=actionEl.dataset.action,id=actionEl.dataset.id;if(action==='result-from-challenge')return selectChallengeForResult(id);if(action==='close-modal')return closeModal();if(action==='guild-info'){const g=findGuild(id);if(g)adminGuildInfo(g);return;}if(action==='guild-edit'){const g=findGuild(id);if(g)adminGuildEdit(g);return;}if(action==='guild-remove')return removeGuild(id);if(action==='approve-leader')return setLeaderApproval(id,'approved');if(action==='reject-leader')return setLeaderApproval(id,'rejected');if(action==='remove-leader')return removeLeader(id,actionEl.dataset.guild||'');if(action==='reset-password')return resetLeaderPassword(actionEl.dataset.email||'');if(action==='approve-result')return approveResult(id);if(action==='reject-result')return rejectResult(id);if(action==='unban-identity')return unbanIdentity(actionEl.dataset.guild||'',actionEl.dataset.contact||'');if(action==='mod-approve-guild')return moderatorApproveGuild(actionEl.dataset.guild||'');if(action==='mod-remove-guild')return moderatorRemoveGuild(actionEl.dataset.guild||'');if(action==='mod-approve-result')return moderatorApproveResult(id);if(action==='mod-reject-result')return moderatorRejectResult(id);if(action==='open-public-guild-profile')return openPublicGuildProfile(actionEl.dataset.guild||'');if(action==='hof-select-year'){state.hofYear=Number(actionEl.dataset.year);state.hofPeriod=1;renderHofYearGrid(state.hofYears||[]);return loadHallOfFameYear();}if(action==='hof-select-period'){state.hofPeriod=Number(actionEl.dataset.period);return renderHallSelectedAward();}if(action==='admin-remove-hof-award')return removeHofAward(id);}
   const menuBtn=e.target.closest('[data-menu-button]');if(menuBtn){const id=menuBtn.dataset.menuButton;document.querySelectorAll('.dots-menu.open').forEach(x=>{if(x.id!==`menu-${id}`)x.classList.remove('open')});document.getElementById(`menu-${id}`)?.classList.toggle('open');return;}document.querySelectorAll('.dots-menu.open').forEach(x=>x.classList.remove('open'));
 });
 document.querySelectorAll('[data-member-section]').forEach(btn=>btn.addEventListener('click',()=>openMemberSection(btn.dataset.memberSection)));
@@ -1276,6 +1467,14 @@ $('register-form').addEventListener('submit',handleRegister);
 $('forgot-password').addEventListener('click',handleForgot);
 $('challenge-form').addEventListener('submit',handleChallengeSubmit);
 $('result-form').addEventListener('submit',handleResultSubmit);
+$('guild-profile-form')?.addEventListener('submit',saveMyGuildProfile);
+$('public-guild-profile-search')?.addEventListener('input',renderPublicGuildProfiles);
+$('hof-season-form')?.addEventListener('submit',saveHofSeasonSettings);
+$('hof-award-form')?.addEventListener('submit',awardHofTrophy);
+$('hof-admin-refresh')?.addEventListener('click',loadHofAdmin);
+document.querySelectorAll('[data-hof-type]').forEach(btn=>btn.addEventListener('click',()=>changeHallType(btn.dataset.hofType)));
+$('hof-award-type')?.addEventListener('change',()=>{const type=$('hof-award-type').value;const lab=$('hof-period-number-label');const period=$('hof-award-period');const label=$('hof-award-label');if(type==='weekly'){lab.firstChild.textContent='WEEK NUMBER (1–60)';period.min='1';period.max='60';period.value=String(state.hofSettings.current_week||11);label.value=`WEEK ${period.value} CHAMPION`;}else{lab.firstChild.textContent='MONTH NUMBER (1–12)';period.min='1';period.max='12';period.value='1';label.value='MONTHLY CHAMPION';}});
+$('hof-award-period')?.addEventListener('input',()=>{const type=$('hof-award-type').value;const label=$('hof-award-label');if(!label.value.trim()||/^(WEEK|MONTH)\s+\d+|MONTHLY CHAMPION/i.test(label.value))label.value=type==='weekly'?`WEEK ${$('hof-award-period').value} CHAMPION`:`${hallPeriodLabel('monthly',Number($('hof-award-period').value)||1).toUpperCase()} CHAMPION`;});
 $('admin-login-form').addEventListener('submit',handleAdminLogin);
 $('admin-logout').addEventListener('click',async()=>{try{await adminDb.auth.signOut();}catch{}state.adminUser=null;state.adminOk=false;const target=state.adminReturnToModerator&&state.moderatorOk?'moderator':state.user?'member':'public';state.adminReturnToModerator=false;openView(target);});
 $('admin-guild-search').addEventListener('input',()=>renderGuildTable('all-guild-table',filteredGuilds()));
