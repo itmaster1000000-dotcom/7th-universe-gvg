@@ -64,7 +64,9 @@ const state = {
   hofAwards: [],
   hofYears: [],
   hofSettings: { season_year: new Date().getFullYear(), current_week: 11 },
-  adminHofAwards: []
+  adminHofAwards: [],
+  guildNameChangeStatus: null,
+  guildNameChangeRequests: []
 };
 
 const $ = (id) => document.getElementById(id);
@@ -150,7 +152,7 @@ function openMemberSection(name){
   if(section==='results') { loadLiveChallenges(); loadGuildOptions(); loadApprovedResults(); }
   if(section==='ranking') setRankingMode(state.rankingMode || 'current-week');
   if(section==='registered-guilds') loadRegisteredGuilds();
-  if(section==='guild-profiles') loadPublicGuildProfiles();
+  if(section==='guild-profiles') { loadPublicGuildProfiles(); loadMyGuildNameChangeStatus(); }
   if(section==='hall-of-fame') loadHallOfFame();
   window.scrollTo({top:0,behavior:'smooth'});
 }
@@ -916,7 +918,7 @@ async function restoreAdmin(){
 }
 async function refreshAdmin(){
   if(!state.adminOk)return; $('admin-session-label').textContent=`${state.adminUser?.email||''} • Admin session active`;
-  await Promise.all([loadAdminGuilds(),loadAdminResults(),loadBans(),loadAdminWeeklyMatches()]);
+  await Promise.all([loadAdminGuilds(),loadAdminResults(),loadBans(),loadAdminWeeklyMatches(),loadAdminGuildNameChangeRequests()]);
 }
 function guildStatusLabel(g){ if(g.is_banned || (g.ban_until&&new Date(g.ban_until)>new Date()))return 'BANNED'; return String(g.approval_status||'').toUpperCase(); }
 function guildStatusClass(g){ if(g.is_banned || (g.ban_until&&new Date(g.ban_until)>new Date()))return 'status-banned'; if(g.approval_status==='approved')return 'status-approved'; if(g.approval_status==='pending')return 'status-pending'; return 'status-rejected'; }
@@ -1118,7 +1120,7 @@ async function loadAdminWeeklyMatches(){
 }
 
 function openAdminSection(name){
-  const section=['guilds','results','weekly','ban','trophies'].includes(name)?name:'guilds';
+  const section=['guilds','name-changes','results','weekly','ban','trophies'].includes(name)?name:'guilds';
   document.querySelectorAll('.admin-panel-view').forEach(el=>{
     const active=el.id===`admin-section-${section}`;
     el.classList.toggle('active',active);
@@ -1130,6 +1132,7 @@ function openAdminSection(name){
     btn.setAttribute('aria-selected',active?'true':'false');
   });
   if(section==='guilds') loadAdminGuilds();
+  if(section==='name-changes') loadAdminGuildNameChangeRequests();
   if(section==='results') loadAdminResults();
   if(section==='weekly') loadAdminWeeklyMatches();
   if(section==='ban') loadBans();
@@ -1399,6 +1402,63 @@ async function saveMyGuildProfile(e){
   }catch(error){showStatus('guild-profile-status','error',humanizeError(error));}
   finally{setBusy('guild-profile-save',false,'SAVE GUILD PROFILE');}
 }
+async function loadMyGuildNameChangeStatus(){
+  const note=$('guild-name-change-note'),button=$('guild-name-change-submit');
+  if(!note||!button||!state.user||!state.guild){if(note)note.textContent='Login with an approved guild account to request a name change.';if(button)button.disabled=true;return;}
+  try{
+    const {data,error}=await db.rpc('get_my_gvg_guild_name_change_status');if(error)throw error;
+    const row=Array.isArray(data)?(data[0]||null):data;state.guildNameChangeStatus=row;
+    const current=String(row?.current_guild_name||state.guild.guild_name||'');
+    const status=String(row?.request_status||'');
+    const requested=String(row?.requested_guild_name||'');
+    const availableAt=row?.name_change_available_at?new Date(row.name_change_available_at):null;
+    const isPending=status==='pending';
+    const cooldown=availableAt&&availableAt.getTime()>Date.now();
+    if(isPending){note.textContent=`Current name: ${current}. Request pending Admin approval: “${requested}”. Your current name stays active until approval.`;button.disabled=true;}
+    else if(cooldown){note.textContent=`Current name: ${current}. Name changes become available after ${formatDateTime(availableAt.toISOString())} Pakistan time.`;button.disabled=true;}
+    else if(status==='approved'){note.textContent=`Current name: ${current}. Your latest name-change request was approved. A new request is available now.`;button.disabled=false;}
+    else if(status==='rejected'){note.textContent=`Current name: ${current}. Previous request was rejected${row?.review_reason?`: ${row.review_reason}`:'.'} You may submit a new request if the 3-day cooldown has passed.`;button.disabled=false;}
+    else{note.textContent=`Current name: ${current}. Enter a new name; the Admin must approve it. After approval, the next change request has a 3-day cooldown.`;button.disabled=false;}
+  }catch(error){note.textContent=`Could not load request status: ${humanizeError(error)}`;button.disabled=false;}
+}
+async function submitGuildNameChangeRequest(e){
+  e.preventDefault();clearStatus('guild-name-change-status');
+  if(!guildApproved())return showStatus('guild-name-change-status','error','Only an approved, active guild can request a name change.');
+  const requested=$('guild-name-change-input').value.trim();
+  if(requested.length<3||requested.length>50)return showStatus('guild-name-change-status','error','New guild name must be 3 to 50 characters.');
+  if(normalizeGuild(requested)===normalizeGuild(state.guild?.guild_name))return showStatus('guild-name-change-status','error','Enter a different guild name.');
+  try{
+    setBusy('guild-name-change-submit',true,'SENDING REQUEST');
+    const {error}=await db.rpc('request_gvg_guild_name_change',{p_requested_guild_name:requested});if(error)throw error;
+    $('guild-name-change-input').value='';
+    showStatus('guild-name-change-status','ok','Name-change request sent. Your current name has not changed. Admin approval is required.');
+    await loadMyGuildNameChangeStatus();
+  }catch(error){showStatus('guild-name-change-status','error',humanizeError(error));}
+  finally{setBusy('guild-name-change-submit',false,'SEND NAME CHANGE REQUEST');await loadMyGuildNameChangeStatus();}
+}
+function renderAdminGuildNameChangeRequests(){
+  const target=$('admin-name-change-list');if(!target)return;
+  const rows=state.guildNameChangeRequests||[];
+  const tab=$('admin-name-change-tab');if(tab)tab.textContent=`NAME CHANGE REQUESTS (${rows.length})`;
+  target.innerHTML=rows.length?rows.map(r=>`<article class="challenge-card"><div class="meta-row"><div><div class="kicker">Pending approval</div><div class="name">${escapeHtml(r.current_guild_name||'Guild')} → ${escapeHtml(r.requested_guild_name||'New name')}</div><div class="subtle">Requested: ${escapeHtml(formatDateTime(r.requested_at))} PKT</div><div class="subtle">Request ID: ${escapeHtml(String(r.id||'').slice(0,8))}</div></div><span class="status-pill status-pending">PENDING</span></div><div class="divider"></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-green btn-small" type="button" data-action="approve-guild-name-change" data-id="${escapeHtml(r.id)}">APPROVE NAME</button><button class="btn btn-red btn-small" type="button" data-action="reject-guild-name-change" data-id="${escapeHtml(r.id)}">REJECT REQUEST</button></div></article>`).join(''):'<div class="empty">No pending guild name-change requests.</div>';
+}
+async function loadAdminGuildNameChangeRequests(){
+  const target=$('admin-name-change-list');if(target)target.innerHTML='<div class="empty">Loading name-change requests...</div>';
+  try{const {data,error}=await adminDb.rpc('admin_get_gvg_guild_name_change_requests');if(error)throw error;state.guildNameChangeRequests=data||[];renderAdminGuildNameChangeRequests();}
+  catch(error){if(target)target.innerHTML=`<div class="empty">Could not load requests: ${escapeHtml(humanizeError(error))}</div>`;console.error('Name-change requests failed:',error);}
+}
+async function reviewGuildNameChangeRequest(id,approve){
+  const request=(state.guildNameChangeRequests||[]).find(r=>String(r.id)===String(id));if(!request)return;
+  const decision=approve?'APPROVE':'REJECT';
+  const reason=prompt(approve?`Optional approval note for ${request.current_guild_name} → ${request.requested_guild_name}:`:`Reason for rejecting ${request.current_guild_name} → ${request.requested_guild_name}:`,approve?'':'Name-change request not approved.');
+  if(reason===null)return;
+  if(!approve&&!reason.trim())return showStatus('admin-name-change-status','error','Please enter a rejection reason.');
+  try{const {error}=await adminDb.rpc('admin_review_gvg_guild_name_change',{p_request_id:id,p_approve:approve,p_reason:reason.trim()||null});if(error)throw error;
+    showStatus('admin-name-change-status','ok',approve?`Guild name approved: ${request.current_guild_name} is now ${request.requested_guild_name}.`:'Guild name-change request rejected.');
+    await Promise.all([loadAdminGuildNameChangeRequests(),loadAdminGuilds()]);
+  }catch(error){showStatus('admin-name-change-status','error',humanizeError(error));}
+}
+
 function trophySvg(){return `<svg viewBox="0 0 160 180" role="img" aria-label="3D gold championship trophy"><defs><linearGradient id="gvg-trophy-gold" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#fff4b0"/><stop offset=".24" stop-color="#d99b2d"/><stop offset=".48" stop-color="#fff0a0"/><stop offset=".73" stop-color="#8b5712"/><stop offset="1" stop-color="#ffe28b"/></linearGradient><linearGradient id="gvg-trophy-side" x1="0" x2="1"><stop offset="0" stop-color="#6c4514"/><stop offset=".5" stop-color="#e7b94d"/><stop offset="1" stop-color="#51320b"/></linearGradient><linearGradient id="gvg-trophy-green" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#e7ffbf"/><stop offset=".45" stop-color="#21dc73"/><stop offset="1" stop-color="#07572d"/></linearGradient><filter id="gvg-trophy-shadow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="3"/></filter></defs><ellipse cx="80" cy="164" rx="45" ry="8" fill="#e9b94a" opacity=".2" filter="url(#gvg-trophy-shadow)"/><g stroke="#5b390d" stroke-width="2" stroke-linejoin="round"><path d="M48 24H112L107 72Q105 91 89 99L92 120H68L71 99Q55 91 53 72Z" fill="url(#gvg-trophy-side)"/><path d="M52 25H108L103 68Q101 84 80 95Q59 84 57 68Z" fill="url(#gvg-trophy-gold)"/><path d="M52 34H30Q29 61 47 72L57 74L55 61Q43 56 43 43H53Z" fill="url(#gvg-trophy-gold)"/><path d="M108 34H130Q131 61 113 72L103 74L105 61Q117 56 117 43H107Z" fill="url(#gvg-trophy-gold)"/><path d="M68 98H92L95 124H65Z" fill="url(#gvg-trophy-side)"/><path d="M58 123H102L112 139H48Z" fill="url(#gvg-trophy-gold)"/><path d="M42 140H118L128 151H32Z" fill="url(#gvg-trophy-side)"/><path d="M36 151H124L133 161H27Z" fill="url(#gvg-trophy-gold)"/><path d="M80 40L89 55L80 70L71 55Z" fill="url(#gvg-trophy-green)"/><path d="M80 48L84 55L80 62L76 55Z" fill="#eaffb8" stroke="none"/></g><path d="M60 30L65 67M73 30L75 39" stroke="#fffbd3" stroke-width="3" stroke-linecap="round" opacity=".68"/><path d="M24 169H136" stroke="#47ef86" stroke-width="2" opacity=".55"/></svg>`;}
 function bindTrophy3D(root=document){root.querySelectorAll('[data-trophy-3d]:not([data-trophy-bound])').forEach(el=>{el.dataset.trophyBound='1';let down=false,lastX=0,lastY=0,rx=-8,ry=0;const apply=()=>{el.style.transform=`perspective(700px) rotateX(${rx}deg) rotateY(${ry}deg)`;};el.addEventListener('pointerdown',e=>{down=true;lastX=e.clientX;lastY=e.clientY;try{el.setPointerCapture(e.pointerId);}catch{};});el.addEventListener('pointermove',e=>{if(!down)return;const dx=e.clientX-lastX,dy=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;ry+=dx*.9;rx=Math.max(-35,Math.min(35,rx-dy*.7));apply();});const end=()=>{down=false;};el.addEventListener('pointerup',end);el.addEventListener('pointercancel',end);el.addEventListener('lostpointercapture',end);});}
 function hallPeriodLabel(type,number){return type==='weekly'?`WEEK ${number}`:new Intl.DateTimeFormat('en',{month:'long'}).format(new Date(Date.UTC(2020,number-1,1)));}
@@ -1454,7 +1514,7 @@ async function removeHofAward(id){const a=state.adminHofAwards.find(x=>String(x.
 /* ------------------------- Events ------------------------- */
 document.addEventListener('click',async(e)=>{
   const actionEl=e.target.closest('[data-action]');
-  if(actionEl){const action=actionEl.dataset.action,id=actionEl.dataset.id;if(action==='result-from-challenge')return selectChallengeForResult(id);if(action==='close-modal')return closeModal();if(action==='guild-info'){const g=findGuild(id);if(g)adminGuildInfo(g);return;}if(action==='guild-edit'){const g=findGuild(id);if(g)adminGuildEdit(g);return;}if(action==='guild-remove')return removeGuild(id);if(action==='approve-leader')return setLeaderApproval(id,'approved');if(action==='reject-leader')return setLeaderApproval(id,'rejected');if(action==='remove-leader')return removeLeader(id,actionEl.dataset.guild||'');if(action==='reset-password')return resetLeaderPassword(actionEl.dataset.email||'');if(action==='approve-result')return approveResult(id);if(action==='reject-result')return rejectResult(id);if(action==='unban-identity')return unbanIdentity(actionEl.dataset.guild||'',actionEl.dataset.contact||'');if(action==='mod-approve-guild')return moderatorApproveGuild(actionEl.dataset.guild||'');if(action==='mod-remove-guild')return moderatorRemoveGuild(actionEl.dataset.guild||'');if(action==='mod-approve-result')return moderatorApproveResult(id);if(action==='mod-reject-result')return moderatorRejectResult(id);if(action==='open-public-guild-profile')return openPublicGuildProfile(actionEl.dataset.guild||'');if(action==='hof-select-year'){state.hofYear=Number(actionEl.dataset.year);state.hofPeriod=1;renderHofYearGrid(state.hofYears||[]);return loadHallOfFameYear();}if(action==='hof-select-period'){state.hofPeriod=Number(actionEl.dataset.period);return renderHallSelectedAward();}if(action==='admin-remove-hof-award')return removeHofAward(id);}
+  if(actionEl){const action=actionEl.dataset.action,id=actionEl.dataset.id;if(action==='result-from-challenge')return selectChallengeForResult(id);if(action==='close-modal')return closeModal();if(action==='guild-info'){const g=findGuild(id);if(g)adminGuildInfo(g);return;}if(action==='guild-edit'){const g=findGuild(id);if(g)adminGuildEdit(g);return;}if(action==='guild-remove')return removeGuild(id);if(action==='approve-leader')return setLeaderApproval(id,'approved');if(action==='reject-leader')return setLeaderApproval(id,'rejected');if(action==='remove-leader')return removeLeader(id,actionEl.dataset.guild||'');if(action==='reset-password')return resetLeaderPassword(actionEl.dataset.email||'');if(action==='approve-result')return approveResult(id);if(action==='reject-result')return rejectResult(id);if(action==='unban-identity')return unbanIdentity(actionEl.dataset.guild||'',actionEl.dataset.contact||'');if(action==='mod-approve-guild')return moderatorApproveGuild(actionEl.dataset.guild||'');if(action==='mod-remove-guild')return moderatorRemoveGuild(actionEl.dataset.guild||'');if(action==='mod-approve-result')return moderatorApproveResult(id);if(action==='mod-reject-result')return moderatorRejectResult(id);if(action==='open-public-guild-profile')return openPublicGuildProfile(actionEl.dataset.guild||'');if(action==='hof-select-year'){state.hofYear=Number(actionEl.dataset.year);state.hofPeriod=1;renderHofYearGrid(state.hofYears||[]);return loadHallOfFameYear();}if(action==='hof-select-period'){state.hofPeriod=Number(actionEl.dataset.period);return renderHallSelectedAward();}if(action==='admin-remove-hof-award')return removeHofAward(id);if(action==='approve-guild-name-change')return reviewGuildNameChangeRequest(id,true);if(action==='reject-guild-name-change')return reviewGuildNameChangeRequest(id,false);}
   const menuBtn=e.target.closest('[data-menu-button]');if(menuBtn){const id=menuBtn.dataset.menuButton;document.querySelectorAll('.dots-menu.open').forEach(x=>{if(x.id!==`menu-${id}`)x.classList.remove('open')});document.getElementById(`menu-${id}`)?.classList.toggle('open');return;}document.querySelectorAll('.dots-menu.open').forEach(x=>x.classList.remove('open'));
 });
 document.querySelectorAll('[data-member-section]').forEach(btn=>btn.addEventListener('click',()=>openMemberSection(btn.dataset.memberSection)));
@@ -1480,7 +1540,9 @@ $('forgot-password').addEventListener('click',handleForgot);
 $('challenge-form').addEventListener('submit',handleChallengeSubmit);
 $('result-form').addEventListener('submit',handleResultSubmit);
 $('guild-profile-form')?.addEventListener('submit',saveMyGuildProfile);
+$('guild-name-change-form')?.addEventListener('submit',submitGuildNameChangeRequest);
 $('public-guild-profile-search')?.addEventListener('input',renderPublicGuildProfiles);
+$('admin-name-change-refresh')?.addEventListener('click',loadAdminGuildNameChangeRequests);
 $('hof-season-form')?.addEventListener('submit',saveHofSeasonSettings);
 $('hof-award-form')?.addEventListener('submit',awardHofTrophy);
 $('hof-admin-refresh')?.addEventListener('click',loadHofAdmin);
