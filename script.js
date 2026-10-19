@@ -71,6 +71,28 @@ const state = {
 
 const $ = (id) => document.getElementById(id);
 
+// Short in-memory cache: prevents repeated tab taps from re-fetching the same data.
+// It never persists private/server data across browser sessions.
+const sectionLoadCache = new Map();
+const sectionLoadInflight = new Map();
+const DEFAULT_SECTION_CACHE_MS = 20000;
+async function loadSectionCached(key, loader, ttlMs=DEFAULT_SECTION_CACHE_MS){
+  const lastLoaded = sectionLoadCache.get(key) || 0;
+  if(Date.now() - lastLoaded < ttlMs) return;
+  if(sectionLoadInflight.has(key)) return sectionLoadInflight.get(key);
+  const task = (async()=>{
+    try{ await loader(); sectionLoadCache.set(key, Date.now()); }
+    finally{ sectionLoadInflight.delete(key); }
+  })();
+  sectionLoadInflight.set(key, task);
+  return task;
+}
+function markSectionLoaded(key){ sectionLoadCache.set(key, Date.now()); }
+function clearSectionCache(prefix=''){
+  for(const key of sectionLoadCache.keys()) if(!prefix || key.startsWith(prefix)) sectionLoadCache.delete(key);
+}
+
+
 function escapeHtml(value) {
   return String(value ?? '')
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -95,6 +117,54 @@ function clearStatus(id){ const el=$(id); if(!el) return; el.className='status';
 function setBusy(buttonId,busy,label){ let btn=$(buttonId); if(btn?.tagName==='FORM') btn=btn.querySelector('button[type=submit]'); if(!btn) return; btn.disabled=busy; if(busy) btn.dataset.oldText=btn.textContent; btn.textContent=busy?'PLEASE WAIT…':(label||btn.dataset.oldText||'SUBMIT'); }
 function humanizeError(error){ const msg=String(error?.message || error?.error_description || error || 'Unknown error').trim(); return msg.replace(/^(Error:\s*)/i,''); }
 function currentPakistanParts(){ const parts=new Intl.DateTimeFormat('en-CA',{timeZone:TIME_ZONE,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).formatToParts(new Date()); const o={}; for(const p of parts) o[p.type]=p.value; return {year:Number(o.year),month:Number(o.month),day:Number(o.day),hour:Number(o.hour)%24,minute:Number(o.minute)}; }
+
+
+/* Storage bandwidth optimization: compress new uploads in the browser.
+   Images use unique object paths, so a long browser cache lifetime is safe. */
+function loadImageForCompression(file){
+  return new Promise((resolve,reject)=>{
+    const objectUrl=URL.createObjectURL(file);
+    const img=new Image();
+    img.onload=()=>{URL.revokeObjectURL(objectUrl);resolve(img);};
+    img.onerror=()=>{URL.revokeObjectURL(objectUrl);reject(new Error('This image could not be opened. Try saving it as JPG, PNG or WEBP.'));};
+    img.src=objectUrl;
+  });
+}
+function canvasToBlob(canvas,type,quality){
+  return new Promise(resolve=>canvas.toBlob(resolve,type,quality));
+}
+async function compressImageForStorage(file,{maxDimension=1800,targetBytes=1200*1024,qualities=[0.86,0.80,0.74]}={}){
+  let image;
+  try{image=await loadImageForCompression(file);}catch{return file;}
+  const sourceWidth=image.naturalWidth||image.width;
+  const sourceHeight=image.naturalHeight||image.height;
+  if(!sourceWidth||!sourceHeight)return file;
+  let scale=Math.min(1,maxDimension/Math.max(sourceWidth,sourceHeight));
+  let best=null;
+  const canvas=document.createElement('canvas');
+  const context=canvas.getContext('2d');
+  if(!context)return file;
+  for(let pass=0;pass<4;pass++){
+    canvas.width=Math.max(1,Math.round(sourceWidth*scale));
+    canvas.height=Math.max(1,Math.round(sourceHeight*scale));
+    context.clearRect(0,0,canvas.width,canvas.height);
+    context.drawImage(image,0,0,canvas.width,canvas.height);
+    for(const quality of qualities){
+      const blob=await canvasToBlob(canvas,'image/webp',quality);
+      if(!blob||blob.type!=='image/webp')continue;
+      if(!best||blob.size<best.size)best=blob;
+      if(blob.size<=targetBytes)return blob;
+    }
+    scale*=0.82;
+  }
+  return best&&best.size<file.size?best:file;
+}
+function getUploadImageExtension(file){
+  const type=String(file?.type||'').toLowerCase();
+  if(type==='image/webp')return 'webp';
+  if(type==='image/png')return 'png';
+  return 'jpg';
+}
 function cycleStartDateKey(){ const p=currentPakistanParts(); const d=new Date(Date.UTC(p.year,p.month-1,p.day)); if(p.hour<10) d.setUTCDate(d.getUTCDate()-1); return d.toISOString().slice(0,10); }
 function challengePostingOpen(){ const p=currentPakistanParts(); const mins=p.hour*60+p.minute; return mins>=600 && mins<1440; }
 function cycleStartForChallenge(challengeCreatedAt){ const d=new Date(new Intl.DateTimeFormat('en-US',{timeZone:TIME_ZONE,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(challengeCreatedAt))); if(Number.isNaN(d.getTime())) return null; const p=new Intl.DateTimeFormat('en-US',{timeZone:TIME_ZONE,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).formatToParts(new Date(challengeCreatedAt)); const o={}; for(const x of p)o[x.type]=x.value; const local=new Date(Date.UTC(Number(o.year),Number(o.month)-1,Number(o.day),Number(o.hour)%24,Number(o.minute))); if(Number(o.hour)<10)local.setUTCDate(local.getUTCDate()-1); return local.toISOString().slice(0,10); }
@@ -148,12 +218,20 @@ function openMemberSection(name){
 
   document.querySelectorAll('.member-view').forEach(el=>el.classList.toggle('active',el.id===`member-section-${section}`));
   document.querySelectorAll('[data-member-section]').forEach(btn=>btn.classList.toggle('active',btn.dataset.memberSection===section));
-  if(section==='challenges') loadLiveChallenges();
-  if(section==='results') { loadLiveChallenges(); loadGuildOptions(); loadApprovedResults(); }
+  if(section==='challenges') loadSectionCached('member:challenges',loadLiveChallenges,15000);
+  if(section==='results') Promise.all([
+    loadSectionCached('member:challenges',loadLiveChallenges,15000),
+    loadSectionCached('member:guild-options',loadGuildOptions,30000),
+    loadSectionCached('member:approved-results',loadApprovedResults,15000),
+    loadSectionCached('member:my-results',loadMyResultSubmissions,15000)
+  ]);
   if(section==='ranking') setRankingMode(state.rankingMode || 'current-week');
-  if(section==='registered-guilds') loadRegisteredGuilds();
-  if(section==='guild-profiles') { loadPublicGuildProfiles(); loadMyGuildNameChangeStatus(); }
-  if(section==='hall-of-fame') loadHallOfFame();
+  if(section==='registered-guilds') loadSectionCached('member:registered-guilds',loadRegisteredGuilds,30000);
+  if(section==='guild-profiles') Promise.all([
+    loadSectionCached('member:guild-profiles',loadPublicGuildProfiles,30000),
+    loadSectionCached('member:name-change-status',loadMyGuildNameChangeStatus,15000)
+  ]);
+  if(section==='hall-of-fame') loadSectionCached('member:hall-of-fame',loadHallOfFame,30000);
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
@@ -200,6 +278,8 @@ async function completePendingRegistration(){
 
     clearPendingRegistration();
     state.guild=Array.isArray(data)?(data[0]||null):data;
+    // Normalize the registry row once after registration; later view rendering must not repeat this fetch.
+    await loadMyGuild();
     showStatus('login-status','ok','Account confirmed and guild registration has been submitted. Admin approval is required.');
   }catch(error){
     const message=String(error?.message||error||'').trim();
@@ -237,9 +317,10 @@ async function handleLogin(e){
     if(error) throw error;
 
     state.user=data.user;
+    clearSectionCache('member:');
     await loadMyGuild();
     await completePendingRegistration();
-    await enterMember();
+    await enterMember({skipGuildReload:true});
   }catch(error){
     showStatus('login-status','error',humanizeError(error));
   }finally{
@@ -282,8 +363,10 @@ async function handleRegister(e){
 
     clearPendingRegistration();
     state.guild=Array.isArray(reg)?(reg[0]||null):reg;
+    await loadMyGuild();
+    clearSectionCache('member:');
     openView('member');
-    await refreshMember();
+    await refreshMember({reloadGuild:false});
     syncRegisterNav();
   };
 
@@ -680,13 +763,23 @@ function selectChallengeForResult(id){
 }
 
 async function uploadResultImages(files){
-  if(files.length!==1)throw new Error('Exactly 1 result proof image is required.'); if(!state.user)throw new Error('LOGIN_REQUIRED: Login required.'); const urls=[];
+  if(files.length!==1)throw new Error('Exactly 1 result proof image is required.');
+  if(!state.user)throw new Error('LOGIN_REQUIRED: Login required.');
+  const urls=[];
   for(const file of files){
     if(file.size>MAX_IMAGE_SIZE)throw new Error('Each image must be 5 MB or smaller.');
     if(!['image/jpeg','image/png','image/webp'].includes(file.type))throw new Error('Only JPG, PNG and WEBP images are allowed.');
-    const ext=(file.name.split('.').pop()||'jpg').toLowerCase(); const path=`results/${state.user.id}/${crypto.randomUUID()}.${ext}`;
-    const {error}=await db.storage.from(IMAGE_BUCKET).upload(path,file,{upsert:false,contentType:file.type}); if(error)throw error;
-    const {data}=db.storage.from(IMAGE_BUCKET).getPublicUrl(path); if(data?.publicUrl)urls.push(data.publicUrl);
+    const optimized=await compressImageForStorage(file,{maxDimension:1800,targetBytes:1200*1024,qualities:[0.86,0.80,0.74]});
+    const ext=getUploadImageExtension(optimized);
+    const path=`results/${state.user.id}/${crypto.randomUUID()}.${ext}`;
+    const {error}=await db.storage.from(IMAGE_BUCKET).upload(path,optimized,{
+      upsert:false,
+      contentType:optimized.type||file.type,
+      cacheControl:'31536000'
+    });
+    if(error)throw error;
+    const {data}=db.storage.from(IMAGE_BUCKET).getPublicUrl(path);
+    if(data?.publicUrl)urls.push(data.publicUrl);
   }
   return urls;
 }
@@ -695,7 +788,7 @@ async function handleChallengeSubmit(e){
   e.preventDefault();clearStatus('challenge-status');if(!guildApproved())return showStatus('challenge-status','error','Your guild is not approved or is currently banned.');if(!challengePostingOpen())return showStatus('challenge-status','error','New challenges are allowed from 10:00 AM until 11:59 PM Pakistan time. At 12:00 AM, challenges close.');
   const time=$('challenge-time').value; const weapons=[...document.querySelectorAll('input[name="weapons"]:checked')].map(x=>x.value); const skills=[...document.querySelectorAll('input[name="skills"]:checked')].map(x=>x.value); const pcAllowed=$('challenge-pc-allowed')?.value==='true';
   if(!time||!weapons.length){showStatus('challenge-status','error','Match time and at least one weapon are required.');return;}
-  try{setBusy('challenge-submit',true);const {data,error}=await db.rpc('submit_gvg_challenge',{p_challenge_time:time,p_weapons:weapons,p_active_skills:skills,p_pc_allowed:pcAllowed});if(error)throw error;showStatus('challenge-status','ok',`Challenge ${data?.challenge_code||''} posted successfully. PC: ${pcAllowed?'ALLOW':'NOT ALLOW'}.`);$('challenge-form').reset();clearTimePicker();await loadLiveChallenges();}catch(error){showStatus('challenge-status','error',humanizeError(error));}finally{setBusy('challenge-submit',false,'POST CHALLENGE');}
+  try{setBusy('challenge-submit',true);const {data,error}=await db.rpc('submit_gvg_challenge',{p_challenge_time:time,p_weapons:weapons,p_active_skills:skills,p_pc_allowed:pcAllowed});if(error)throw error;showStatus('challenge-status','ok',`Challenge ${data?.challenge_code||''} posted successfully. PC: ${pcAllowed?'ALLOW':'NOT ALLOW'}.`);$('challenge-form').reset();clearTimePicker();clearSectionCache('member:challenges');await loadLiveChallenges();markSectionLoaded('member:challenges');}catch(error){showStatus('challenge-status','error',humanizeError(error));}finally{setBusy('challenge-submit',false,'POST CHALLENGE');}
 }
 
 async function handleResultSubmit(e){
@@ -706,7 +799,7 @@ async function handleResultSubmit(e){
   try{setBusy('result-submit',true);const urls=await uploadResultImages(files);
     // Upload exactly one proof file. The existing production RPC may enforce its legacy 2-slot array; repeat the same URL as a compatibility pointer, never upload a second image.
     const proofUrls=urls.length===1?[urls[0],urls[0]]:urls;
-    const {error}=await db.rpc('submit_gvg_result',{p_challenge_id:challengeId,p_winner_guild:winner,p_loser_guild:loser,p_score:score,p_image_urls:proofUrls});if(error)throw error;showStatus('result-status','ok','Result submitted for admin approval.');$('result-form').reset();await Promise.all([loadLiveChallenges(),loadApprovedResults(),loadMyResultSubmissions()]);}catch(error){showStatus('result-status','error',humanizeError(error));}finally{setBusy('result-submit',false,'SUBMIT RESULT');}
+    const {error}=await db.rpc('submit_gvg_result',{p_challenge_id:challengeId,p_winner_guild:winner,p_loser_guild:loser,p_score:score,p_image_urls:proofUrls});if(error)throw error;showStatus('result-status','ok','Result submitted for admin approval.');$('result-form').reset();clearSectionCache('member:');await Promise.all([loadLiveChallenges(),loadApprovedResults(),loadMyResultSubmissions()]);markSectionLoaded('member:challenges');markSectionLoaded('member:approved-results');markSectionLoaded('member:my-results');}catch(error){showStatus('result-status','error',humanizeError(error));}finally{setBusy('result-submit',false,'SUBMIT RESULT');}
 }
 
 async function loadMyResultSubmissions(){
@@ -764,7 +857,7 @@ function setRankingMode(mode){
     panel.classList.toggle('active',active);
     panel.hidden=!active;
   });
-  loadRanking(selected);
+  loadSectionCached(`member:ranking:${selected}`,()=>loadRanking(selected),15000);
 }
 
 function renderRankingTable(mode,rows){
@@ -840,27 +933,16 @@ function syncRegisterNav(){
   }
 }
 
-async function enterMember(){
+async function enterMember({skipGuildReload=false}={}){
   openView('member');
-  await refreshMember();
+  await refreshMember({reloadGuild:!skipGuildReload});
   if(memberDashboardAllowed()) openMemberSection('rules');
   else setMemberAccessGate();
 }
-async function refreshMember(){
-  await loadMyGuild();
+async function refreshMember({reloadGuild=true}={}){
+  if(reloadGuild) await loadMyGuild();
   await renderMemberIdentity();
-  setMemberAccessGate();
-
-  if(memberDashboardAllowed()){
-    await Promise.all([
-      loadLiveChallenges(),
-      loadGuildOptions(),
-      loadApprovedResults(),
-      loadMyResultSubmissions(),
-      loadRanking(state.rankingMode || 'current-week'),
-      loadRegisteredGuilds()
-    ]);
-  }
+  // Do not prefetch hidden tabs on login. The selected tab loads its own data.
   setMemberAccessGate();
 }
 async function handleLogout(){try{await db.auth.signOut();}catch{}state.user=null;state.guild=null;openView('public');syncRegisterNav();$('login-password').value='';}
@@ -891,6 +973,7 @@ async function handleAdminLogin(e){
     }
     state.adminUser=data.user;
     state.adminOk=true;
+    clearSectionCache('admin:');
     setAdminPanel(true);
     showStatus('admin-status','ok','Admin login successful.');
     openView('admin');
@@ -913,12 +996,14 @@ async function restoreAdmin(){
   }
   state.adminUser=session.user;
   state.adminOk=await isAdmin();
+  clearSectionCache('admin:');
   setAdminPanel(state.adminOk);
   if(state.adminOk){openView('admin');openAdminSection('guilds');await refreshAdmin();}
 }
 async function refreshAdmin(){
-  if(!state.adminOk)return; $('admin-session-label').textContent=`${state.adminUser?.email||''} • Admin session active`;
-  await Promise.all([loadAdminGuilds(),loadAdminResults(),loadBans(),loadAdminWeeklyMatches(),loadAdminGuildNameChangeRequests()]);
+  if(!state.adminOk)return;
+  $('admin-session-label').textContent=`${state.adminUser?.email||''} • Admin session active`;
+  // Admin data is fetched only for the visible section via openAdminSection().
 }
 function guildStatusLabel(g){ if(g.is_banned || (g.ban_until&&new Date(g.ban_until)>new Date()))return 'BANNED'; return String(g.approval_status||'').toUpperCase(); }
 function guildStatusClass(g){ if(g.is_banned || (g.ban_until&&new Date(g.ban_until)>new Date()))return 'status-banned'; if(g.approval_status==='approved')return 'status-approved'; if(g.approval_status==='pending')return 'status-pending'; return 'status-rejected'; }
@@ -1036,10 +1121,10 @@ function preferredResultProofUrls(imageUrls){
 }
 
 async function loadAdminResults(){
-  try{const {data,error}=await adminDb.rpc('admin_get_results');if(error)throw error;const rows=data||[];state.results=rows;const target=$('admin-result-table');target.innerHTML=rows.length?rows.map(r=>{const imgs=preferredResultProofUrls(r.image_urls);const gallery=imgs.length?`<details class="proof-details"><summary>OPEN RESULT PROOF</summary><div class="proof-gallery">${imgs.map((u,i)=>`<a href="${escapeHtml(u)}" target="_blank" rel="noopener"><span class="proof-tag">RESULT PROOF</span><img src="${escapeHtml(u)}" alt="${escapeHtml(r.winner_guild)} vs ${escapeHtml(r.loser_guild)} result proof" /></a>`).join('')}</div></details>`:'<span class="muted">No proof</span>';return `<tr><td><strong>${escapeHtml(r.winner_guild)}</strong><div class="muted" style="margin-top:3px">DEFEAT</div><strong>${escapeHtml(r.loser_guild)}</strong></td><td>${escapeHtml(r.score)}</td><td><strong style="font-size:9px">${escapeHtml(formatDateTime(r.created_at))}</strong><div class="muted" style="margin-top:4px;font-size:7px">PAKISTAN TIME</div></td><td>${gallery}<div style="margin-top:6px"><span class="status-pill ${r.status==='approved'?'status-approved':r.status==='pending'?'status-pending':'status-rejected'}">${escapeHtml(r.status)}</span></div></td><td>${r.status==='pending'?`<div style="display:flex;gap:5px;flex-wrap:wrap"><button class="btn btn-green btn-small" type="button" data-action="approve-result" data-id="${escapeHtml(r.id)}">APPROVE</button><button class="btn btn-red btn-small" type="button" data-action="reject-result" data-id="${escapeHtml(r.id)}">REJECT</button></div>`:'—'}</td></tr>`;}).join(''):'<tr><td colspan="4">No result submissions.</td></tr>';}catch(error){showStatus('admin-status','error',humanizeError(error));}
+  try{const {data,error}=await adminDb.rpc('admin_get_results');if(error)throw error;const rows=data||[];state.results=rows;const target=$('admin-result-table');target.innerHTML=rows.length?rows.map(r=>{const imgs=preferredResultProofUrls(r.image_urls);const gallery=imgs.length?`<details class="proof-details"><summary>OPEN RESULT PROOF</summary><div class="proof-gallery">${imgs.map((u,i)=>`<a href="${escapeHtml(u)}" target="_blank" rel="noopener"><span class="proof-tag">RESULT PROOF</span><img data-proof-src="${escapeHtml(u)}" loading="lazy" decoding="async" alt="${escapeHtml(r.winner_guild)} vs ${escapeHtml(r.loser_guild)} result proof" /></a>`).join('')}</div></details>`:'<span class="muted">No proof</span>';return `<tr><td><strong>${escapeHtml(r.winner_guild)}</strong><div class="muted" style="margin-top:3px">DEFEAT</div><strong>${escapeHtml(r.loser_guild)}</strong></td><td>${escapeHtml(r.score)}</td><td><strong style="font-size:9px">${escapeHtml(formatDateTime(r.created_at))}</strong><div class="muted" style="margin-top:4px;font-size:7px">PAKISTAN TIME</div></td><td>${gallery}<div style="margin-top:6px"><span class="status-pill ${r.status==='approved'?'status-approved':r.status==='pending'?'status-pending':'status-rejected'}">${escapeHtml(r.status)}</span></div></td><td>${r.status==='pending'?`<div style="display:flex;gap:5px;flex-wrap:wrap"><button class="btn btn-green btn-small" type="button" data-action="approve-result" data-id="${escapeHtml(r.id)}">APPROVE</button><button class="btn btn-red btn-small" type="button" data-action="reject-result" data-id="${escapeHtml(r.id)}">REJECT</button></div>`:'—'}</td></tr>`;}).join(''):'<tr><td colspan="4">No result submissions.</td></tr>';}catch(error){showStatus('admin-status','error',humanizeError(error));}
 }
-async function approveResult(id){try{const {error}=await adminDb.rpc('admin_approve_result',{p_result_id:id});if(error)throw error;showStatus('admin-status','ok','Result approved and weekly points awarded.');await Promise.all([loadAdminResults(),loadAdminGuilds()]);}catch(error){showStatus('admin-status','error',humanizeError(error));}}
-async function rejectResult(id){const reason=prompt('Reason for rejection:','Proof or result issue');if(reason===null)return;try{const {error}=await adminDb.rpc('admin_reject_result',{p_result_id:id,p_reason:reason.trim()||'Rejected by admin'});if(error)throw error;showStatus('admin-status','ok','Result rejected. The challenge is open again while it is still inside its cycle.');await loadAdminResults();}catch(error){showStatus('admin-status','error',humanizeError(error));}}
+async function approveResult(id){try{const {error}=await adminDb.rpc('admin_approve_result',{p_result_id:id});if(error)throw error;showStatus('admin-status','ok','Result approved and weekly points awarded.');clearSectionCache('admin:');await Promise.all([loadAdminResults(),loadAdminGuilds()]);markSectionLoaded('admin:results');markSectionLoaded('admin:guilds');}catch(error){showStatus('admin-status','error',humanizeError(error));}}
+async function rejectResult(id){const reason=prompt('Reason for rejection:','Proof or result issue');if(reason===null)return;try{const {error}=await adminDb.rpc('admin_reject_result',{p_result_id:id,p_reason:reason.trim()||'Rejected by admin'});if(error)throw error;showStatus('admin-status','ok','Result rejected. The challenge is open again while it is still inside its cycle.');clearSectionCache('admin:results');await loadAdminResults();markSectionLoaded('admin:results');}catch(error){showStatus('admin-status','error',humanizeError(error));}}
 
 async function handleBan(e){e.preventDefault();clearStatus('ban-status');const guild=$('ban-guild').value.trim(),contact=$('ban-contact').value.trim(),duration=$('ban-duration').value,reason=$('ban-reason').value.trim()||'Rule violation';if(!guild&&!contact)return showStatus('ban-status','error','Enter a guild name or contact number.');let until=null;const now=new Date();if(duration==='1h')until=new Date(now.getTime()+60*60*1000);if(duration==='6h')until=new Date(now.getTime()+6*60*60*1000);if(duration==='1d')until=new Date(now.getTime()+24*60*60*1000);if(duration==='3d')until=new Date(now.getTime()+3*24*60*60*1000);if(duration==='7d')until=new Date(now.getTime()+7*24*60*60*1000);try{const {error}=await adminDb.rpc('admin_ban_guild_identity',{p_guild_name:guild||null,p_contact:contact||null,p_ban_until:until?until.toISOString():null,p_reason:reason});if(error)throw error;showStatus('ban-status','ok',until?`Guild banned until ${formatDateTime(until)}.`:'Guild permanently banned.');e.target.reset();$('ban-reason').value='Rule violation';await Promise.all([loadAdminGuilds(),loadBans()]);}catch(error){showStatus('ban-status','error',humanizeError(error));}}
 async function loadBans(){
@@ -1131,12 +1216,12 @@ function openAdminSection(name){
     btn.classList.toggle('active',active);
     btn.setAttribute('aria-selected',active?'true':'false');
   });
-  if(section==='guilds') loadAdminGuilds();
-  if(section==='name-changes') loadAdminGuildNameChangeRequests();
-  if(section==='results') loadAdminResults();
-  if(section==='weekly') loadAdminWeeklyMatches();
-  if(section==='ban') loadBans();
-  if(section==='trophies') loadHofAdmin();
+  if(section==='guilds') loadSectionCached('admin:guilds',loadAdminGuilds,15000);
+  if(section==='name-changes') loadSectionCached('admin:name-changes',loadAdminGuildNameChangeRequests,15000);
+  if(section==='results') loadSectionCached('admin:results',loadAdminResults,10000);
+  if(section==='weekly') loadSectionCached('admin:weekly',loadAdminWeeklyMatches,20000);
+  if(section==='ban') loadSectionCached('admin:bans',loadBans,15000);
+  if(section==='trophies') loadSectionCached('admin:trophies',loadHofAdmin,20000);
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
@@ -1165,8 +1250,8 @@ async function handleModeratorLogin(e){
     state.moderatorUser=data.user;state.moderatorOk=true;setModeratorPanel(true);openView('moderator');
     $('moderator-session-label').textContent=`${state.moderatorUser?.email||''} • Limited moderator access`;
     $('moderator-password').value='';showStatus('moderator-results-status','ok','Moderator login successful. Review pending results or manage guild approvals.');
+    clearSectionCache('moderator:');
     openModeratorSection('results');
-    await loadModeratorData();
   }catch(error){state.moderatorUser=null;state.moderatorOk=false;setModeratorPanel(false);showStatus('moderator-login-status','error',humanizeError(error));}
   finally{setBusy('moderator-login-submit',false,'LOGIN AS MODERATOR');}
 }
@@ -1174,10 +1259,11 @@ async function restoreModerator(){
   const {data:{session}}=await moderatorDb.auth.getSession();
   if(!session){state.moderatorUser=null;state.moderatorOk=false;setModeratorPanel(false);return;}
   state.moderatorUser=session.user;state.moderatorOk=await isModerator();
+  clearSectionCache('moderator:');
   if(!state.moderatorOk){await moderatorDb.auth.signOut();state.moderatorUser=null;setModeratorPanel(false);return;}
   setModeratorPanel(true);$('moderator-session-label').textContent=`${state.moderatorUser?.email||''} • Limited moderator access`;
+  clearSectionCache('moderator:');
   openModeratorSection('results');
-  await loadModeratorData();
 }
 async function handleModeratorLogout(){
   try{await moderatorDb.auth.signOut();}catch{}
@@ -1200,8 +1286,8 @@ function openModeratorSection(name){
     panel.classList.toggle('active',active);
     panel.style.display=active?'block':'none';
   });
-  if(section==='results')loadModeratorResults();
-  if(section==='guilds')loadModeratorGuilds();
+  if(section==='results')loadSectionCached('moderator:results',loadModeratorResults,10000);
+  if(section==='guilds')loadSectionCached('moderator:guilds',loadModeratorGuilds,15000);
 }
 function moderatorStatusLabel(g){
   if(g.is_banned || (g.ban_until && new Date(g.ban_until)>new Date()))return 'BANNED';
@@ -1236,7 +1322,7 @@ async function loadModeratorResults(){
     const rows=data||[];state.moderatorResults=rows;
     target.innerHTML=rows.length?rows.map(r=>{
       const imgs=preferredResultProofUrls(r.image_urls);
-      const gallery=imgs.length?`<details class="proof-details"><summary>OPEN RESULT PROOF</summary><div class="proof-gallery">${imgs.map((u,i)=>`<a href="${escapeHtml(u)}" target="_blank" rel="noopener"><span class="proof-tag">RESULT PROOF</span><img src="${escapeHtml(u)}" alt="${escapeHtml(r.winner_guild)} vs ${escapeHtml(r.loser_guild)} result proof" /></a>`).join('')}</div></details>`:'<span class="muted">No proof</span>';
+      const gallery=imgs.length?`<details class="proof-details"><summary>OPEN RESULT PROOF</summary><div class="proof-gallery">${imgs.map((u,i)=>`<a href="${escapeHtml(u)}" target="_blank" rel="noopener"><span class="proof-tag">RESULT PROOF</span><img data-proof-src="${escapeHtml(u)}" loading="lazy" decoding="async" alt="${escapeHtml(r.winner_guild)} vs ${escapeHtml(r.loser_guild)} result proof" /></a>`).join('')}</div></details>`:'<span class="muted">No proof</span>';
       const status=String(r.status||'unknown').toLowerCase();
       const actions=status==='pending'?`<div class="moderator-actions"><button class="btn btn-green btn-small moderator-action-btn" type="button" data-action="mod-approve-result" data-id="${escapeHtml(r.id)}">APPROVE</button><button class="btn btn-red btn-small moderator-action-btn" type="button" data-action="mod-reject-result" data-id="${escapeHtml(r.id)}">REJECT</button></div>`:'—';
       return `<tr><td><strong>${escapeHtml(r.winner_guild)}</strong><div class="muted" style="margin:3px 0">DEFEAT</div><strong>${escapeHtml(r.loser_guild)}</strong></td><td>${escapeHtml(r.score)}</td><td><strong style="font-size:9px">${escapeHtml(formatDateTime(r.created_at))}</strong><div class="muted" style="margin-top:4px;font-size:7px">PAKISTAN TIME</div></td><td>${gallery}<div style="margin-top:6px"><span class="status-pill ${status==='approved'?'status-approved':status==='pending'?'status-pending':'status-rejected'}">${escapeHtml(status)}</span></div>${r.rejection_reason?`<div class="muted" style="margin-top:5px">${escapeHtml(r.rejection_reason)}</div>`:''}</td><td>${actions}</td></tr>`;
@@ -1376,14 +1462,43 @@ function openPublicGuildProfile(norm){
     ${renderBadgeGrid(p,true)}<div class="hint" style="margin-top:12px">Statistics use approved results only. Trophies are official awards added by the GVG Admin.</div>`;
   openModal(html);
 }
+function publicStoragePathFromUrl(publicUrl,bucket){
+  try{
+    const url=new URL(String(publicUrl||''));
+    const projectHost=new URL(SUPABASE_URL).hostname.toLowerCase();
+    if(url.protocol!=='https:'||url.hostname.toLowerCase()!==projectHost)return null;
+    const marker=`/storage/v1/object/public/${bucket}/`;
+    const index=url.pathname.indexOf(marker);
+    if(index<0)return null;
+    const path=decodeURIComponent(url.pathname.slice(index+marker.length));
+    return path && !path.split('/').some(part=>part==='..') ? path : null;
+  }catch{return null;}
+}
+async function removeReplacedStorageObject(publicUrl,bucket){
+  const objectPath=publicStoragePathFromUrl(publicUrl,bucket);
+  if(!objectPath)return;
+  try{
+    const {error}=await db.storage.from(bucket).remove([objectPath]);
+    if(error)console.warn(`Could not remove replaced ${bucket} object:`,error.message);
+  }catch(error){console.warn(`Could not remove replaced ${bucket} object:`,error?.message||error);}
+}
+
 async function uploadGuildLogo(file){
   if(!state.user)throw new Error('LOGIN_REQUIRED: Login to update your guild profile.');
   if(file.size>2*1024*1024)throw new Error('Guild logo must be 2 MB or smaller.');
   if(!['image/jpeg','image/png','image/webp'].includes(file.type))throw new Error('Use JPG, PNG or WEBP for the guild logo.');
-  const ext=(file.name.split('.').pop()||'png').toLowerCase().replace(/[^a-z0-9]/g,'')||'png';
+  const optimized=await compressImageForStorage(file,{maxDimension:640,targetBytes:320*1024,qualities:[0.86,0.80,0.74]});
+  const ext=getUploadImageExtension(optimized);
   const path=`${state.user.id}/${crypto.randomUUID()}.${ext}`;
-  const {error}=await db.storage.from('guild-logos').upload(path,file,{upsert:false,contentType:file.type});if(error)throw error;
-  const {data}=db.storage.from('guild-logos').getPublicUrl(path);if(!data?.publicUrl)throw new Error('Could not create public Guild Logo URL.');return data.publicUrl;
+  const {error}=await db.storage.from('guild-logos').upload(path,optimized,{
+    upsert:false,
+    contentType:optimized.type||file.type,
+    cacheControl:'31536000'
+  });
+  if(error)throw error;
+  const {data}=db.storage.from('guild-logos').getPublicUrl(path);
+  if(!data?.publicUrl)throw new Error('Could not create public Guild Logo URL.');
+  return data.publicUrl;
 }
 async function saveMyGuildProfile(e){
   e.preventDefault();clearStatus('guild-profile-status');
@@ -1392,14 +1507,23 @@ async function saveMyGuildProfile(e){
   const profile=(state.guildProfiles||[]).find(p=>String(p.guild_name_normalized)===myNorm);
   const file=$('guild-profile-logo').files?.[0]||null;
   if(file){const changed=profile?.guild_logo_changed_at?new Date(profile.guild_logo_changed_at).getTime():0;if(changed&&Date.now()<changed+3*24*60*60*1000)return showStatus('guild-profile-status','error','LOGO COOLDOWN: Your guild logo can only be changed once every 3 days.');}
+  let uploadedLogoUrl=null;
+  const previousLogoUrl=profile?.guild_logo_url ?? state.guild?.guild_logo_url ?? null;
   try{
     setBusy('guild-profile-save',true,'SAVE GUILD PROFILE');
-    let logoUrl=profile?.guild_logo_url ?? state.guild?.guild_logo_url ?? null;if(file)logoUrl=await uploadGuildLogo(file);
-    const {data,error}=await db.rpc('save_gvg_guild_profile',{p_guild_uid:$('guild-profile-uid').value.trim()||null,p_logo_url:logoUrl});if(error)throw error;
+    let logoUrl=previousLogoUrl;
+    if(file){uploadedLogoUrl=await uploadGuildLogo(file);logoUrl=uploadedLogoUrl;}
+    const {error}=await db.rpc('save_gvg_guild_profile',{p_guild_uid:$('guild-profile-uid').value.trim()||null,p_logo_url:logoUrl});
+    if(error)throw error;
+    if(file&&previousLogoUrl&&previousLogoUrl!==logoUrl)await removeReplacedStorageObject(previousLogoUrl,'guild-logos');
     $('guild-profile-logo').value='';
-    showStatus('guild-profile-status','ok','Guild profile saved. Logo cooldown is enforced by the database for 3 days.');
-    await loadPublicGuildProfiles();
-  }catch(error){showStatus('guild-profile-status','error',humanizeError(error));}
+    showStatus('guild-profile-status','ok','Guild profile saved. Old logo file cleanup was requested; the active logo was kept.');
+    clearSectionCache('member:guild-profiles');
+    await loadPublicGuildProfiles();markSectionLoaded('member:guild-profiles');
+  }catch(error){
+    if(uploadedLogoUrl)await removeReplacedStorageObject(uploadedLogoUrl,'guild-logos');
+    showStatus('guild-profile-status','error',humanizeError(error));
+  }
   finally{setBusy('guild-profile-save',false,'SAVE GUILD PROFILE');}
 }
 async function loadMyGuildNameChangeStatus(){
@@ -1639,6 +1763,15 @@ async function awardHofTrophy(e){e.preventDefault();clearStatus('hof-award-statu
 async function removeHofAward(id){const a=state.adminHofAwards.find(x=>String(x.id)===String(id));if(!a)return;if(!confirm(`Remove the official Hall of Fame award?\n\n${a.trophy_label} — ${a.guild_name}\n\nThis does not delete match results or ranking points.`))return;try{const {error}=await adminDb.rpc('admin_remove_gvg_hall_of_fame_award',{p_award_id:id});if(error)throw error;showStatus('admin-status','ok','Hall of Fame trophy removed.');await loadHofAdmin();}catch(error){showStatus('admin-status','error',humanizeError(error));}}
 
 /* ------------------------- Events ------------------------- */
+/* Do not fetch stored proof screenshots until the user expands a proof panel. */
+document.addEventListener('toggle',(event)=>{
+  const panel=event.target;
+  if(!(panel instanceof HTMLDetailsElement)||!panel.matches('.proof-details')||!panel.open)return;
+  panel.querySelectorAll('img[data-proof-src]').forEach(img=>{
+    if(!img.getAttribute('src'))img.setAttribute('src',img.getAttribute('data-proof-src')||'');
+  });
+},true);
+
 document.addEventListener('click',async(e)=>{
   const actionEl=e.target.closest('[data-action]');
   if(actionEl){const action=actionEl.dataset.action,id=actionEl.dataset.id;if(action==='result-from-challenge')return selectChallengeForResult(id);if(action==='close-modal')return closeModal();if(action==='guild-info'){const g=findGuild(id);if(g)adminGuildInfo(g);return;}if(action==='guild-edit'){const g=findGuild(id);if(g)adminGuildEdit(g);return;}if(action==='guild-remove')return removeGuild(id);if(action==='approve-leader')return setLeaderApproval(id,'approved');if(action==='reject-leader')return setLeaderApproval(id,'rejected');if(action==='remove-leader')return removeLeader(id,actionEl.dataset.guild||'');if(action==='reset-password')return resetLeaderPassword(actionEl.dataset.email||'');if(action==='approve-result')return approveResult(id);if(action==='reject-result')return rejectResult(id);if(action==='unban-identity')return unbanIdentity(actionEl.dataset.guild||'',actionEl.dataset.contact||'');if(action==='mod-approve-guild')return moderatorApproveGuild(actionEl.dataset.guild||'');if(action==='mod-remove-guild')return moderatorRemoveGuild(actionEl.dataset.guild||'');if(action==='mod-approve-result')return moderatorApproveResult(id);if(action==='mod-reject-result')return moderatorRejectResult(id);if(action==='open-public-guild-profile')return openPublicGuildProfile(actionEl.dataset.guild||'');if(action==='hof-select-year'){state.hofYear=Number(actionEl.dataset.year);state.hofPeriod=1;renderHofYearGrid(state.hofYears||[]);return loadHallOfFameYear();}if(action==='hof-select-period'){state.hofPeriod=Number(actionEl.dataset.period);renderHallSelectedAward();return openHallOfFamePeriodDetails();}if(action==='hof-open-details')return openHallOfFamePeriodDetails();if(action==='admin-remove-hof-award')return removeHofAward(id);if(action==='approve-guild-name-change')return reviewGuildNameChangeRequest(id,true);if(action==='reject-guild-name-change')return reviewGuildNameChangeRequest(id,false);}
@@ -1682,14 +1815,24 @@ $('admin-logout').addEventListener('click',async()=>{try{await adminDb.auth.sign
 $('admin-guild-search').addEventListener('input',()=>renderGuildTable('all-guild-table',filteredGuilds()));
 $('modal-backdrop').addEventListener('click',(e)=>{if(e.target===$('modal-backdrop'))closeModal();});
 
-db.auth.onAuthStateChange(async(event,session)=>{
+db.auth.onAuthStateChange((event,session)=>{
+  // Auth event callbacks can fire during login, initial session restore and token refresh.
+  // Login/register/boot flows below handle their own data fetches; don't query Supabase
+  // again for INITIAL_SESSION, SIGNED_IN or TOKEN_REFRESHED events.
   if(event==='PASSWORD_RECOVERY'){
     $('password-recovery-backdrop').classList.add('open');
     $('recovery-password')?.focus();
     return;
   }
-  if(session){state.user=session.user;await loadMyGuild();syncRegisterNav();if(!location.hash.includes('admin')){openView('member');await refreshMember();}}
-  else {state.user=null;state.guild=null;syncRegisterNav();openView('public');}
+  if(event==='USER_UPDATED'&&session?.user){
+    state.user=session.user;
+    syncRegisterNav();
+    return;
+  }
+  if(event==='SIGNED_OUT'){
+    state.user=null;state.guild=null;clearSectionCache('member:');syncRegisterNav();
+    if($('member-dashboard')?.style.display!=='none')openView('public');
+  }
 });
 
 $('password-recovery-form').addEventListener('submit',async(e)=>{
@@ -1709,7 +1852,7 @@ $('password-recovery-form').addEventListener('submit',async(e)=>{
 (async function boot(){
   renderRules();renderWeaponSkillChoices();
   const {data:{session}}=await db.auth.getSession();
-  if(session){state.user=session.user;await loadMyGuild();await completePendingRegistration();await enterMember();syncRegisterNav();}
+  if(session){state.user=session.user;clearSectionCache('member:');await loadMyGuild();await completePendingRegistration();await enterMember({skipGuildReload:true});syncRegisterNav();}
   else{state.user=null;state.guild=null;syncRegisterNav();openView('public');}
   await restoreAdmin();
 })();
