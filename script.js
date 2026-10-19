@@ -930,8 +930,8 @@ async function loadAdminGuilds(){
 }
 function leaderArray(g){ try{return Array.isArray(g.leaders)?g.leaders:(typeof g.leaders==='string'?JSON.parse(g.leaders):[]);}catch{return [];} }
 function findGuild(id){return state.guilds.find(g=>g.id===id)||null;}
-function openModal(html){$('modal').innerHTML=html;$('modal-backdrop').classList.add('open');}
-function closeModal(){$('modal-backdrop').classList.remove('open');$('modal').innerHTML='';}
+function openModal(html, extraClass=''){const modal=$('modal');modal.classList.remove('hof-detail-modal');if(extraClass)modal.classList.add(extraClass);modal.innerHTML=html;$('modal-backdrop').classList.add('open');}
+function closeModal(){$('modal-backdrop').classList.remove('open');$('modal').innerHTML='';$('modal').classList.remove('hof-detail-modal');}
 function adminGuildInfo(g){
   const leaders=leaderArray(g);
 
@@ -1403,8 +1403,16 @@ async function saveMyGuildProfile(e){
   finally{setBusy('guild-profile-save',false,'SAVE GUILD PROFILE');}
 }
 async function loadMyGuildNameChangeStatus(){
-  const note=$('guild-name-change-note'),button=$('guild-name-change-submit');
-  if(!note||!button||!state.user||!state.guild){if(note)note.textContent='Login with an approved guild account to request a name change.';if(button)button.disabled=true;return;}
+  const note=$('guild-name-change-note'),button=$('guild-name-change-submit'),input=$('guild-name-change-input');
+  if(!note||!button)return;
+  if(!state.user||!state.guild){
+    note.textContent='Login with an approved guild account to request a name change.';
+    if(button){button.disabled=true;button.textContent='LOGIN REQUIRED';}
+    if(input)input.disabled=true;
+    return;
+  }
+  note.textContent='Checking the name-change cooldown and request status…';
+  button.disabled=true;button.textContent='CHECKING STATUS…';if(input)input.disabled=true;
   try{
     const {data,error}=await db.rpc('get_my_gvg_guild_name_change_status');if(error)throw error;
     const row=Array.isArray(data)?(data[0]||null):data;state.guildNameChangeStatus=row;
@@ -1412,18 +1420,32 @@ async function loadMyGuildNameChangeStatus(){
     const status=String(row?.request_status||'');
     const requested=String(row?.requested_guild_name||'');
     const availableAt=row?.name_change_available_at?new Date(row.name_change_available_at):null;
-    const isPending=status==='pending';
-    const cooldown=availableAt&&availableAt.getTime()>Date.now();
-    if(isPending){note.textContent=`Current name: ${current}. Request pending Admin approval: “${requested}”. Your current name stays active until approval.`;button.disabled=true;}
-    else if(cooldown){note.textContent=`Current name: ${current}. Name changes become available after ${formatDateTime(availableAt.toISOString())} Pakistan time.`;button.disabled=true;}
-    else if(status==='approved'){note.textContent=`Current name: ${current}. Your latest name-change request was approved. A new request is available now.`;button.disabled=false;}
-    else if(status==='rejected'){note.textContent=`Current name: ${current}. Previous request was rejected${row?.review_reason?`: ${row.review_reason}`:'.'} You may submit a new request if the 3-day cooldown has passed.`;button.disabled=false;}
-    else{note.textContent=`Current name: ${current}. Enter a new name; the Admin must approve it. After approval, the next change request has a 3-day cooldown.`;button.disabled=false;}
-  }catch(error){note.textContent=`Could not load request status: ${humanizeError(error)}`;button.disabled=false;}
+    const cooldown=Boolean(availableAt&&Number.isFinite(availableAt.getTime())&&availableAt.getTime()>Date.now());
+    if(status==='pending'){
+      note.textContent=`CURRENT NAME: ${current}. Your request for “${requested}” is waiting for Admin approval. Your current name stays active until approval.`;
+      button.disabled=true;button.textContent='REQUEST PENDING';if(input)input.disabled=true;
+    }else if(cooldown){
+      note.textContent=`NAME-CHANGE COOLDOWN ACTIVE. Your current name is ${current}. The next request can be sent after ${formatDateTime(availableAt.toISOString())} Pakistan time. The form is locked until then.`;
+      button.disabled=true;button.textContent='COOLDOWN ACTIVE';if(input)input.disabled=true;
+    }else{
+      const extra=status==='approved'?' Your last request was approved.':' Previous request status: '+(status==='rejected'?'REJECTED.':'none.')+' ';
+      note.textContent=`CURRENT NAME: ${current}. ${extra}You can request a different name now. The name changes only after Admin approval; a 3-day cooldown begins after an approved change.`;
+      button.disabled=false;button.textContent='SEND NAME CHANGE REQUEST';if(input)input.disabled=false;
+    }
+  }catch(error){
+    state.guildNameChangeStatus=null;
+    note.textContent=`Could not verify name-change eligibility: ${humanizeError(error)}. Refresh the page and try again; the request button stays disabled until status can be verified.`;
+    button.disabled=true;button.textContent='STATUS UNAVAILABLE';if(input)input.disabled=true;
+    console.error('Guild name-change status check failed:',error);
+  }
 }
 async function submitGuildNameChangeRequest(e){
   e.preventDefault();clearStatus('guild-name-change-status');
   if(!guildApproved())return showStatus('guild-name-change-status','error','Only an approved, active guild can request a name change.');
+  const liveStatus=state.guildNameChangeStatus;
+  const availableAt=liveStatus?.name_change_available_at?new Date(liveStatus.name_change_available_at):null;
+  if(liveStatus?.request_status==='pending')return showStatus('guild-name-change-status','error','Your current name-change request is already pending Admin approval.');
+  if(availableAt&&Number.isFinite(availableAt.getTime())&&availableAt.getTime()>Date.now())return showStatus('guild-name-change-status','error',`Name-change cooldown is active until ${formatDateTime(availableAt.toISOString())} Pakistan time.`);
   const requested=$('guild-name-change-input').value.trim();
   if(requested.length<3||requested.length>50)return showStatus('guild-name-change-status','error','New guild name must be 3 to 50 characters.');
   if(normalizeGuild(requested)===normalizeGuild(state.guild?.guild_name))return showStatus('guild-name-change-status','error','Enter a different guild name.');
@@ -1460,7 +1482,19 @@ async function reviewGuildNameChangeRequest(id,approve){
 }
 
 function trophySvg(){return `<svg viewBox="0 0 160 180" role="img" aria-label="3D gold championship trophy"><defs><linearGradient id="gvg-trophy-gold" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#fff4b0"/><stop offset=".24" stop-color="#d99b2d"/><stop offset=".48" stop-color="#fff0a0"/><stop offset=".73" stop-color="#8b5712"/><stop offset="1" stop-color="#ffe28b"/></linearGradient><linearGradient id="gvg-trophy-side" x1="0" x2="1"><stop offset="0" stop-color="#6c4514"/><stop offset=".5" stop-color="#e7b94d"/><stop offset="1" stop-color="#51320b"/></linearGradient><linearGradient id="gvg-trophy-green" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#e7ffbf"/><stop offset=".45" stop-color="#21dc73"/><stop offset="1" stop-color="#07572d"/></linearGradient><filter id="gvg-trophy-shadow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="3"/></filter></defs><ellipse cx="80" cy="164" rx="45" ry="8" fill="#e9b94a" opacity=".2" filter="url(#gvg-trophy-shadow)"/><g stroke="#5b390d" stroke-width="2" stroke-linejoin="round"><path d="M48 24H112L107 72Q105 91 89 99L92 120H68L71 99Q55 91 53 72Z" fill="url(#gvg-trophy-side)"/><path d="M52 25H108L103 68Q101 84 80 95Q59 84 57 68Z" fill="url(#gvg-trophy-gold)"/><path d="M52 34H30Q29 61 47 72L57 74L55 61Q43 56 43 43H53Z" fill="url(#gvg-trophy-gold)"/><path d="M108 34H130Q131 61 113 72L103 74L105 61Q117 56 117 43H107Z" fill="url(#gvg-trophy-gold)"/><path d="M68 98H92L95 124H65Z" fill="url(#gvg-trophy-side)"/><path d="M58 123H102L112 139H48Z" fill="url(#gvg-trophy-gold)"/><path d="M42 140H118L128 151H32Z" fill="url(#gvg-trophy-side)"/><path d="M36 151H124L133 161H27Z" fill="url(#gvg-trophy-gold)"/><path d="M80 40L89 55L80 70L71 55Z" fill="url(#gvg-trophy-green)"/><path d="M80 48L84 55L80 62L76 55Z" fill="#eaffb8" stroke="none"/></g><path d="M60 30L65 67M73 30L75 39" stroke="#fffbd3" stroke-width="3" stroke-linecap="round" opacity=".68"/><path d="M24 169H136" stroke="#47ef86" stroke-width="2" opacity=".55"/></svg>`;}
-function bindTrophy3D(root=document){root.querySelectorAll('[data-trophy-3d]:not([data-trophy-bound])').forEach(el=>{el.dataset.trophyBound='1';let down=false,lastX=0,lastY=0,rx=-8,ry=0;const apply=()=>{el.style.transform=`perspective(700px) rotateX(${rx}deg) rotateY(${ry}deg)`;};el.addEventListener('pointerdown',e=>{down=true;lastX=e.clientX;lastY=e.clientY;try{el.setPointerCapture(e.pointerId);}catch{};});el.addEventListener('pointermove',e=>{if(!down)return;const dx=e.clientX-lastX,dy=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;ry+=dx*.9;rx=Math.max(-35,Math.min(35,rx-dy*.7));apply();});const end=()=>{down=false;};el.addEventListener('pointerup',end);el.addEventListener('pointercancel',end);el.addEventListener('lostpointercapture',end);});}
+function bindTrophy3D(root=document){
+  root.querySelectorAll('[data-trophy-3d]:not([data-trophy-bound])').forEach(el=>{
+    el.dataset.trophyBound='1';
+    let down=false,lastX=0,lastY=0,rx=-7,ry=-8;
+    const reduceMotion=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+    const apply=()=>{el.style.transform=`perspective(900px) rotateX(${rx}deg) rotateY(${ry}deg)`;};
+    const onDown=e=>{down=true;lastX=e.clientX;lastY=e.clientY;el.classList.add('is-dragging');el.style.transition='none';try{el.setPointerCapture(e.pointerId);}catch{};};
+    const onMove=e=>{if(!down)return;const dx=e.clientX-lastX,dy=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;ry+=dx*.82;rx=Math.max(-28,Math.min(28,rx-dy*.58));apply();};
+    const onEnd=()=>{if(!down)return;down=false;el.classList.remove('is-dragging');el.style.transition='transform 260ms ease-out, filter .2s ease';};
+    el.addEventListener('pointerdown',onDown);el.addEventListener('pointermove',onMove);el.addEventListener('pointerup',onEnd);el.addEventListener('pointercancel',onEnd);el.addEventListener('lostpointercapture',onEnd);
+    if(!reduceMotion){el.classList.add('trophy-idle-motion');}
+  });
+}
 function hallPeriodLabel(type,number){return type==='weekly'?`WEEK ${number}`:new Intl.DateTimeFormat('en',{month:'long'}).format(new Date(Date.UTC(2020,number-1,1)));}
 async function loadHallOfFame(){
   try{
@@ -1482,14 +1516,55 @@ async function loadHallOfFameYear(){
   $('hof-period-grid').innerHTML=Array.from({length:count},(_,i)=>i+1).map(n=>{const found=state.hofAwards.find(a=>Number(a.period_number)===n);return `<button class="hof-period-tile ${Number(state.hofPeriod)===n?'active':''}" type="button" data-action="hof-select-period" data-period="${n}">${escapeHtml(hallPeriodLabel(state.hofMode,n))}<small>${found?'🏆 CHAMPION ADDED':'AWAITING CHAMPION'}</small></button>`;}).join('');
   if(!state.hofPeriod||state.hofPeriod>count)state.hofPeriod=1;renderHallSelectedAward();
 }
+function currentHallAward(){
+  return (state.hofAwards||[]).find(x=>String(x.award_type)===String(state.hofMode)&&Number(x.award_year)===Number(state.hofYear)&&Number(x.period_number)===Number(state.hofPeriod))||null;
+}
 function renderHallSelectedAward(){
   const target=$('hof-selected-award');if(!target)return;
   document.querySelectorAll('[data-action="hof-select-period"]').forEach(b=>b.classList.toggle('active',Number(b.dataset.period)===Number(state.hofPeriod)));
-  const a=(state.hofAwards||[]).find(x=>Number(x.period_number)===Number(state.hofPeriod));
-  if(!a){target.innerHTML=`<div class="empty" style="padding:25px 12px;border:1px dashed rgba(255,213,113,.20);border-radius:14px"><strong>${escapeHtml(hallPeriodLabel(state.hofMode,state.hofPeriod))} CHAMPION NOT ADDED YET</strong><div style="margin-top:7px">Official champion record will appear here after Admin awards the trophy.</div></div>`;return;}
+  const a=currentHallAward();
+  const periodName=hallPeriodLabel(state.hofMode,state.hofPeriod);
+  if(!a){
+    target.innerHTML=`<div class="hof-awaiting-card"><div class="hof-awaiting-icon">♔</div><div><strong>${escapeHtml(periodName)} ${escapeHtml(String(state.hofYear||''))} · CHAMPION NOT ADDED</strong><div class="hof-awaiting-copy">This period is saved in the archive. When the Admin awards its official trophy, the champion showcase will appear here.</div></div><button class="btn btn-gold btn-small" type="button" data-action="hof-open-details">VIEW PERIOD</button></div>`;
+    return;
+  }
   const date=a.awarded_at?formatDateTime(a.awarded_at):'';
-  target.innerHTML=`<article class="hof-award-card"><div class="trophy-3d" data-trophy-3d aria-label="Drag to rotate trophy">${trophySvg()}</div><div><div class="hof-award-label">${escapeHtml(a.trophy_label||hallPeriodLabel(state.hofMode,state.hofPeriod)+' CHAMPION')}</div><div class="hof-award-guild">${escapeHtml(a.guild_name)}</div><div class="hof-award-uid">GUILD UID: ${escapeHtml(a.guild_uid||'Not added')}</div><div class="hof-award-meta">${escapeHtml(String(a.award_year))} · ${escapeHtml(hallPeriodLabel(a.award_type,Number(a.period_number)))}${date?' · AWARDED '+escapeHtml(date):''}</div>${a.notes?`<div class="hof-award-notes">${escapeHtml(a.notes)}</div>`:''}<div class="hint" style="margin-top:11px">Touch and drag the trophy left/right or up/down to rotate it.</div></div></article>`;bindTrophy3D(target);
+  target.innerHTML=`<article class="hof-award-card"><div class="trophy-3d trophy-inline" data-trophy-3d aria-label="Drag to rotate trophy">${trophySvg()}</div><div><div class="hof-award-label">${escapeHtml(a.trophy_label||periodName+' CHAMPION')}</div><div class="hof-award-guild">${escapeHtml(a.guild_name)}</div><div class="hof-award-uid">GUILD UID: ${escapeHtml(a.guild_uid||'Not added')}</div><div class="hof-award-meta">${escapeHtml(String(a.award_year))} · ${escapeHtml(hallPeriodLabel(a.award_type,Number(a.period_number)))}${date?' · AWARDED '+escapeHtml(date):''}</div>${a.notes?`<div class="hof-award-notes">${escapeHtml(a.notes)}</div>`:''}<div class="hof-award-actions"><span class="hint">Drag the trophy to rotate it.</span><button class="btn btn-gold btn-small" type="button" data-action="hof-open-details">OPEN CHAMPION SHOWCASE ↗</button></div></div></article>`;
+  bindTrophy3D(target);
 }
+async function openHallOfFamePeriodDetails(){
+  const period=Number(state.hofPeriod)||1;
+  const year=Number(state.hofYear)||Number(state.hofSettings?.season_year)||new Date().getFullYear();
+  const mode=state.hofMode==='monthly'?'monthly':'weekly';
+  const periodLabel=hallPeriodLabel(mode,period);
+  let award=currentHallAward();
+  if(!award){
+    openModal(`<div class="hof-detail-shell hof-detail-awaiting"><div class="hof-detail-top"><div><div class="hof-detail-kicker">7TH UNIVERSE · CHAMPIONS LEGACY</div><h2>${escapeHtml(periodLabel)} ${year}</h2><p>This archive slot is ready, but the official champion trophy has not been added yet.</p></div><button class="close-btn" type="button" data-action="close-modal" aria-label="Close champion details">×</button></div><div class="hof-awaiting-hero"><div class="hof-awaiting-orbit"><div class="trophy-3d trophy-awaiting" data-trophy-3d aria-label="Drag to rotate trophy">${trophySvg()}</div></div><span class="hof-detail-status-pill">AWAITING OFFICIAL CHAMPION</span><h3>${escapeHtml(periodLabel)} · ${year}</h3><p>When the Admin awards this period, the guild logo, name, Guild UID and official trophy details will appear in this showcase.</p><button class="btn btn-gold" type="button" data-action="close-modal">BACK TO HALL OF FAME</button></div></div>`, 'hof-detail-modal');
+    bindTrophy3D($('modal'));return;
+  }
+  let profile=(state.guildProfiles||[]).find(p=>String(p.guild_name_normalized||normalizeGuild(p.guild_name))===String(award.guild_name_normalized||normalizeGuild(award.guild_name)))||null;
+  if(!profile||(!profile.guild_logo_url&&!award.guild_logo_url)){
+    try{
+      const {data,error}=await db.rpc('get_gvg_public_guild_profiles');
+      if(!error&&Array.isArray(data)){
+        state.guildProfiles=data;
+        profile=data.find(p=>String(p.guild_name_normalized||normalizeGuild(p.guild_name))===String(award.guild_name_normalized||normalizeGuild(award.guild_name)))||profile;
+      }
+    }catch(error){console.warn('Guild logo could not be refreshed for Hall of Fame modal:',error);}
+  }
+  const logo=award.guild_logo_url||profile?.guild_logo_url||'';
+  const avatar=logo?`<img src="${escapeHtml(logo)}" alt="${escapeHtml(award.guild_name)} guild logo" />`:`<span class="hof-detail-avatar-fallback">🛡️</span>`;
+  const played=profile?numberMetric(profile,'total_played'):null;
+  const wins=profile?numberMetric(profile,'wins'):null;
+  const losses=profile?numberMetric(profile,'losses'):null;
+  const winRate=profile?Number(profile.win_rate||0).toFixed(1)+'%':null;
+  const date=award.awarded_at?formatDateTime(award.awarded_at):'Official award';
+  const periodTitle=hallPeriodLabel(mode,Number(award.period_number));
+  const typeTitle=mode==='weekly'?'WEEKLY CHAMPION':'MONTHLY CHAMPION';
+  const detailHtml=`<div class="hof-detail-shell"><div class="hof-detail-top"><div><div class="hof-detail-kicker">7TH UNIVERSE · CHAMPIONS LEGACY</div><h2>HALL OF FAME</h2><p>Official champion archive · permanent recognition</p></div><button class="close-btn" type="button" data-action="close-modal" aria-label="Close champion showcase">×</button></div><div class="hof-detail-ribbon"><span>✦ ${escapeHtml(typeTitle)} ✦</span><strong>${escapeHtml(String(award.award_year))} · ${escapeHtml(periodTitle)}</strong></div><div class="hof-detail-layout"><section class="hof-detail-guild-panel"><div class="hof-detail-panel-kicker">CHAMPION GUILD</div><div class="hof-detail-avatar">${avatar}</div><h3>${escapeHtml(award.guild_name||'Champion Guild')}</h3><div class="hof-detail-uid-label">GUILD UID</div><div class="hof-detail-uid">${escapeHtml(award.guild_uid||profile?.guild_uid||'NOT ADDED')}</div>${profile?`<div class="hof-detail-record"><div><small>PLAYED</small><strong>${played}</strong></div><div><small>WINS</small><strong>${wins}</strong></div><div><small>LOSSES</small><strong>${losses}</strong></div><div><small>WIN RATE</small><strong>${winRate}</strong></div></div>`:''}<div class="hof-detail-guild-tag">🏆 OFFICIAL HALL OF FAME GUILD</div></section><section class="hof-detail-trophy-panel"><div class="hof-detail-trophy-glow"></div><div class="hof-detail-trophy-ring"></div><div class="trophy-3d trophy-modal" data-trophy-3d aria-label="Touch and drag to rotate the 3D-style trophy">${trophySvg()}</div><div class="hof-detail-touch-hint"><span>↔</span> TOUCH & DRAG TO ROTATE <span>↕</span></div><div class="hof-detail-floor"></div></section><section class="hof-detail-award-panel"><div class="hof-detail-panel-kicker">OFFICIAL AWARD</div><div class="hof-detail-laurel">♛</div><h3>${escapeHtml(award.trophy_label||periodTitle+' CHAMPION')}</h3><div class="hof-detail-data"><span>SEASON / YEAR</span><strong>${escapeHtml(String(award.award_year))}</strong></div><div class="hof-detail-data"><span>PERIOD</span><strong>${escapeHtml(periodTitle)}</strong></div><div class="hof-detail-data"><span>AWARDED</span><strong>${escapeHtml(date)}</strong></div>${award.notes?`<div class="hof-detail-notes"><span>ADMIN NOTE</span><p>${escapeHtml(award.notes)}</p></div>`:''}<div class="hof-detail-seal">7U <small>CHAMPIONS</small></div></section></div><div class="hof-detail-footer"><span>★ LEGACY EARNED. LEGACY REMEMBERED. ★</span><button class="btn btn-gold" type="button" data-action="close-modal">CLOSE SHOWCASE</button></div></div>`;
+  openModal(detailHtml,'hof-detail-modal');bindTrophy3D($('modal'));
+}
+
 async function changeHallType(type){if(!['weekly','monthly'].includes(type))return;state.hofMode=type;state.hofYear=null;state.hofPeriod=1;await loadHallOfFame();}
 function renderAdminHofAwards(){const target=$('admin-hof-awards-list');if(!target)return;const rows=(state.adminHofAwards||[]).sort((a,b)=>String(b.awarded_at).localeCompare(String(a.awarded_at)));target.innerHTML=rows.length?rows.slice(0,60).map(a=>`<div class="admin-hof-award-row"><div class="admin-hof-award-main"><strong>${escapeHtml(a.trophy_label)} — ${escapeHtml(a.guild_name)}</strong><small>${escapeHtml(String(a.award_year))} · ${escapeHtml(hallPeriodLabel(a.award_type,Number(a.period_number)))} · UID ${escapeHtml(a.guild_uid||'not added')}</small></div><button class="btn btn-red btn-small" type="button" data-action="admin-remove-hof-award" data-id="${escapeHtml(a.id)}">REMOVE</button></div>`).join(''):'<div class="empty">No official trophies have been awarded yet.</div>';}
 async function loadHofAdmin(){
@@ -1514,7 +1589,7 @@ async function removeHofAward(id){const a=state.adminHofAwards.find(x=>String(x.
 /* ------------------------- Events ------------------------- */
 document.addEventListener('click',async(e)=>{
   const actionEl=e.target.closest('[data-action]');
-  if(actionEl){const action=actionEl.dataset.action,id=actionEl.dataset.id;if(action==='result-from-challenge')return selectChallengeForResult(id);if(action==='close-modal')return closeModal();if(action==='guild-info'){const g=findGuild(id);if(g)adminGuildInfo(g);return;}if(action==='guild-edit'){const g=findGuild(id);if(g)adminGuildEdit(g);return;}if(action==='guild-remove')return removeGuild(id);if(action==='approve-leader')return setLeaderApproval(id,'approved');if(action==='reject-leader')return setLeaderApproval(id,'rejected');if(action==='remove-leader')return removeLeader(id,actionEl.dataset.guild||'');if(action==='reset-password')return resetLeaderPassword(actionEl.dataset.email||'');if(action==='approve-result')return approveResult(id);if(action==='reject-result')return rejectResult(id);if(action==='unban-identity')return unbanIdentity(actionEl.dataset.guild||'',actionEl.dataset.contact||'');if(action==='mod-approve-guild')return moderatorApproveGuild(actionEl.dataset.guild||'');if(action==='mod-remove-guild')return moderatorRemoveGuild(actionEl.dataset.guild||'');if(action==='mod-approve-result')return moderatorApproveResult(id);if(action==='mod-reject-result')return moderatorRejectResult(id);if(action==='open-public-guild-profile')return openPublicGuildProfile(actionEl.dataset.guild||'');if(action==='hof-select-year'){state.hofYear=Number(actionEl.dataset.year);state.hofPeriod=1;renderHofYearGrid(state.hofYears||[]);return loadHallOfFameYear();}if(action==='hof-select-period'){state.hofPeriod=Number(actionEl.dataset.period);return renderHallSelectedAward();}if(action==='admin-remove-hof-award')return removeHofAward(id);if(action==='approve-guild-name-change')return reviewGuildNameChangeRequest(id,true);if(action==='reject-guild-name-change')return reviewGuildNameChangeRequest(id,false);}
+  if(actionEl){const action=actionEl.dataset.action,id=actionEl.dataset.id;if(action==='result-from-challenge')return selectChallengeForResult(id);if(action==='close-modal')return closeModal();if(action==='guild-info'){const g=findGuild(id);if(g)adminGuildInfo(g);return;}if(action==='guild-edit'){const g=findGuild(id);if(g)adminGuildEdit(g);return;}if(action==='guild-remove')return removeGuild(id);if(action==='approve-leader')return setLeaderApproval(id,'approved');if(action==='reject-leader')return setLeaderApproval(id,'rejected');if(action==='remove-leader')return removeLeader(id,actionEl.dataset.guild||'');if(action==='reset-password')return resetLeaderPassword(actionEl.dataset.email||'');if(action==='approve-result')return approveResult(id);if(action==='reject-result')return rejectResult(id);if(action==='unban-identity')return unbanIdentity(actionEl.dataset.guild||'',actionEl.dataset.contact||'');if(action==='mod-approve-guild')return moderatorApproveGuild(actionEl.dataset.guild||'');if(action==='mod-remove-guild')return moderatorRemoveGuild(actionEl.dataset.guild||'');if(action==='mod-approve-result')return moderatorApproveResult(id);if(action==='mod-reject-result')return moderatorRejectResult(id);if(action==='open-public-guild-profile')return openPublicGuildProfile(actionEl.dataset.guild||'');if(action==='hof-select-year'){state.hofYear=Number(actionEl.dataset.year);state.hofPeriod=1;renderHofYearGrid(state.hofYears||[]);return loadHallOfFameYear();}if(action==='hof-select-period'){state.hofPeriod=Number(actionEl.dataset.period);renderHallSelectedAward();return openHallOfFamePeriodDetails();}if(action==='hof-open-details')return openHallOfFamePeriodDetails();if(action==='admin-remove-hof-award')return removeHofAward(id);if(action==='approve-guild-name-change')return reviewGuildNameChangeRequest(id,true);if(action==='reject-guild-name-change')return reviewGuildNameChangeRequest(id,false);}
   const menuBtn=e.target.closest('[data-menu-button]');if(menuBtn){const id=menuBtn.dataset.menuButton;document.querySelectorAll('.dots-menu.open').forEach(x=>{if(x.id!==`menu-${id}`)x.classList.remove('open')});document.getElementById(`menu-${id}`)?.classList.toggle('open');return;}document.querySelectorAll('.dots-menu.open').forEach(x=>x.classList.remove('open'));
 });
 document.querySelectorAll('[data-member-section]').forEach(btn=>btn.addEventListener('click',()=>openMemberSection(btn.dataset.memberSection)));

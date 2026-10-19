@@ -1232,6 +1232,60 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
     .member-access-gate{box-shadow:0 18px 44px rgba(0,0,0,.44),0 0 24px rgba(212,17,54,.10),inset 0 1px 0 rgba(255,255,255,.018)!important}
     button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline-color:rgba(255,104,126,.55)!important}
 
+
+/* Final UX refinement: clear name-change cooldown state + immersive Hall of Fame details */
+#guild-name-change-input:disabled{opacity:.58;cursor:not-allowed;border-color:rgba(255,255,255,.07);background:rgba(20,12,14,.55)}
+#guild-name-change-submit:disabled{opacity:.48;filter:saturate(.55);cursor:not-allowed}
+#guild-name-change-note{padding:10px 12px;border:1px solid rgba(255,104,126,.13);border-radius:11px;background:rgba(255,255,255,.018);line-height:1.65}
+.hof-interaction-hint{margin:9px 0 0;color:#aebcb2;font-size:8px;line-height:1.6;letter-spacing:.09em;text-align:center;font-weight:800}
+.hof-awaiting-card{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:13px;padding:14px;border:1px dashed rgba(239,198,100,.27);border-radius:15px;background:linear-gradient(120deg,rgba(90,64,18,.15),rgba(255,255,255,.015))}
+.hof-awaiting-icon{width:46px;height:46px;display:grid;place-items:center;border:1px solid rgba(239,198,100,.22);border-radius:14px;color:#e7c96e;background:rgba(213,163,43,.08);font-size:26px}
+.hof-awaiting-card strong{display:block;color:#f3dfa4;font-size:10px;letter-spacing:.08em}
+.hof-awaiting-copy{margin-top:5px;color:#a9b7ab;font-size:9px;line-height:1.6}
+.hof-award-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:11px}
+.modal.hof-detail-modal{width:min(1080px,100%);max-height:92vh;padding:0;border:1px solid rgba(226,190,98,.42);border-radius:23px;background:#050b08;box-shadow:0 35px 110px rgba(0,0,0,.78),0 0 65px rgba(224,176,53,.09);overflow:auto;overscroll-behavior:contain}
+.hof-detail-shell{position:relative;isolation:isolate;min-height:440px;overflow:hidden;background:radial-gradient(ellipse at 50% 2%,rgba(210,165,55,.17),transparent 42%),radial-gradient(ellipse at 0% 80%,rgba(23,179,92,.12),transparent 44%),linear-gradient(145deg,#08140d 0%,#050807 48%,#100e08 100%)}
+.hof-detail-shell:before{content:"";position:absolute;inset:0;z-index:-1;opacity:.16;background-image:linear-gradient(rgba(255,230,155,.12) 1px,transparent 1px),linear-gradient(90deg,rgba(255,230,155,.12) 1px,transparent 1px);background-size:28px 28px;mask-image:linear-gradient(to bottom,black,transparent 85%)}
+.hof-detail-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:20px 22px 14px;border-bottom:1px solid rgba(231,196,107,.13)}
+.hof-detail-top h2{margin:3px 0 0;color:#fff3c8;font-family:"Barlow Condensed",sans-serif;font-size:clamp(30px,5vw,46px);font-weight:900;line-height:.95;letter-spacing:.06em}
+.hof-detail-top p{margin:6px 0 0;color:#9ea99d;font-size:9px;line-height:1.6}
+.hof-detail-kicker{color:#e4c46e;font-size:8px;font-weight:950;letter-spacing:.19em}
+.hof-detail-ribbon{display:flex;justify-content:center;align-items:center;gap:15px;flex-wrap:wrap;padding:12px 16px;background:linear-gradient(90deg,transparent,rgba(193,145,37,.12),transparent);border-bottom:1px solid rgba(231,196,107,.1);text-align:center}
+.hof-detail-ribbon span{color:#e4c56e;font-size:8px;font-weight:950;letter-spacing:.15em}
+.hof-detail-ribbon strong{color:#fff0bb;font-family:"Barlow Condensed",sans-serif;font-size:20px;letter-spacing:.04em}
+.hof-detail-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(190px,.92fr) minmax(0,1fr);align-items:stretch;gap:13px;padding:18px}
+.hof-detail-guild-panel,.hof-detail-award-panel{position:relative;min-width:0;padding:17px 15px;border:1px solid rgba(237,202,112,.18);border-radius:18px;background:linear-gradient(155deg,rgba(255,255,255,.045),rgba(255,255,255,.012));box-shadow:inset 0 1px rgba(255,255,255,.025)}
+.hof-detail-panel-kicker{color:#c8b777;font-size:8px;font-weight:950;letter-spacing:.16em;text-align:center}
+.hof-detail-avatar{width:94px;height:94px;margin:17px auto 12px;display:grid;place-items:center;overflow:hidden;border-radius:23px;border:1px solid rgba(100,244,151,.38);background:radial-gradient(circle at 35% 20%,rgba(62,210,123,.22),rgba(3,15,9,.9));box-shadow:0 0 28px rgba(42,205,107,.09),0 12px 28px rgba(0,0,0,.35)}
+.hof-detail-avatar img{width:100%;height:100%;object-fit:cover}.hof-detail-avatar-fallback{font-size:47px;filter:drop-shadow(0 5px 10px rgba(0,0,0,.4))}
+.hof-detail-guild-panel h3,.hof-detail-award-panel h3{margin:8px 0;color:#f4fff6;font-family:"Barlow Condensed",sans-serif;font-size:clamp(23px,3vw,34px);line-height:.98;font-weight:900;text-align:center;overflow-wrap:anywhere}
+.hof-detail-uid-label{margin-top:11px;color:#85998b;font-size:7px;font-weight:950;letter-spacing:.16em;text-align:center}
+.hof-detail-uid{margin-top:4px;color:#cfe4d3;text-align:center;font-size:10px;font-weight:900;overflow-wrap:anywhere}
+.hof-detail-record{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:15px}
+.hof-detail-record>div{padding:8px;border:1px solid rgba(255,255,255,.055);border-radius:10px;background:rgba(0,0,0,.2);text-align:center;min-width:0}
+.hof-detail-record small{display:block;color:#819386;font-size:7px;font-weight:900;letter-spacing:.1em}.hof-detail-record strong{display:block;margin-top:3px;color:#edffef;font-family:"Barlow Condensed",sans-serif;font-size:23px}
+.hof-detail-guild-tag{margin-top:12px;padding:8px;border:1px solid rgba(235,197,101,.16);border-radius:9px;color:#dbc781;background:rgba(211,164,46,.05);font-size:7px;font-weight:950;letter-spacing:.06em;text-align:center}
+.hof-detail-trophy-panel{position:relative;isolation:isolate;min-width:0;min-height:350px;display:grid;place-items:center;border-radius:19px;overflow:hidden;background:radial-gradient(ellipse at 50% 45%,rgba(190,143,40,.18),rgba(3,14,8,.1) 48%,transparent 75%)}
+.hof-detail-trophy-glow{position:absolute;width:78%;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle,rgba(247,202,82,.2),rgba(36,191,99,.06) 42%,transparent 72%);filter:blur(8px);animation:hofGlowPulse 4.8s ease-in-out infinite}
+.hof-detail-trophy-ring{position:absolute;width:70%;aspect-ratio:1;border:1px solid rgba(235,195,87,.23);border-radius:50%;box-shadow:0 0 0 11px rgba(235,195,87,.025),0 0 45px rgba(211,161,50,.08);animation:hofRingPulse 5s ease-in-out infinite}
+.hof-detail-trophy-ring:before,.hof-detail-trophy-ring:after{content:"✦";position:absolute;top:10%;left:13%;color:#e3c46d;font-size:15px;text-shadow:0 0 14px rgba(235,195,87,.7)}
+.hof-detail-trophy-ring:after{top:auto;left:auto;right:10%;bottom:13%;font-size:11px}
+.trophy-3d.trophy-modal{position:relative;z-index:2;width:min(230px,88%);height:280px;display:grid;place-items:center;perspective:1000px;transform-style:preserve-3d;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;filter:drop-shadow(0 24px 22px rgba(0,0,0,.62)) drop-shadow(0 0 16px rgba(238,194,72,.11));transition:filter .22s ease}
+.trophy-3d.trophy-modal svg{width:100%;height:100%;overflow:visible;pointer-events:none;transform-style:preserve-3d}
+.trophy-3d.is-dragging{cursor:grabbing;filter:drop-shadow(0 20px 24px rgba(0,0,0,.52)) drop-shadow(0 0 21px rgba(255,211,90,.35))}
+.hof-detail-touch-hint{position:absolute;z-index:3;bottom:30px;display:flex;align-items:center;justify-content:center;gap:7px;color:#bda96d;font-size:7px;font-weight:950;letter-spacing:.14em;text-align:center}.hof-detail-touch-hint span{color:#55dd88;font-size:13px}
+.hof-detail-floor{position:absolute;bottom:24px;width:66%;height:15px;border-radius:50%;background:rgba(0,0,0,.5);filter:blur(10px)}
+.hof-detail-laurel{display:grid;place-items:center;width:62px;height:62px;margin:19px auto 12px;border:1px solid rgba(237,202,112,.32);border-radius:50%;color:#e9cc76;background:radial-gradient(circle,rgba(215,166,55,.16),rgba(255,255,255,.01));font-size:34px;box-shadow:0 0 28px rgba(235,192,75,.06)}
+.hof-detail-award-panel h3{font-size:clamp(21px,2.8vw,30px);color:#ffe7a0}
+.hof-detail-data{display:grid;gap:4px;margin-top:13px;padding-top:10px;border-top:1px solid rgba(255,255,255,.06)}.hof-detail-data span,.hof-detail-notes>span{color:#8a998d;font-size:7px;font-weight:950;letter-spacing:.15em}.hof-detail-data strong{color:#edf7ec;font-size:10px;line-height:1.5;overflow-wrap:anywhere}.hof-detail-notes{margin-top:14px;padding:10px;border-radius:10px;background:rgba(255,255,255,.025)}.hof-detail-notes p{margin:6px 0 0;color:#aeb8ad;font-size:9px;line-height:1.6;overflow-wrap:anywhere}
+.hof-detail-seal{width:65px;height:65px;margin:17px auto 0;display:flex;flex-direction:column;align-items:center;justify-content:center;border:2px double rgba(225,194,105,.55);border-radius:50%;color:#f2d98e;font-family:"Barlow Condensed",sans-serif;font-size:25px;font-weight:900;transform:rotate(-8deg);background:rgba(198,149,37,.05);box-shadow:0 0 20px rgba(225,180,61,.06)}.hof-detail-seal small{font:700 6px Inter,sans-serif;letter-spacing:.08em}
+.hof-detail-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:12px 18px;border-top:1px solid rgba(231,196,107,.13);background:rgba(0,0,0,.25)}.hof-detail-footer span{color:#9e956c;font-size:7px;font-weight:950;letter-spacing:.15em}
+.hof-detail-awaiting .hof-detail-top{border-bottom:1px solid rgba(231,196,107,.13)}.hof-awaiting-hero{min-height:360px;padding:27px 18px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}.hof-awaiting-orbit{position:relative;width:min(250px,78%);aspect-ratio:1;display:grid;place-items:center}.hof-awaiting-orbit:before{content:"";position:absolute;inset:4%;border:1px solid rgba(235,195,87,.22);border-radius:50%;box-shadow:0 0 0 12px rgba(235,195,87,.025),0 0 40px rgba(211,161,50,.06)}.trophy-3d.trophy-awaiting{width:145px;height:178px;display:grid;place-items:center;cursor:grab;touch-action:none;transform-style:preserve-3d}.trophy-awaiting svg{width:100%;height:100%;pointer-events:none}.hof-awaiting-hero h3{margin:14px 0 4px;color:#f5d88f;font-family:"Barlow Condensed",sans-serif;font-size:29px}.hof-awaiting-hero p{max-width:470px;margin:5px auto 15px;color:#9faea2;font-size:10px;line-height:1.7}.hof-detail-status-pill{margin-top:12px;padding:7px 11px;border:1px solid rgba(230,190,87,.22);border-radius:999px;color:#dcc57f;background:rgba(205,159,48,.07);font-size:7px;font-weight:950;letter-spacing:.13em}
+@keyframes hofGlowPulse{0%,100%{transform:scale(.92);opacity:.65}50%{transform:scale(1.07);opacity:1}}
+@keyframes hofRingPulse{0%,100%{transform:scale(.96) rotate(0deg);opacity:.75}50%{transform:scale(1.03) rotate(8deg);opacity:1}}
+@media(max-width:720px){.hof-detail-layout{grid-template-columns:minmax(0,1fr);gap:10px;padding:13px}.hof-detail-trophy-panel{grid-row:1;min-height:300px}.hof-detail-guild-panel{grid-row:2}.hof-detail-award-panel{grid-row:3}.trophy-3d.trophy-modal{height:240px;width:190px}.hof-detail-avatar{margin-top:12px}.hof-detail-ribbon{gap:5px;flex-direction:column}.hof-detail-top{padding:16px}.hof-detail-footer{justify-content:center;text-align:center}.hof-detail-footer span{width:100%}.hof-awaiting-card{grid-template-columns:auto minmax(0,1fr)}.hof-awaiting-card .btn{grid-column:1/-1;width:100%}}
+@media(prefers-reduced-motion:reduce){.hof-detail-trophy-glow,.hof-detail-trophy-ring{animation:none!important}.hof-detail-shell *{scroll-behavior:auto!important}}
+
 </style>
 
 <style>
@@ -1348,6 +1402,15 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
 @media(max-width:760px){.guild-profile-grid{grid-template-columns:1fr}.guild-profile-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.guild-badge-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.hof-year-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.hof-period-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.hof-award-card{grid-template-columns:1fr;text-align:center}.trophy-3d{margin:0 auto}.hof-heading{flex-direction:column}}
 @media(max-width:420px){.guild-badge-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.hof-type-tab{font-size:8px}.hof-period-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.guild-profile-avatar{flex-basis:52px;width:52px;height:52px}}
 
+</style>
+
+
+<style>
+/* Highest-priority overrides for the immersive Hall of Fame dialog */
+.modal.hof-detail-modal{background:#050b08!important;border-color:rgba(226,190,98,.42)!important;box-shadow:0 35px 110px rgba(0,0,0,.78),0 0 65px rgba(224,176,53,.09)!important;padding:0!important;width:min(1080px,100%)!important;max-height:92vh!important;border-radius:23px!important;overflow:auto!important}
+.trophy-3d.trophy-modal:not(.is-dragging) svg,.trophy-3d.trophy-awaiting:not(.is-dragging) svg,.trophy-3d.trophy-inline:not(.is-dragging) svg{animation:hofTrophyFloat 4.2s ease-in-out infinite;transform-origin:50% 55%}
+@keyframes hofTrophyFloat{0%,100%{transform:translateY(0) rotateZ(-1.3deg)}50%{transform:translateY(-5px) rotateZ(1.3deg)}}
+@media(prefers-reduced-motion:reduce){.trophy-3d.trophy-modal svg,.trophy-3d.trophy-awaiting svg,.trophy-3d.trophy-inline svg{animation:none!important}}
 </style>
 
 </head>
@@ -1551,6 +1614,7 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
             <div id="hof-year-grid" class="hof-year-grid"><div class="empty">Loading years...</div></div>
             <div id="hof-period-heading" class="hof-period-heading">SELECT A YEAR</div>
             <div id="hof-period-grid" class="hof-period-grid"></div>
+            <div class="hof-interaction-hint">TAP ANY WEEK OR MONTH TILE TO OPEN ITS CHAMPION SHOWCASE · DRAG THE TROPHY TO ROTATE</div>
             <div id="hof-selected-award" class="hof-selected-award"><div class="empty">Choose a year and week/month to view the champion.</div></div>
           </div>
         </div>
@@ -1826,6 +1890,6 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
   })();
   </script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="./script.js?v=21.0-guild-profiles-hof-single-proof"></script>
+  <script src="./script.js?v=22.0-hof-showcase-name-cooldown"></script>
 </body>
 </html>
