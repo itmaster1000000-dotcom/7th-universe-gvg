@@ -1270,8 +1270,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .hof-detail-trophy-ring{position:absolute;width:70%;aspect-ratio:1;border:1px solid rgba(235,195,87,.23);border-radius:50%;box-shadow:0 0 0 11px rgba(235,195,87,.025),0 0 45px rgba(211,161,50,.08);animation:hofRingPulse 5s ease-in-out infinite}
 .hof-detail-trophy-ring:before,.hof-detail-trophy-ring:after{content:"✦";position:absolute;top:10%;left:13%;color:#e3c46d;font-size:15px;text-shadow:0 0 14px rgba(235,195,87,.7)}
 .hof-detail-trophy-ring:after{top:auto;left:auto;right:10%;bottom:13%;font-size:11px}
-.trophy-3d.trophy-modal{position:relative;z-index:2;width:min(230px,88%);height:280px;display:grid;place-items:center;perspective:1000px;transform-style:preserve-3d;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;filter:drop-shadow(0 24px 22px rgba(0,0,0,.62)) drop-shadow(0 0 16px rgba(238,194,72,.11));transition:filter .22s ease}
-.trophy-3d.trophy-modal svg{width:100%;height:100%;overflow:visible;pointer-events:none;transform-style:preserve-3d}
+.trophy-3d.trophy-modal{position:relative;z-index:2;width:min(245px,92%);height:300px;display:grid;place-items:center;perspective:1200px;transform-style:preserve-3d;transform-origin:50% 58%;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;filter:drop-shadow(0 28px 25px rgba(0,0,0,.64)) drop-shadow(0 0 23px rgba(238,194,72,.18));transition:filter .22s ease;will-change:transform}
+.trophy-3d.trophy-modal svg{width:100%;height:100%;overflow:visible;pointer-events:none;transform-style:preserve-3d;filter:drop-shadow(5px 3px 0 rgba(66,41,7,.45)) drop-shadow(0 0 9px rgba(255,224,133,.10))}
 .trophy-3d.is-dragging{cursor:grabbing;filter:drop-shadow(0 20px 24px rgba(0,0,0,.52)) drop-shadow(0 0 21px rgba(255,211,90,.35))}
 .hof-detail-touch-hint{position:absolute;z-index:3;bottom:30px;display:flex;align-items:center;justify-content:center;gap:7px;color:#bda96d;font-size:7px;font-weight:950;letter-spacing:.14em;text-align:center}.hof-detail-touch-hint span{color:#55dd88;font-size:13px}
 .hof-detail-floor{position:absolute;bottom:24px;width:66%;height:15px;border-radius:50%;background:rgba(0,0,0,.5);filter:blur(10px)}
@@ -1413,6 +1413,13 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
 @media(prefers-reduced-motion:reduce){.trophy-3d.trophy-modal svg,.trophy-3d.trophy-awaiting svg,.trophy-3d.trophy-inline svg{animation:none!important}}
 </style>
 
+
+<style>
+/* v23: canonical period labels and enhanced trophy depth */
+.hof-award-custom-label{margin-top:6px;color:#b8c6b8;font-size:9px;font-weight:800;letter-spacing:.08em;text-align:center}
+.hof-detail-award-panel .hof-detail-award-custom-label{margin:7px 0 10px;padding:7px 8px;border:1px solid rgba(238,199,91,.16);border-radius:8px;color:#b8c6b8;background:rgba(255,255,255,.025);font-size:8px;font-weight:850;text-align:center;overflow-wrap:anywhere}
+.trophy-3d.trophy-modal:not(.is-dragging) svg{transform-style:preserve-3d}
+</style>
 </head>
 <body>
   <div class="topline"></div>
@@ -1890,6 +1897,6 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
   })();
   </script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="./script.js?v=22.0-hof-showcase-name-cooldown"></script>
+  <script src="./script.js?v=23.0-hof-period-correct-solid-trophy"></script>
 </body>
 </html>

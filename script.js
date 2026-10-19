@@ -1481,21 +1481,73 @@ async function reviewGuildNameChangeRequest(id,approve){
   }catch(error){showStatus('admin-name-change-status','error',humanizeError(error));}
 }
 
-function trophySvg(){return `<svg viewBox="0 0 160 180" role="img" aria-label="3D gold championship trophy"><defs><linearGradient id="gvg-trophy-gold" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#fff4b0"/><stop offset=".24" stop-color="#d99b2d"/><stop offset=".48" stop-color="#fff0a0"/><stop offset=".73" stop-color="#8b5712"/><stop offset="1" stop-color="#ffe28b"/></linearGradient><linearGradient id="gvg-trophy-side" x1="0" x2="1"><stop offset="0" stop-color="#6c4514"/><stop offset=".5" stop-color="#e7b94d"/><stop offset="1" stop-color="#51320b"/></linearGradient><linearGradient id="gvg-trophy-green" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#e7ffbf"/><stop offset=".45" stop-color="#21dc73"/><stop offset="1" stop-color="#07572d"/></linearGradient><filter id="gvg-trophy-shadow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="3"/></filter></defs><ellipse cx="80" cy="164" rx="45" ry="8" fill="#e9b94a" opacity=".2" filter="url(#gvg-trophy-shadow)"/><g stroke="#5b390d" stroke-width="2" stroke-linejoin="round"><path d="M48 24H112L107 72Q105 91 89 99L92 120H68L71 99Q55 91 53 72Z" fill="url(#gvg-trophy-side)"/><path d="M52 25H108L103 68Q101 84 80 95Q59 84 57 68Z" fill="url(#gvg-trophy-gold)"/><path d="M52 34H30Q29 61 47 72L57 74L55 61Q43 56 43 43H53Z" fill="url(#gvg-trophy-gold)"/><path d="M108 34H130Q131 61 113 72L103 74L105 61Q117 56 117 43H107Z" fill="url(#gvg-trophy-gold)"/><path d="M68 98H92L95 124H65Z" fill="url(#gvg-trophy-side)"/><path d="M58 123H102L112 139H48Z" fill="url(#gvg-trophy-gold)"/><path d="M42 140H118L128 151H32Z" fill="url(#gvg-trophy-side)"/><path d="M36 151H124L133 161H27Z" fill="url(#gvg-trophy-gold)"/><path d="M80 40L89 55L80 70L71 55Z" fill="url(#gvg-trophy-green)"/><path d="M80 48L84 55L80 62L76 55Z" fill="#eaffb8" stroke="none"/></g><path d="M60 30L65 67M73 30L75 39" stroke="#fffbd3" stroke-width="3" stroke-linecap="round" opacity=".68"/><path d="M24 169H136" stroke="#47ef86" stroke-width="2" opacity=".55"/></svg>`;}
-function bindTrophy3D(root=document){
-  root.querySelectorAll('[data-trophy-3d]:not([data-trophy-bound])').forEach(el=>{
-    el.dataset.trophyBound='1';
-    let down=false,lastX=0,lastY=0,rx=-7,ry=-8;
-    const reduceMotion=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
-    const apply=()=>{el.style.transform=`perspective(900px) rotateX(${rx}deg) rotateY(${ry}deg)`;};
-    const onDown=e=>{down=true;lastX=e.clientX;lastY=e.clientY;el.classList.add('is-dragging');el.style.transition='none';try{el.setPointerCapture(e.pointerId);}catch{};};
-    const onMove=e=>{if(!down)return;const dx=e.clientX-lastX,dy=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;ry+=dx*.82;rx=Math.max(-28,Math.min(28,rx-dy*.58));apply();};
-    const onEnd=()=>{if(!down)return;down=false;el.classList.remove('is-dragging');el.style.transition='transform 260ms ease-out, filter .2s ease';};
-    el.addEventListener('pointerdown',onDown);el.addEventListener('pointermove',onMove);el.addEventListener('pointerup',onEnd);el.addEventListener('pointercancel',onEnd);el.addEventListener('lostpointercapture',onEnd);
-    if(!reduceMotion){el.classList.add('trophy-idle-motion');}
-  });
-}
+function trophySvg(){return `<svg viewBox="0 0 220 250" role="img" aria-label="Gold and emerald 3D GVG championship trophy" focusable="false"><defs>
+<linearGradient id="gvg-cup-front" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff7c8"/><stop offset=".16" stop-color="#f7d36b"/><stop offset=".34" stop-color="#9e6719"/><stop offset=".52" stop-color="#fff0a0"/><stop offset=".72" stop-color="#cc8b21"/><stop offset="1" stop-color="#fff0a0"/></linearGradient>
+<linearGradient id="gvg-cup-side" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#57340a"/><stop offset=".34" stop-color="#b87919"/><stop offset=".62" stop-color="#70430d"/><stop offset="1" stop-color="#2d220b"/></linearGradient>
+<linearGradient id="gvg-cup-rim" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#fffbd5"/><stop offset=".32" stop-color="#e4b64c"/><stop offset=".65" stop-color="#80500f"/><stop offset="1" stop-color="#ffeaa0"/></linearGradient>
+<linearGradient id="gvg-cup-green" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#efffbc"/><stop offset=".24" stop-color="#63ff9a"/><stop offset=".56" stop-color="#10a95a"/><stop offset="1" stop-color="#034c2b"/></linearGradient>
+<linearGradient id="gvg-cup-base" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#332008"/><stop offset=".18" stop-color="#f0c75c"/><stop offset=".45" stop-color="#8a5a13"/><stop offset=".72" stop-color="#ffe6a0"/><stop offset="1" stop-color="#503008"/></linearGradient>
+<radialGradient id="gvg-cup-glow"><stop stop-color="#63ff96" stop-opacity=".38"/><stop offset="1" stop-color="#0a6f37" stop-opacity="0"/></radialGradient>
+<filter id="gvg-cup-shadow" x="-40%" y="-35%" width="180%" height="190%"><feGaussianBlur stdDeviation="5"/></filter>
+</defs>
+<ellipse cx="110" cy="225" rx="74" ry="13" fill="#000" opacity=".65" filter="url(#gvg-cup-shadow)"/><ellipse cx="110" cy="220" rx="68" ry="15" fill="url(#gvg-cup-glow)"/>
+<!-- Deep rear/side silhouette gives the cup visible thickness when tilted. -->
+<path d="M48 47Q30 42 25 55Q21 93 54 111L68 113L74 100L59 93Q39 78 42 59L53 61Z" fill="url(#gvg-cup-side)" stroke="#4a2d0a" stroke-width="3"/>
+<path d="M172 47Q190 42 195 55Q199 93 166 111L152 113L146 100L161 93Q181 78 178 59L167 61Z" fill="url(#gvg-cup-side)" stroke="#4a2d0a" stroke-width="3"/>
+<path d="M51 37L169 37L160 93Q156 120 128 132L126 158L94 158L92 132Q64 120 60 93Z" fill="url(#gvg-cup-side)" stroke="#4e300a" stroke-width="4" stroke-linejoin="round"/>
+<path d="M55 39L165 39L157 90Q153 113 110 130Q67 113 63 90Z" fill="url(#gvg-cup-front)" stroke="#fff0a0" stroke-width="2.5" stroke-linejoin="round"/>
+<!-- Inner cup panel, bevelled edges and engraved facets. -->
+<path d="M68 49L152 49L145 88Q142 106 110 119Q78 106 75 88Z" fill="#704711" opacity=".75"/>
+<path d="M72 48L148 48L142 85Q139 101 110 114Q81 101 78 85Z" fill="url(#gvg-cup-front)" stroke="#fff4c0" stroke-width="1.6"/>
+<path d="M72 49L87 55L87 91L101 108L82 94Q77 89 75 77Z" fill="#fff6ce" opacity=".55"/>
+<path d="M148 49L135 55L132 91L119 108L138 94Q143 89 145 77Z" fill="#6d410c" opacity=".50"/>
+<path d="M110 58L131 80L110 103L89 80Z" fill="url(#gvg-cup-green)" stroke="#f7d66e" stroke-width="3" stroke-linejoin="round"/>
+<path d="M110 64L122 80L110 93Z" fill="#e8ffc0" opacity=".82"/><path d="M110 64L98 80L110 93Z" fill="#09834a" opacity=".9"/>
+<path d="M58 38L162 38L165 46L55 46Z" fill="url(#gvg-cup-rim)" stroke="#68410e" stroke-width="2"/>
+<path d="M49 39Q110 31 171 39" fill="none" stroke="#fff6c1" stroke-width="3" stroke-linecap="round"/>
+<!-- Stem and beveled plinth. -->
+<path d="M94 128L126 128L131 166L119 176L101 176L89 166Z" fill="url(#gvg-cup-side)" stroke="#5d3a0b" stroke-width="3"/>
+<path d="M100 132L120 132L124 163L116 169L104 169L96 163Z" fill="url(#gvg-cup-front)" stroke="#ffe8a0" stroke-width="2"/>
+<path d="M101 140L119 140L117 158L103 158Z" fill="url(#gvg-cup-green)" stroke="#f7d66e" stroke-width="1.5"/>
+<path d="M78 169L142 169L151 188L69 188Z" fill="url(#gvg-cup-side)" stroke="#4e300a" stroke-width="3"/>
+<path d="M71 176L149 176L143 187L77 187Z" fill="url(#gvg-cup-rim)" stroke="#fff0a0" stroke-width="1.5"/>
+<path d="M62 188L158 188L170 204L50 204Z" fill="url(#gvg-cup-side)" stroke="#4e300a" stroke-width="3"/>
+<path d="M55 191L165 191L156 201L64 201Z" fill="url(#gvg-cup-base)" stroke="#ffe6a0" stroke-width="1.5"/>
+<path d="M47 204L173 204L182 215L38 215Z" fill="url(#gvg-cup-rim)" stroke="#70470f" stroke-width="3"/>
+<path d="M40 214L180 214L174 225L46 225Z" fill="url(#gvg-cup-base)" stroke="#3d290a" stroke-width="3"/>
+<path d="M70 52L76 79M82 45L86 57M143 50L137 76" stroke="#fffbd7" stroke-width="3" stroke-linecap="round" opacity=".76"/>
+<path d="M52 233H168" stroke="#40f28a" stroke-width="2.5" stroke-linecap="round" opacity=".85"/>
+</svg>`;}
+function bindTrophy3D(root=document){root.querySelectorAll('[data-trophy-3d]:not([data-trophy-bound])').forEach(el=>{el.dataset.trophyBound='1';let down=false,lastX=0,lastY=0,rx=-7,ry=-8,pointerId=null;const apply=()=>{el.style.transform=`perspective(1050px) rotateX(${rx}deg) rotateY(${ry}deg)`;};apply();el.addEventListener('pointerdown',e=>{down=true;pointerId=e.pointerId;lastX=e.clientX;lastY=e.clientY;el.classList.add('is-dragging');try{el.setPointerCapture(e.pointerId);}catch{};e.preventDefault();});el.addEventListener('pointermove',e=>{if(!down||e.pointerId!==pointerId)return;const dx=e.clientX-lastX,dy=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;/* Keep the cup broadside: never rotate to a paper-thin edge view. */ry=Math.max(-42,Math.min(42,ry+dx*.55));rx=Math.max(-27,Math.min(27,rx-dy*.45));apply();});const end=e=>{if(pointerId!==null&&e?.pointerId!==undefined&&e.pointerId!==pointerId)return;down=false;pointerId=null;el.classList.remove('is-dragging');};el.addEventListener('pointerup',end);el.addEventListener('pointercancel',end);el.addEventListener('lostpointercapture',end);});}
+
 function hallPeriodLabel(type,number){return type==='weekly'?`WEEK ${number}`:new Intl.DateTimeFormat('en',{month:'long'}).format(new Date(Date.UTC(2020,number-1,1)));}
+const HOF_MONTH_NAMES=['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
+function isDefaultHofLabel(value){return /^(WEEK\s+\d+\s+CHAMPION|MONTHLY\s+CHAMPION|JANUARY\s+CHAMPION|FEBRUARY\s+CHAMPION|MARCH\s+CHAMPION|APRIL\s+CHAMPION|MAY\s+CHAMPION|JUNE\s+CHAMPION|JULY\s+CHAMPION|AUGUST\s+CHAMPION|SEPTEMBER\s+CHAMPION|OCTOBER\s+CHAMPION|NOVEMBER\s+CHAMPION|DECEMBER\s+CHAMPION)$/i.test(String(value||'').trim());}
+function syncHofAwardLabelFromPeriod(force=false){
+  const label=$('hof-award-label'),type=$('hof-award-type'),period=$('hof-award-period');
+  if(!label||!type||!period)return;
+  const current=String(label.value||'').trim();
+  if(force||label.dataset.autoGenerated==='1'||!current||isDefaultHofLabel(current)){
+    const number=Number(period.value)||1;
+    label.value=type.value==='weekly'?`WEEK ${number} CHAMPION`:`${HOF_MONTH_NAMES[Math.min(12,Math.max(1,number))-1]} CHAMPION`;
+    label.dataset.autoGenerated='1';
+  }
+}
+function isGenericTrophyLabel(label,type,period){
+  const value=String(label||'').trim().replace(/\s+/g,' ').toUpperCase();
+  const canonical=`${hallPeriodLabel(type,period)} CHAMPION`.toUpperCase();
+  if(!value||value===canonical)return true;
+  return /^(WEEK\s+\d+\s+CHAMPION|MONTHLY\s+CHAMPION|JANUARY\s+CHAMPION|FEBRUARY\s+CHAMPION|MARCH\s+CHAMPION|APRIL\s+CHAMPION|MAY\s+CHAMPION|JUNE\s+CHAMPION|JULY\s+CHAMPION|AUGUST\s+CHAMPION|SEPTEMBER\s+CHAMPION|OCTOBER\s+CHAMPION|NOVEMBER\s+CHAMPION|DECEMBER\s+CHAMPION)$/.test(value);
+}
+function canonicalTrophyTitle(award){
+  const type=award?.award_type==='monthly'?'monthly':'weekly';
+  const period=Number(award?.period_number)||1;
+  return `${hallPeriodLabel(type,period)} CHAMPION`;
+}
+function customTrophyLabel(award){
+  const value=String(award?.trophy_label||'').trim();
+  return value&&!isGenericTrophyLabel(value,award?.award_type,Number(award?.period_number))?value:'';
+}
 async function loadHallOfFame(){
   try{
     const [settingsRes,yearsRes]=await Promise.all([db.rpc('get_gvg_hof_settings'),db.rpc('get_gvg_hall_of_fame_years',{p_award_type:state.hofMode})]);
@@ -1529,7 +1581,7 @@ function renderHallSelectedAward(){
     return;
   }
   const date=a.awarded_at?formatDateTime(a.awarded_at):'';
-  target.innerHTML=`<article class="hof-award-card"><div class="trophy-3d trophy-inline" data-trophy-3d aria-label="Drag to rotate trophy">${trophySvg()}</div><div><div class="hof-award-label">${escapeHtml(a.trophy_label||periodName+' CHAMPION')}</div><div class="hof-award-guild">${escapeHtml(a.guild_name)}</div><div class="hof-award-uid">GUILD UID: ${escapeHtml(a.guild_uid||'Not added')}</div><div class="hof-award-meta">${escapeHtml(String(a.award_year))} · ${escapeHtml(hallPeriodLabel(a.award_type,Number(a.period_number)))}${date?' · AWARDED '+escapeHtml(date):''}</div>${a.notes?`<div class="hof-award-notes">${escapeHtml(a.notes)}</div>`:''}<div class="hof-award-actions"><span class="hint">Drag the trophy to rotate it.</span><button class="btn btn-gold btn-small" type="button" data-action="hof-open-details">OPEN CHAMPION SHOWCASE ↗</button></div></div></article>`;
+  target.innerHTML=`<article class="hof-award-card"><div class="trophy-3d trophy-inline" data-trophy-3d aria-label="Drag to rotate trophy">${trophySvg()}</div><div><div class="hof-award-label">${escapeHtml(canonicalTrophyTitle(a))}</div>${customTrophyLabel(a)?`<div class="hof-award-custom-label">${escapeHtml(customTrophyLabel(a))}</div>`:''}<div class="hof-award-guild">${escapeHtml(a.guild_name)}</div><div class="hof-award-uid">GUILD UID: ${escapeHtml(a.guild_uid||'Not added')}</div><div class="hof-award-meta">${escapeHtml(String(a.award_year))} · ${escapeHtml(hallPeriodLabel(a.award_type,Number(a.period_number)))}${date?' · AWARDED '+escapeHtml(date):''}</div>${a.notes?`<div class="hof-award-notes">${escapeHtml(a.notes)}</div>`:''}<div class="hof-award-actions"><span class="hint">Drag the trophy to rotate it.</span><button class="btn btn-gold btn-small" type="button" data-action="hof-open-details">OPEN CHAMPION SHOWCASE ↗</button></div></div></article>`;
   bindTrophy3D(target);
 }
 async function openHallOfFamePeriodDetails(){
@@ -1561,12 +1613,12 @@ async function openHallOfFamePeriodDetails(){
   const date=award.awarded_at?formatDateTime(award.awarded_at):'Official award';
   const periodTitle=hallPeriodLabel(mode,Number(award.period_number));
   const typeTitle=mode==='weekly'?'WEEKLY CHAMPION':'MONTHLY CHAMPION';
-  const detailHtml=`<div class="hof-detail-shell"><div class="hof-detail-top"><div><div class="hof-detail-kicker">7TH UNIVERSE · CHAMPIONS LEGACY</div><h2>HALL OF FAME</h2><p>Official champion archive · permanent recognition</p></div><button class="close-btn" type="button" data-action="close-modal" aria-label="Close champion showcase">×</button></div><div class="hof-detail-ribbon"><span>✦ ${escapeHtml(typeTitle)} ✦</span><strong>${escapeHtml(String(award.award_year))} · ${escapeHtml(periodTitle)}</strong></div><div class="hof-detail-layout"><section class="hof-detail-guild-panel"><div class="hof-detail-panel-kicker">CHAMPION GUILD</div><div class="hof-detail-avatar">${avatar}</div><h3>${escapeHtml(award.guild_name||'Champion Guild')}</h3><div class="hof-detail-uid-label">GUILD UID</div><div class="hof-detail-uid">${escapeHtml(award.guild_uid||profile?.guild_uid||'NOT ADDED')}</div>${profile?`<div class="hof-detail-record"><div><small>PLAYED</small><strong>${played}</strong></div><div><small>WINS</small><strong>${wins}</strong></div><div><small>LOSSES</small><strong>${losses}</strong></div><div><small>WIN RATE</small><strong>${winRate}</strong></div></div>`:''}<div class="hof-detail-guild-tag">🏆 OFFICIAL HALL OF FAME GUILD</div></section><section class="hof-detail-trophy-panel"><div class="hof-detail-trophy-glow"></div><div class="hof-detail-trophy-ring"></div><div class="trophy-3d trophy-modal" data-trophy-3d aria-label="Touch and drag to rotate the 3D-style trophy">${trophySvg()}</div><div class="hof-detail-touch-hint"><span>↔</span> TOUCH & DRAG TO ROTATE <span>↕</span></div><div class="hof-detail-floor"></div></section><section class="hof-detail-award-panel"><div class="hof-detail-panel-kicker">OFFICIAL AWARD</div><div class="hof-detail-laurel">♛</div><h3>${escapeHtml(award.trophy_label||periodTitle+' CHAMPION')}</h3><div class="hof-detail-data"><span>SEASON / YEAR</span><strong>${escapeHtml(String(award.award_year))}</strong></div><div class="hof-detail-data"><span>PERIOD</span><strong>${escapeHtml(periodTitle)}</strong></div><div class="hof-detail-data"><span>AWARDED</span><strong>${escapeHtml(date)}</strong></div>${award.notes?`<div class="hof-detail-notes"><span>ADMIN NOTE</span><p>${escapeHtml(award.notes)}</p></div>`:''}<div class="hof-detail-seal">7U <small>CHAMPIONS</small></div></section></div><div class="hof-detail-footer"><span>★ LEGACY EARNED. LEGACY REMEMBERED. ★</span><button class="btn btn-gold" type="button" data-action="close-modal">CLOSE SHOWCASE</button></div></div>`;
+  const detailHtml=`<div class="hof-detail-shell"><div class="hof-detail-top"><div><div class="hof-detail-kicker">7TH UNIVERSE · CHAMPIONS LEGACY</div><h2>HALL OF FAME</h2><p>Official champion archive · permanent recognition</p></div><button class="close-btn" type="button" data-action="close-modal" aria-label="Close champion showcase">×</button></div><div class="hof-detail-ribbon"><span>✦ ${escapeHtml(typeTitle)} ✦</span><strong>${escapeHtml(String(award.award_year))} · ${escapeHtml(periodTitle)}</strong></div><div class="hof-detail-layout"><section class="hof-detail-guild-panel"><div class="hof-detail-panel-kicker">CHAMPION GUILD</div><div class="hof-detail-avatar">${avatar}</div><h3>${escapeHtml(award.guild_name||'Champion Guild')}</h3><div class="hof-detail-uid-label">GUILD UID</div><div class="hof-detail-uid">${escapeHtml(award.guild_uid||profile?.guild_uid||'NOT ADDED')}</div>${profile?`<div class="hof-detail-record"><div><small>PLAYED</small><strong>${played}</strong></div><div><small>WINS</small><strong>${wins}</strong></div><div><small>LOSSES</small><strong>${losses}</strong></div><div><small>WIN RATE</small><strong>${winRate}</strong></div></div>`:''}<div class="hof-detail-guild-tag">🏆 OFFICIAL HALL OF FAME GUILD</div></section><section class="hof-detail-trophy-panel"><div class="hof-detail-trophy-glow"></div><div class="hof-detail-trophy-ring"></div><div class="trophy-3d trophy-modal" data-trophy-3d aria-label="Touch and drag to rotate the 3D-style trophy">${trophySvg()}</div><div class="hof-detail-touch-hint"><span>↔</span> TOUCH & DRAG TO ROTATE <span>↕</span></div><div class="hof-detail-floor"></div></section><section class="hof-detail-award-panel"><div class="hof-detail-panel-kicker">OFFICIAL AWARD</div><div class="hof-detail-laurel">♛</div><h3>${escapeHtml(canonicalTrophyTitle(award))}</h3>${customTrophyLabel(award)?`<div class="hof-detail-award-custom-label">${escapeHtml(customTrophyLabel(award))}</div>`:''}<div class="hof-detail-data"><span>SEASON / YEAR</span><strong>${escapeHtml(String(award.award_year))}</strong></div><div class="hof-detail-data"><span>PERIOD</span><strong>${escapeHtml(periodTitle)}</strong></div><div class="hof-detail-data"><span>AWARDED</span><strong>${escapeHtml(date)}</strong></div>${award.notes?`<div class="hof-detail-notes"><span>ADMIN NOTE</span><p>${escapeHtml(award.notes)}</p></div>`:''}<div class="hof-detail-seal">7U <small>CHAMPIONS</small></div></section></div><div class="hof-detail-footer"><span>★ LEGACY EARNED. LEGACY REMEMBERED. ★</span><button class="btn btn-gold" type="button" data-action="close-modal">CLOSE SHOWCASE</button></div></div>`;
   openModal(detailHtml,'hof-detail-modal');bindTrophy3D($('modal'));
 }
 
 async function changeHallType(type){if(!['weekly','monthly'].includes(type))return;state.hofMode=type;state.hofYear=null;state.hofPeriod=1;await loadHallOfFame();}
-function renderAdminHofAwards(){const target=$('admin-hof-awards-list');if(!target)return;const rows=(state.adminHofAwards||[]).sort((a,b)=>String(b.awarded_at).localeCompare(String(a.awarded_at)));target.innerHTML=rows.length?rows.slice(0,60).map(a=>`<div class="admin-hof-award-row"><div class="admin-hof-award-main"><strong>${escapeHtml(a.trophy_label)} — ${escapeHtml(a.guild_name)}</strong><small>${escapeHtml(String(a.award_year))} · ${escapeHtml(hallPeriodLabel(a.award_type,Number(a.period_number)))} · UID ${escapeHtml(a.guild_uid||'not added')}</small></div><button class="btn btn-red btn-small" type="button" data-action="admin-remove-hof-award" data-id="${escapeHtml(a.id)}">REMOVE</button></div>`).join(''):'<div class="empty">No official trophies have been awarded yet.</div>';}
+function renderAdminHofAwards(){const target=$('admin-hof-awards-list');if(!target)return;const rows=(state.adminHofAwards||[]).sort((a,b)=>String(b.awarded_at).localeCompare(String(a.awarded_at)));target.innerHTML=rows.length?rows.slice(0,60).map(a=>`<div class="admin-hof-award-row"><div class="admin-hof-award-main"><strong>${escapeHtml(canonicalTrophyTitle(a))} — ${escapeHtml(a.guild_name)}</strong><small>${escapeHtml(String(a.award_year))} · ${escapeHtml(hallPeriodLabel(a.award_type,Number(a.period_number)))} · UID ${escapeHtml(a.guild_uid||'not added')}${customTrophyLabel(a)?' · '+escapeHtml(customTrophyLabel(a)):''}</small></div><button class="btn btn-red btn-small" type="button" data-action="admin-remove-hof-award" data-id="${escapeHtml(a.id)}">REMOVE</button></div>`).join(''):'<div class="empty">No official trophies have been awarded yet.</div>';}
 async function loadHofAdmin(){
   try{
     const [profileRes,settingsRes,weeklyYearsRes,monthlyYearsRes]=await Promise.all([
@@ -1576,7 +1628,7 @@ async function loadHofAdmin(){
     for(const r of [profileRes,settingsRes,weeklyYearsRes,monthlyYearsRes])if(r.error)throw r.error;
     const profiles=profileRes.data||[];state.guildProfiles=profiles;
     $('hof-award-guild').innerHTML=profiles.length?profiles.map(p=>`<option value="${escapeHtml(p.guild_name_normalized)}">${escapeHtml(p.guild_name)}${p.guild_uid?' • UID '+escapeHtml(p.guild_uid):''}</option>`).join(''):'<option value="">No approved guilds found</option>';
-    const settings=Array.isArray(settingsRes.data)?settingsRes.data[0]:settingsRes.data;if(settings){state.hofSettings=settings;$('hof-season-year').value=settings.season_year;$('hof-current-week').value=settings.current_week;$('hof-award-year').value=settings.season_year;$('hof-award-period').value=settings.current_week;$('hof-award-label').value=`WEEK ${settings.current_week} CHAMPION`;}
+    const settings=Array.isArray(settingsRes.data)?settingsRes.data[0]:settingsRes.data;if(settings){state.hofSettings=settings;$('hof-season-year').value=settings.season_year;$('hof-current-week').value=settings.current_week;$('hof-award-year').value=settings.season_year;$('hof-award-period').value=settings.current_week;$('hof-award-label').value=`WEEK ${settings.current_week} CHAMPION`;$('hof-award-label').dataset.autoGenerated='1';}
     const pairs=[['weekly',weeklyYearsRes.data||[]],['monthly',monthlyYearsRes.data||[]]],all=[];
     for(const [type,years] of pairs){for(const y of years){const result=await adminDb.rpc('get_gvg_hall_of_fame',{p_award_type:type,p_award_year:Number(y.award_year)});if(result.error)throw result.error;all.push(...(result.data||[]));}}
     state.adminHofAwards=all;renderAdminHofAwards();
@@ -1622,8 +1674,9 @@ $('hof-season-form')?.addEventListener('submit',saveHofSeasonSettings);
 $('hof-award-form')?.addEventListener('submit',awardHofTrophy);
 $('hof-admin-refresh')?.addEventListener('click',loadHofAdmin);
 document.querySelectorAll('[data-hof-type]').forEach(btn=>btn.addEventListener('click',()=>changeHallType(btn.dataset.hofType)));
-$('hof-award-type')?.addEventListener('change',()=>{const type=$('hof-award-type').value;const lab=$('hof-period-number-label');const period=$('hof-award-period');const label=$('hof-award-label');if(type==='weekly'){lab.firstChild.textContent='WEEK NUMBER (1–60)';period.min='1';period.max='60';period.value=String(state.hofSettings.current_week||11);label.value=`WEEK ${period.value} CHAMPION`;}else{lab.firstChild.textContent='MONTH NUMBER (1–12)';period.min='1';period.max='12';period.value='1';label.value='MONTHLY CHAMPION';}});
-$('hof-award-period')?.addEventListener('input',()=>{const type=$('hof-award-type').value;const label=$('hof-award-label');if(!label.value.trim()||/^(WEEK|MONTH)\s+\d+|MONTHLY CHAMPION/i.test(label.value))label.value=type==='weekly'?`WEEK ${$('hof-award-period').value} CHAMPION`:`${hallPeriodLabel('monthly',Number($('hof-award-period').value)||1).toUpperCase()} CHAMPION`;});
+$('hof-award-type')?.addEventListener('change',()=>{const type=$('hof-award-type').value;const lab=$('hof-period-number-label');const period=$('hof-award-period');if(type==='weekly'){lab.firstChild.textContent='WEEK NUMBER (1–60)';period.min='1';period.max='60';period.value=String(state.hofSettings.current_week||11);}else{lab.firstChild.textContent='MONTH NUMBER (1–12)';period.min='1';period.max='12';period.value='1';}syncHofAwardLabelFromPeriod(true);});
+$('hof-award-period')?.addEventListener('input',()=>syncHofAwardLabelFromPeriod(false));
+$('hof-award-label')?.addEventListener('input',()=>{ $('hof-award-label').dataset.autoGenerated='0'; });
 $('admin-login-form').addEventListener('submit',handleAdminLogin);
 $('admin-logout').addEventListener('click',async()=>{try{await adminDb.auth.signOut();}catch{}state.adminUser=null;state.adminOk=false;const target=state.adminReturnToModerator&&state.moderatorOk?'moderator':state.user?'member':'public';state.adminReturnToModerator=false;openView(target);});
 $('admin-guild-search').addEventListener('input',()=>renderGuildTable('all-guild-table',filteredGuilds()));
