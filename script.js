@@ -56,6 +56,7 @@ const state = {
   guilds: [],
   bans: [],
   registeredGuilds: [],
+  registeredGuildsLoaded: false,
   weeklyMatches: [],
   guildProfiles: [],
   hofMode: 'weekly',
@@ -91,6 +92,15 @@ function markSectionLoaded(key){ sectionLoadCache.set(key, Date.now()); }
 function clearSectionCache(prefix=''){
   for(const key of sectionLoadCache.keys()) if(!prefix || key.startsWith(prefix)) sectionLoadCache.delete(key);
 }
+function invalidateGuildDirectoryCaches(){
+  clearSectionCache('member:guild-options');
+  clearSectionCache('member:registered-guilds');
+  clearSectionCache('member:guild-profiles');
+  state.guildOptions=[];
+  state.registeredGuilds=[];
+  state.registeredGuildsLoaded=false;
+  state.guildProfiles=[];
+}
 
 
 function escapeHtml(value) {
@@ -116,6 +126,62 @@ function showStatus(id,type,message){ const el=$(id); if(!el) return; el.classNa
 function clearStatus(id){ const el=$(id); if(!el) return; el.className='status'; el.textContent=''; }
 function setBusy(buttonId,busy,label){ let btn=$(buttonId); if(btn?.tagName==='FORM') btn=btn.querySelector('button[type=submit]'); if(!btn) return; btn.disabled=busy; if(busy) btn.dataset.oldText=btn.textContent; btn.textContent=busy?'PLEASE WAIT…':(label||btn.dataset.oldText||'SUBMIT'); }
 function humanizeError(error){ const msg=String(error?.message || error?.error_description || error || 'Unknown error').trim(); return msg.replace(/^(Error:\s*)/i,''); }
+
+/* Branded confirmation / prompt dialogs; replaces browser-native OK/Cancel popups. */
+function showAppDialog({kind='confirm',title='Please confirm',message='',confirmText='CONFIRM',cancelText='CANCEL',defaultValue='',placeholder='',required=false,danger=false}={}){
+  const backdrop=$('app-dialog-backdrop');
+  const panel=$('app-dialog');
+  if(!backdrop||!panel){
+    console.error('Branded dialog markup is missing. Update index.html and script.js together.');
+    return Promise.resolve(kind==='prompt'?null:false);
+  }
+  return new Promise(resolve=>{
+    let settled=false;
+    const finish=value=>{
+      if(settled)return;
+      settled=true;
+      backdrop.classList.remove('open');
+      backdrop.setAttribute('aria-hidden','true');
+      panel.innerHTML='';
+      document.removeEventListener('keydown',onKeyDown);
+      backdrop.onclick=null;
+      resolve(value);
+    };
+    const onKeyDown=event=>{
+      if(event.key==='Escape'){
+        event.preventDefault();
+        finish(kind==='prompt'?null:false);
+      }
+    };
+    const promptMarkup=kind==='prompt'?`<label class="app-dialog-field"><span>YOUR RESPONSE${required?' • REQUIRED':''}</span><textarea id="app-dialog-input" rows="3" maxlength="500" placeholder="${escapeHtml(placeholder)}">${escapeHtml(defaultValue)}</textarea></label><div id="app-dialog-validation" class="app-dialog-validation" aria-live="polite"></div>`:'';
+    const cancelMarkup=kind==='alert'?'':`<button type="button" class="app-dialog-btn secondary" data-dialog-cancel>${escapeHtml(cancelText)}</button>`;
+    panel.innerHTML=`<div class="app-dialog-top"><span class="app-dialog-mark">${kind==='prompt'?'✎':danger?'!':'7U'}</span><button type="button" class="app-dialog-close" data-dialog-cancel aria-label="Close dialog">×</button></div><div class="app-dialog-kicker">7TH UNIVERSE • GVG</div><h3 id="app-dialog-title" class="app-dialog-title">${escapeHtml(title)}</h3><p class="app-dialog-message">${escapeHtml(message)}</p>${promptMarkup}<div class="app-dialog-actions">${cancelMarkup}<button id="app-dialog-confirm" type="button" class="app-dialog-btn ${danger?'danger':'primary'}" data-dialog-confirm>${escapeHtml(confirmText)}</button></div>`;
+    const doConfirm=()=>{
+      if(kind==='prompt'){
+        const input=$('app-dialog-input');
+        const value=String(input?.value||'');
+        if(required&&!value.trim()){
+          const validation=$('app-dialog-validation');
+          if(validation)validation.textContent='Please enter a reason before continuing.';
+          input?.focus();
+          return;
+        }
+        finish(value);
+      }else finish(true);
+    };
+    panel.querySelector('[data-dialog-confirm]')?.addEventListener('click',doConfirm);
+    panel.querySelectorAll('[data-dialog-cancel]').forEach(button=>button.addEventListener('click',()=>finish(kind==='prompt'?null:false)));
+    backdrop.onclick=event=>{if(event.target===backdrop)finish(kind==='prompt'?null:false);};
+    document.addEventListener('keydown',onKeyDown);
+    backdrop.setAttribute('aria-hidden','false');
+    backdrop.classList.add('open');
+    requestAnimationFrame(()=>$(kind==='prompt'?'app-dialog-input':'app-dialog-confirm')?.focus());
+  });
+}
+function appConfirm(message,options={}){return showAppDialog({kind:'confirm',message,...options});}
+function appPrompt(message,defaultValue='',options={}){return showAppDialog({kind:'prompt',message,defaultValue,...options});}
+function appAlert(message,options={}){return showAppDialog({kind:'alert',message,...options});}
+
 function currentPakistanParts(){ const parts=new Intl.DateTimeFormat('en-CA',{timeZone:TIME_ZONE,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).formatToParts(new Date()); const o={}; for(const p of parts) o[p.type]=p.value; return {year:Number(o.year),month:Number(o.month),day:Number(o.day),hour:Number(o.hour)%24,minute:Number(o.minute)}; }
 
 
@@ -289,12 +355,14 @@ async function completePendingRegistration(){
       If the account already owns a guild, or the registration is blocked,
       remove the stale pending request and let the leader see the real state.
     */
-    if(/ALREADY_REGISTERED/i.test(message)){
+    if(/ALREADY_REGISTERED|DUPLICATE_REGISTRATION|contact number is already registered|contact.*already registered/i.test(message)){
       clearPendingRegistration();
       await loadMyGuild();
     }
 
-    showStatus('login-status','error',humanizeError(error));
+    showStatus('login-status','error',/DUPLICATE_REGISTRATION|contact number is already registered|contact.*already registered/i.test(message)
+      ? 'Supabase still marks this contact number as registered. Since the guild was removed, Admin must verify whether an old leader/contact link remained in the database. Creating another email will not fix this check.'
+      : humanizeError(error));
   }
 }
 
@@ -468,7 +536,10 @@ async function handleRegister(e){
   }catch(error){
     const message=String(error?.message||error||'').trim();
 
-    if(/invalid login credentials/i.test(message)){
+    if(/DUPLICATE_REGISTRATION|contact number is already registered|contact.*already registered/i.test(message)){
+      clearPendingRegistration();
+      showStatus('register-status','error','Supabase still marks this contact number as registered. Since the guild was removed, Admin must verify whether an old leader/contact link remained in the database. Creating another email will not fix this check.');
+    }else if(/invalid login credentials/i.test(message)){
       showStatus(
         'register-status',
         'error',
@@ -641,36 +712,52 @@ async function searchGuildSuggestions(query){
   const q=String(query||'').trim();
   if(!q) return [];
   const serial=++guildSearchSerial;
+  const localMatches=()=>getResultGuildNames().filter(name=>normalizeGuild(name).includes(normalizeGuild(q)));
+  let remoteNames=[];
   try{
     const {data,error}=await db.rpc('search_gvg_guilds',{p_query:q});
     if(error) throw error;
-    if(serial!==guildSearchSerial) return [];
-    return (data||[])
-      .map(r=>String(r.guild_name||'').trim())
-      .filter(Boolean);
+    remoteNames=(data||[]).map(row=>String(row.guild_name||'').trim()).filter(Boolean);
   }catch(error){
-    console.error('Guild autocomplete search failed:',error);
-    return getResultGuildNames()
-      .filter(name=>name.toLowerCase().startsWith(q.toLowerCase()))
-      .slice(0,10);
+    console.error('Guild autocomplete search failed; using cached guild sources:',error);
   }
+  if(serial!==guildSearchSerial) return [];
+  const unique=new Map();
+  // Prefer the backend's ordering, then add matching names from the already-loaded directory/profile/results cache.
+  [...remoteNames,...localMatches()].forEach(name=>{
+    const clean=String(name||'').trim();
+    const key=normalizeGuild(clean);
+    if(key&&!unique.has(key))unique.set(key,clean);
+  });
+  return [...unique.values()].sort((a,b)=>{
+    const aa=normalizeGuild(a),bb=normalizeGuild(b),needle=normalizeGuild(q);
+    const aStarts=aa.startsWith(needle)?0:1,bStarts=bb.startsWith(needle)?0:1;
+    return aStarts-bStarts||aa.localeCompare(bb);
+  }).slice(0,10);
 }
-
 async function loadGuildOptions(){
-  try{
-    const {data,error}=await db.rpc('get_gvg_guild_options');
-    if(error) throw error;
-    state.guildOptions=data||[];
-  }catch(error){
-    console.error('Guild options load failed:',error);
+  const registryPromise=state.registeredGuildsLoaded
+    ? Promise.resolve({data:state.registeredGuilds,error:null})
+    : db.rpc('get_gvg_registered_guilds').catch(error=>({data:null,error}));
+  const [optionsResult,registryResult]=await Promise.all([
+    db.rpc('get_gvg_guild_options').catch(error=>({data:null,error})),
+    registryPromise
+  ]);
+  if(optionsResult.error){
+    console.error('Guild options load failed:',optionsResult.error);
     state.guildOptions=[];
-  }
+  }else state.guildOptions=Array.isArray(optionsResult.data)?optionsResult.data:[];
+  if(!registryResult.error&&Array.isArray(registryResult.data)){state.registeredGuilds=registryResult.data;state.registeredGuildsLoaded=true;}
   fillResultGuilds();
 }
 
 function getResultGuildNames(){
   const names=[
     ...state.guildOptions.map(g=>g.guild_name),
+    ...state.registeredGuilds.map(g=>g.guild_name),
+    ...state.guildProfiles.map(g=>g.guild_name),
+    ...state.guilds.map(g=>g.guild_name),
+    ...state.moderatorGuilds.map(g=>g.guild_name),
     ...state.challenges.map(c=>c.guild_name),
     ...state.results.flatMap(r=>[r.winner_guild,r.loser_guild]),
     state.guild?.guild_name
@@ -1066,9 +1153,27 @@ function adminGuildEdit(g){
 }
 
 async function resetLeaderPassword(email){
-  if(!email)return; if(!confirm(`Send password reset email to ${email}?`))return; try{const redirectTo=`${window.location.origin}${window.location.pathname}`;const {error}=await adminDb.auth.resetPasswordForEmail(email,{redirectTo});if(error)throw error;alert('Password reset email sent.');}catch(error){alert(humanizeError(error));}
+  if(!email)return;
+  if(!await appConfirm(`Send a password reset email to ${email}?`,{title:'Reset leader password',confirmText:'SEND RESET EMAIL'}))return;
+  try{
+    const redirectTo=`${window.location.origin}${window.location.pathname}`;
+    const {error}=await adminDb.auth.resetPasswordForEmail(email,{redirectTo});
+    if(error)throw error;
+    await appAlert('Password reset email sent.',{title:'Email requested',confirmText:'GOT IT'});
+  }catch(error){await appAlert(humanizeError(error),{title:'Could not send email',danger:true,confirmText:'CLOSE'});}
 }
-async function removeGuild(id){const g=findGuild(id);if(!g)return;if(!confirm(`ARE YOU SURE TO WANT REMOVE THIS GUILD?\n\n${g.guild_name}`))return;try{const {error}=await adminDb.rpc('admin_remove_guild',{p_guild_id:id});if(error)throw error;closeModal();showStatus('admin-status','ok','Guild removed from registry. Historical challenge/result records remain.');await loadAdminGuilds();}catch(error){showStatus('admin-status','error',humanizeError(error));}}
+async function removeGuild(id){
+  const g=findGuild(id);if(!g)return;
+  const ok=await appConfirm(`Remove the guild registration for:\n\n${g.guild_name}\n\nHistorical challenge and result records will remain.`,{title:'Remove guild registration',confirmText:'REMOVE GUILD',danger:true});
+  if(!ok)return;
+  try{
+    const {error}=await adminDb.rpc('admin_remove_guild',{p_guild_id:id});if(error)throw error;
+    clearSectionCache('member:');
+    invalidateGuildDirectoryCaches();
+    closeModal();showStatus('admin-status','ok','Guild removed from the active registry. Historical challenge/result records remain.');
+    await loadAdminGuilds();
+  }catch(error){showStatus('admin-status','error',humanizeError(error));}
+}
 async function setLeaderApproval(leaderId,status){
   let found=null;
 
@@ -1090,6 +1195,7 @@ async function setLeaderApproval(leaderId,status){
     if(error) throw error;
 
     closeModal();
+    invalidateGuildDirectoryCaches();
     showStatus('admin-status','ok',`Leader ${status}.`);
     await loadAdminGuilds();
   }catch(error){
@@ -1098,7 +1204,8 @@ async function setLeaderApproval(leaderId,status){
 }
 
 async function removeLeader(leaderId,guildName){
-  if(!confirm(`ARE YOU SURE TO WANT REMOVE THIS LEADER?\n\n${guildName||'Guild Leader'}`)) return;
+  const ok=await appConfirm(`Remove this leader from ${guildName||'the guild'}?\n\nThe account remains available, but the database must release its active contact link when the removal is processed.`,{title:'Remove guild leader',confirmText:'REMOVE LEADER',danger:true});
+  if(!ok)return;
 
   try{
     const {error}=await adminDb.rpc('admin_remove_guild_leader',{p_guild_id:leaderId});
@@ -1124,7 +1231,11 @@ async function loadAdminResults(){
   try{const {data,error}=await adminDb.rpc('admin_get_results');if(error)throw error;const rows=data||[];state.results=rows;const target=$('admin-result-table');target.innerHTML=rows.length?rows.map(r=>{const imgs=preferredResultProofUrls(r.image_urls);const gallery=imgs.length?`<details class="proof-details"><summary>OPEN RESULT PROOF</summary><div class="proof-gallery">${imgs.map((u,i)=>`<a href="${escapeHtml(u)}" target="_blank" rel="noopener"><span class="proof-tag">RESULT PROOF</span><img data-proof-src="${escapeHtml(u)}" loading="lazy" decoding="async" alt="${escapeHtml(r.winner_guild)} vs ${escapeHtml(r.loser_guild)} result proof" /></a>`).join('')}</div></details>`:'<span class="muted">No proof</span>';return `<tr><td><strong>${escapeHtml(r.winner_guild)}</strong><div class="muted" style="margin-top:3px">DEFEAT</div><strong>${escapeHtml(r.loser_guild)}</strong></td><td>${escapeHtml(r.score)}</td><td><strong style="font-size:9px">${escapeHtml(formatDateTime(r.created_at))}</strong><div class="muted" style="margin-top:4px;font-size:7px">PAKISTAN TIME</div></td><td>${gallery}<div style="margin-top:6px"><span class="status-pill ${r.status==='approved'?'status-approved':r.status==='pending'?'status-pending':'status-rejected'}">${escapeHtml(r.status)}</span></div></td><td>${r.status==='pending'?`<div style="display:flex;gap:5px;flex-wrap:wrap"><button class="btn btn-green btn-small" type="button" data-action="approve-result" data-id="${escapeHtml(r.id)}">APPROVE</button><button class="btn btn-red btn-small" type="button" data-action="reject-result" data-id="${escapeHtml(r.id)}">REJECT</button></div>`:'—'}</td></tr>`;}).join(''):'<tr><td colspan="4">No result submissions.</td></tr>';}catch(error){showStatus('admin-status','error',humanizeError(error));}
 }
 async function approveResult(id){try{const {error}=await adminDb.rpc('admin_approve_result',{p_result_id:id});if(error)throw error;showStatus('admin-status','ok','Result approved and weekly points awarded.');clearSectionCache('admin:');await Promise.all([loadAdminResults(),loadAdminGuilds()]);markSectionLoaded('admin:results');markSectionLoaded('admin:guilds');}catch(error){showStatus('admin-status','error',humanizeError(error));}}
-async function rejectResult(id){const reason=prompt('Reason for rejection:','Proof or result issue');if(reason===null)return;try{const {error}=await adminDb.rpc('admin_reject_result',{p_result_id:id,p_reason:reason.trim()||'Rejected by admin'});if(error)throw error;showStatus('admin-status','ok','Result rejected. The challenge is open again while it is still inside its cycle.');clearSectionCache('admin:results');await loadAdminResults();markSectionLoaded('admin:results');}catch(error){showStatus('admin-status','error',humanizeError(error));}}
+async function rejectResult(id){
+  const reason=await appPrompt('Add a short reason for rejecting this result.','Proof or result issue',{title:'Reject result',confirmText:'REJECT RESULT',placeholder:'Describe the issue...',required:true,danger:true});
+  if(reason===null)return;
+  try{const {error}=await adminDb.rpc('admin_reject_result',{p_result_id:id,p_reason:reason.trim()||'Rejected by admin'});if(error)throw error;showStatus('admin-status','ok','Result rejected. The challenge is open again while it is still inside its cycle.');clearSectionCache('admin:results');await loadAdminResults();markSectionLoaded('admin:results');}catch(error){showStatus('admin-status','error',humanizeError(error));}
+}
 
 async function handleBan(e){e.preventDefault();clearStatus('ban-status');const guild=$('ban-guild').value.trim(),contact=$('ban-contact').value.trim(),duration=$('ban-duration').value,reason=$('ban-reason').value.trim()||'Rule violation';if(!guild&&!contact)return showStatus('ban-status','error','Enter a guild name or contact number.');let until=null;const now=new Date();if(duration==='1h')until=new Date(now.getTime()+60*60*1000);if(duration==='6h')until=new Date(now.getTime()+6*60*60*1000);if(duration==='1d')until=new Date(now.getTime()+24*60*60*1000);if(duration==='3d')until=new Date(now.getTime()+3*24*60*60*1000);if(duration==='7d')until=new Date(now.getTime()+7*24*60*60*1000);try{const {error}=await adminDb.rpc('admin_ban_guild_identity',{p_guild_name:guild||null,p_contact:contact||null,p_ban_until:until?until.toISOString():null,p_reason:reason});if(error)throw error;showStatus('ban-status','ok',until?`Guild banned until ${formatDateTime(until)}.`:'Guild permanently banned.');e.target.reset();$('ban-reason').value='Rule violation';await Promise.all([loadAdminGuilds(),loadBans()]);}catch(error){showStatus('ban-status','error',humanizeError(error));}}
 async function loadBans(){
@@ -1331,19 +1442,19 @@ async function loadModeratorResults(){
 }
 async function moderatorApproveGuild(norm){
   const g=state.moderatorGuilds.find(x=>String(x.guild_name_normalized)===String(norm));if(!g)return;
-  if(!confirm(`APPROVE this registered guild?\n\n${g.guild_name}`))return;
-  try{const {error}=await moderatorDb.rpc('moderator_approve_guild',{p_guild_name_normalized:norm});if(error)throw error;showStatus('moderator-guild-status','ok',`${g.guild_name} has been approved.`);await loadModeratorGuilds();}
+  if(!await appConfirm(`Approve this registered guild?\n\n${g.guild_name}`,{title:'Approve guild registration',confirmText:'APPROVE GUILD'}))return;
+  try{const {error}=await moderatorDb.rpc('moderator_approve_guild',{p_guild_name_normalized:norm});if(error)throw error;invalidateGuildDirectoryCaches();showStatus('moderator-guild-status','ok',`${g.guild_name} has been approved.`);await loadModeratorGuilds();}
   catch(error){showStatus('moderator-guild-status','error',humanizeError(error));}
 }
 async function moderatorRemoveGuild(norm){
   const g=state.moderatorGuilds.find(x=>String(x.guild_name_normalized)===String(norm));if(!g)return;
-  if(!confirm(`PERMANENTLY REMOVE this guild registration?\n\n${g.guild_name}\n\nHistorical challenge/result records may remain.`))return;
-  try{const {error}=await moderatorDb.rpc('moderator_remove_guild',{p_guild_name_normalized:norm});if(error)throw error;showStatus('moderator-guild-status','ok',`${g.guild_name} was removed from the guild registry.`);await loadModeratorGuilds();}
+  if(!await appConfirm(`Remove this guild registration?\n\n${g.guild_name}\n\nHistorical challenge/result records may remain.`,{title:'Remove guild registration',confirmText:'REMOVE GUILD',danger:true}))return;
+  try{const {error}=await moderatorDb.rpc('moderator_remove_guild',{p_guild_name_normalized:norm});if(error)throw error;invalidateGuildDirectoryCaches();showStatus('moderator-guild-status','ok',`${g.guild_name} was removed from the guild registry.`);await loadModeratorGuilds();}
   catch(error){showStatus('moderator-guild-status','error',humanizeError(error));}
 }
 async function moderatorApproveResult(id){
   const row=state.moderatorResults.find(r=>String(r.id)===String(id));if(!row)return;
-  if(!confirm(`APPROVE RESULT AND AWARD WEEKLY POINTS?\n\n${row.winner_guild} defeated ${row.loser_guild}\nScore: ${row.score}\n\nThis will run the existing weekly point-award function.`))return;
+  if(!await appConfirm(`Approve this result and award weekly points?\n\n${row.winner_guild} defeated ${row.loser_guild}\nScore: ${row.score}\n\nThe existing weekly point-award function will run.`,{title:'Approve match result',confirmText:'APPROVE & AWARD POINTS'}))return;
   try{
     const {error}=await moderatorDb.rpc('moderator_approve_result',{p_result_id:id});if(error)throw error;
     showStatus('moderator-results-status','ok','Result approved. The existing weekly points function has been called.');
@@ -1351,7 +1462,7 @@ async function moderatorApproveResult(id){
   }catch(error){showStatus('moderator-results-status','error',humanizeError(error));}
 }
 async function moderatorRejectResult(id){
-  const reason=prompt('Reason for rejection:','Proof or result issue');if(reason===null)return;
+  const reason=await appPrompt('Add a short reason for rejecting this result.','Proof or result issue',{title:'Reject result',confirmText:'REJECT RESULT',placeholder:'Describe the issue...',required:true,danger:true});if(reason===null)return;
   try{
     const {error}=await moderatorDb.rpc('moderator_reject_result',{p_result_id:id,p_reason:reason.trim()||'Rejected by moderator'});if(error)throw error;
     showStatus('moderator-results-status','ok','Result rejected. The challenge was reopened when eligible.');
@@ -1412,7 +1523,7 @@ function renderPublicGuildProfiles(){
   const q=String($('public-guild-profile-search')?.value||'').trim().toLowerCase();
   const rows=(state.guildProfiles||[]).filter(p=>!q||String(p.guild_name||'').toLowerCase().includes(q)||String(p.guild_uid||'').toLowerCase().includes(q));
   const count=$('public-profile-count');if(count)count.textContent=`${rows.length} GUILDS`;
-  target.innerHTML=rows.length?rows.map(p=>`<article class="guild-profile-card">${guildAvatarMarkup(p,true)}<div class="guild-profile-main"><div class="guild-profile-name">${escapeHtml(p.guild_name)}</div><div class="guild-profile-uid">UID: ${escapeHtml(p.guild_uid||'Not added')}</div><div class="guild-profile-meta">${numberMetric(p,'total_played')} PLAYED · ${numberMetric(p,'wins')}W / ${numberMetric(p,'losses')}L</div><div class="guild-profile-meta">🏆 ${numberMetric(p,'weekly_trophies')} weekly · ${numberMetric(p,'monthly_trophies')} monthly</div><button class="btn btn-green btn-small" style="margin-top:8px" type="button" data-action="open-public-guild-profile" data-guild="${escapeHtml(p.guild_name_normalized)}">VIEW PROFILE</button></div></article>`).join(''):'<div class="empty">No approved guild profiles match this search.</div>';
+  target.innerHTML=rows.length?rows.map(p=>`<article class="guild-profile-card">${guildAvatarMarkup(p,true)}<div class="guild-profile-main"><div class="guild-profile-name">${escapeHtml(p.guild_name)}</div><div class="guild-profile-uid">UID: ${escapeHtml(p.guild_uid||'Not added')}</div>${p.profile_incomplete?'<div class="guild-profile-meta">PROFILE SETUP PENDING · MATCH STATS NOT AVAILABLE</div>':`<div class="guild-profile-meta">${numberMetric(p,'total_played')} PLAYED · ${numberMetric(p,'wins')}W / ${numberMetric(p,'losses')}L</div><div class="guild-profile-meta">🏆 ${numberMetric(p,'weekly_trophies')} weekly · ${numberMetric(p,'monthly_trophies')} monthly</div>`}<button class="btn btn-green btn-small" style="margin-top:8px" type="button" data-action="open-public-guild-profile" data-guild="${escapeHtml(p.guild_name_normalized||normalizeGuild(p.guild_name))}">VIEW PROFILE</button></div></article>`).join(''):'<div class="empty">No approved guild profiles match this search.</div>';
 }
 function setLogoCooldownNote(profile){
   const note=$('guild-logo-cooldown-note'),file=$('guild-profile-logo');if(!note||!file)return;
@@ -1428,21 +1539,48 @@ function populateMyGuildProfileEditor(){
   if(mine){input.value=mine.guild_uid||'';setLogoCooldownNote(mine);}else{input.value='';setLogoCooldownNote(null);}
 }
 async function loadPublicGuildProfiles(){
-  const target=$('public-guild-profile-grid');if(target)target.innerHTML='<div class="empty">Loading profiles, match stats and fresh badge missions...</div>';
+  const target=$('public-guild-profile-grid');if(target)target.innerHTML='<div class="empty">Loading approved guild profiles...</div>';
   try{
-    const [profilesResult,badgeResult]=await Promise.all([
+    const registryPromise=state.registeredGuildsLoaded
+      ? Promise.resolve({data:state.registeredGuilds,error:null})
+      : db.rpc('get_gvg_registered_guilds').catch(error=>({data:null,error}));
+    const [profilesResult,badgeResult,registryResult]=await Promise.all([
       db.rpc('get_gvg_public_guild_profiles'),
-      db.rpc('get_gvg_public_badge_progress')
+      db.rpc('get_gvg_public_badge_progress'),
+      registryPromise
     ]);
     if(profilesResult.error)throw profilesResult.error;
     if(badgeResult.error)throw badgeResult.error;
     const profiles=Array.isArray(profilesResult.data)?profilesResult.data:[];
     const progressRows=Array.isArray(badgeResult.data)?badgeResult.data:[];
-    const progressByGuild=new Map(progressRows.map(row=>[String(row.guild_name_normalized||''),row]));
-    state.guildProfiles=profiles.map(profile=>({
+    if(!registryResult.error&&Array.isArray(registryResult.data)){state.registeredGuilds=registryResult.data;state.registeredGuildsLoaded=true;}
+    const progressByGuild=new Map(progressRows.map(row=>[normalizeGuild(row.guild_name_normalized||row.guild_name||''),row]));
+    const byGuild=new Map();
+    profiles.forEach(profile=>{
+      const key=normalizeGuild(profile.guild_name_normalized||profile.guild_name||'');
+      if(key)byGuild.set(key,{...profile});
+    });
+    // Some approved guilds may lack a public-profile row (for example, older registrations).
+    // Keep them visible, but do not expose pending, rejected, or banned registrations publicly.
+    (state.registeredGuilds||[]).forEach(guild=>{
+      const key=normalizeGuild(guild.guild_name_normalized||guild.guild_name||'');
+      const status=String(guild.approval_status||'').toLowerCase();
+      const isBanned=Boolean(guild.is_banned||(guild.ban_until&&new Date(guild.ban_until)>new Date()));
+      if(!key||status!=='approved'||isBanned||byGuild.has(key))return;
+      byGuild.set(key,{
+        guild_name:guild.guild_name,
+        guild_name_normalized:key,
+        guild_uid:'',
+        guild_logo_url:'',
+        total_played:0,wins:0,losses:0,win_rate:0,
+        weekly_trophies:0,monthly_trophies:0,
+        profile_incomplete:true
+      });
+    });
+    state.guildProfiles=[...byGuild.values()].map(profile=>({
       ...profile,
-      ...(progressByGuild.get(String(profile.guild_name_normalized||''))||{})
-    }));
+      ...(progressByGuild.get(normalizeGuild(profile.guild_name_normalized||profile.guild_name||''))||{})
+    })).sort((a,b)=>String(a.guild_name||'').localeCompare(String(b.guild_name||'')));
     renderPublicGuildProfiles();populateMyGuildProfileEditor();
   }catch(error){console.error('Guild profiles failed:',error);if(target)target.innerHTML=`<div class="empty">Could not load profiles: ${escapeHtml(humanizeError(error))}</div>`;showStatus('guild-profile-status','error',humanizeError(error));}
 }
@@ -1453,13 +1591,14 @@ function renderBadgeGrid(profile,showLocked=true){
   return `<div class="guild-badge-section-title">UNLOCKED BADGES • ${earned.length}/40</div><div class="hint" style="margin:0 0 10px">Badge missions count only approved results from ${escapeHtml(started)} onward. Older match history does not unlock badges; lifetime statistics and Weekly/Monthly Champion trophies are unchanged.</div><div class="guild-badge-grid">${shown.map(b=>{const ok=badgeUnlocked(b,profile);return `<div class="guild-badge-item ${ok?'unlocked':'locked'}"><img src="${badgeImgPath(b.file)}" alt="${escapeHtml(b.name)}" loading="lazy" /><strong>${escapeHtml(b.name)}</strong><small>${escapeHtml(b.desc)}</small><span class="guild-badge-status ${ok?'complete':'pending'}">${ok?'UNLOCKED':'LOCKED'}</span></div>`;}).join('')}</div>`;
 }
 function openPublicGuildProfile(norm){
-  const p=(state.guildProfiles||[]).find(x=>String(x.guild_name_normalized)===String(norm));if(!p)return;
+  const p=(state.guildProfiles||[]).find(x=>normalizeGuild(x.guild_name_normalized||x.guild_name)===normalizeGuild(norm));if(!p)return;
   const unlocked=GVG_BADGES.filter(b=>badgeUnlocked(b,p)).length;
+  const statsMarkup=p.profile_incomplete
+    ? '<div class="hint" style="margin-top:10px">This approved guild is listed, but its public profile data has not been created yet. UID, logo, match statistics and achievements will appear after profile data is available.</div>'
+    : `<div class="guild-profile-kpis"><div class="guild-profile-kpi"><span>Played</span><strong>${numberMetric(p,'total_played')}</strong></div><div class="guild-profile-kpi"><span>Wins</span><strong>${numberMetric(p,'wins')}</strong></div><div class="guild-profile-kpi"><span>Losses</span><strong>${numberMetric(p,'losses')}</strong></div><div class="guild-profile-kpi"><span>Win Rate</span><strong>${Number(p.win_rate||0).toFixed(1)}%</strong></div></div>
+    <div class="guild-profile-kpis"><div class="guild-profile-kpi"><span>Weekly trophies</span><strong>🏆 ${numberMetric(p,'weekly_trophies')}</strong></div><div class="guild-profile-kpi"><span>Monthly trophies</span><strong>👑 ${numberMetric(p,'monthly_trophies')}</strong></div><div class="guild-profile-kpi"><span>Top 10 weeks</span><strong>${numberMetric(p,'top10_weeks')}</strong></div><div class="guild-profile-kpi"><span>Longest streak</span><strong>${numberMetric(p,'max_win_streak')}</strong></div></div>${renderBadgeGrid(p,true)}<div class="hint" style="margin-top:12px">Statistics use approved results only. Trophies are official awards added by the GVG Admin.</div>`;
   const html=`<div class="modal-head"><div><div class="kicker">Public Guild Profile</div><h3>${escapeHtml(p.guild_name)}</h3></div><button class="close-btn" type="button" data-action="close-modal">×</button></div>
-    <div style="display:flex;align-items:center;gap:12px;margin:12px 0">${guildAvatarMarkup(p,true)}<div><div style="font-weight:900">GUILD UID</div><div class="guild-profile-uid">${escapeHtml(p.guild_uid||'Not added yet')}</div><div class="guild-profile-meta">${unlocked}/40 achievements unlocked</div></div></div>
-    <div class="guild-profile-kpis"><div class="guild-profile-kpi"><span>Played</span><strong>${numberMetric(p,'total_played')}</strong></div><div class="guild-profile-kpi"><span>Wins</span><strong>${numberMetric(p,'wins')}</strong></div><div class="guild-profile-kpi"><span>Losses</span><strong>${numberMetric(p,'losses')}</strong></div><div class="guild-profile-kpi"><span>Win Rate</span><strong>${Number(p.win_rate||0).toFixed(1)}%</strong></div></div>
-    <div class="guild-profile-kpis"><div class="guild-profile-kpi"><span>Weekly trophies</span><strong>🏆 ${numberMetric(p,'weekly_trophies')}</strong></div><div class="guild-profile-kpi"><span>Monthly trophies</span><strong>👑 ${numberMetric(p,'monthly_trophies')}</strong></div><div class="guild-profile-kpi"><span>Top 10 weeks</span><strong>${numberMetric(p,'top10_weeks')}</strong></div><div class="guild-profile-kpi"><span>Longest streak</span><strong>${numberMetric(p,'max_win_streak')}</strong></div></div>
-    ${renderBadgeGrid(p,true)}<div class="hint" style="margin-top:12px">Statistics use approved results only. Trophies are official awards added by the GVG Admin.</div>`;
+    <div style="display:flex;align-items:center;gap:12px;margin:12px 0">${guildAvatarMarkup(p,true)}<div><div style="font-weight:900">GUILD UID</div><div class="guild-profile-uid">${escapeHtml(p.guild_uid||'Not added yet')}</div>${p.profile_incomplete?'':`<div class="guild-profile-meta">${unlocked}/40 achievements unlocked</div>`}</div></div>${statsMarkup}`;
   openModal(html);
 }
 function publicStoragePathFromUrl(publicUrl,bucket){
@@ -1596,10 +1735,10 @@ async function loadAdminGuildNameChangeRequests(){
 async function reviewGuildNameChangeRequest(id,approve){
   const request=(state.guildNameChangeRequests||[]).find(r=>String(r.id)===String(id));if(!request)return;
   const decision=approve?'APPROVE':'REJECT';
-  const reason=prompt(approve?`Optional approval note for ${request.current_guild_name} → ${request.requested_guild_name}:`:`Reason for rejecting ${request.current_guild_name} → ${request.requested_guild_name}:`,approve?'':'Name-change request not approved.');
+  const reason=await appPrompt(approve?`Add an optional note for ${request.current_guild_name} → ${request.requested_guild_name}.`:`Enter the reason for rejecting ${request.current_guild_name} → ${request.requested_guild_name}.`,approve?'':'Name-change request not approved.',{title:approve?'Approve guild name change':'Reject guild name change',confirmText:approve?'APPROVE NAME':'REJECT REQUEST',placeholder:approve?'Optional admin note':'Reason for rejection',required:!approve,danger:!approve});
   if(reason===null)return;
-  if(!approve&&!reason.trim())return showStatus('admin-name-change-status','error','Please enter a rejection reason.');
   try{const {error}=await adminDb.rpc('admin_review_gvg_guild_name_change',{p_request_id:id,p_approve:approve,p_reason:reason.trim()||null});if(error)throw error;
+    if(approve)invalidateGuildDirectoryCaches();
     showStatus('admin-name-change-status','ok',approve?`Guild name approved: ${request.current_guild_name} is now ${request.requested_guild_name}.`:'Guild name-change request rejected.');
     await Promise.all([loadAdminGuildNameChangeRequests(),loadAdminGuilds()]);
   }catch(error){showStatus('admin-name-change-status','error',humanizeError(error));}
@@ -1759,8 +1898,8 @@ async function loadHofAdmin(){
   }catch(error){console.error('Admin HoF load failed:',error);showStatus('admin-status','error',`Hall of Fame controls: ${humanizeError(error)}. Apply database/05 migration first.`);const list=$('admin-hof-awards-list');if(list)list.innerHTML=`<div class="empty">${escapeHtml(humanizeError(error))}</div>`;}
 }
 async function saveHofSeasonSettings(e){e.preventDefault();clearStatus('hof-season-status');try{const year=Number($('hof-season-year').value),week=Number($('hof-current-week').value);const {error}=await adminDb.rpc('admin_update_gvg_hof_settings',{p_season_year:year,p_current_week:week});if(error)throw error;state.hofSettings={season_year:year,current_week:week};showStatus('hof-season-status','ok','Current Hall of Fame season settings saved.');await loadHofAdmin();}catch(error){showStatus('hof-season-status','error',humanizeError(error));}}
-async function awardHofTrophy(e){e.preventDefault();clearStatus('hof-award-status');const type=$('hof-award-type').value,year=Number($('hof-award-year').value),period=Number($('hof-award-period').value),guildNorm=$('hof-award-guild').value,label=$('hof-award-label').value.trim(),notes=$('hof-award-notes').value.trim();if(!guildNorm||!label)return showStatus('hof-award-status','error','Choose an approved guild and enter a trophy label.');const already=state.adminHofAwards.find(a=>a.award_type===type&&Number(a.award_year)===year&&Number(a.period_number)===period);if(already&&!confirm(`${hallPeriodLabel(type,period)} ${year} already has a champion: ${already.guild_name}. Replace it with the selected guild?`))return;try{setBusy('hof-award-submit',true,'SAVING AWARD');const {error}=await adminDb.rpc('admin_add_gvg_hall_of_fame_award',{p_guild_name_normalized:guildNorm,p_award_type:type,p_award_year:year,p_period_number:period,p_trophy_label:label,p_notes:notes||null});if(error)throw error;showStatus('hof-award-status','ok','Official champion trophy saved to Hall of Fame and guild profile.');await loadHofAdmin();}catch(error){showStatus('hof-award-status','error',humanizeError(error));}finally{setBusy('hof-award-submit',false,'AWARD TROPHY');}}
-async function removeHofAward(id){const a=state.adminHofAwards.find(x=>String(x.id)===String(id));if(!a)return;if(!confirm(`Remove the official Hall of Fame award?\n\n${a.trophy_label} — ${a.guild_name}\n\nThis does not delete match results or ranking points.`))return;try{const {error}=await adminDb.rpc('admin_remove_gvg_hall_of_fame_award',{p_award_id:id});if(error)throw error;showStatus('admin-status','ok','Hall of Fame trophy removed.');await loadHofAdmin();}catch(error){showStatus('admin-status','error',humanizeError(error));}}
+async function awardHofTrophy(e){e.preventDefault();clearStatus('hof-award-status');const type=$('hof-award-type').value,year=Number($('hof-award-year').value),period=Number($('hof-award-period').value),guildNorm=$('hof-award-guild').value,label=$('hof-award-label').value.trim(),notes=$('hof-award-notes').value.trim();if(!guildNorm||!label)return showStatus('hof-award-status','error','Choose an approved guild and enter a trophy label.');const already=state.adminHofAwards.find(a=>a.award_type===type&&Number(a.award_year)===year&&Number(a.period_number)===period);if(already&&!await appConfirm(`${hallPeriodLabel(type,period)} ${year} already has ${already.guild_name} as champion. Replace this award with the selected guild?`,{title:'Replace Hall of Fame champion',confirmText:'REPLACE AWARD',danger:true}))return;try{setBusy('hof-award-submit',true,'SAVING AWARD');const {error}=await adminDb.rpc('admin_add_gvg_hall_of_fame_award',{p_guild_name_normalized:guildNorm,p_award_type:type,p_award_year:year,p_period_number:period,p_trophy_label:label,p_notes:notes||null});if(error)throw error;showStatus('hof-award-status','ok','Official champion trophy saved to Hall of Fame and guild profile.');await loadHofAdmin();}catch(error){showStatus('hof-award-status','error',humanizeError(error));}finally{setBusy('hof-award-submit',false,'AWARD TROPHY');}}
+async function removeHofAward(id){const a=state.adminHofAwards.find(x=>String(x.id)===String(id));if(!a)return;if(!await appConfirm(`Remove the official Hall of Fame award?\n\n${a.trophy_label} — ${a.guild_name}\n\nMatch results and ranking points will not be deleted.`,{title:'Remove Hall of Fame award',confirmText:'REMOVE AWARD',danger:true}))return;try{const {error}=await adminDb.rpc('admin_remove_gvg_hall_of_fame_award',{p_award_id:id});if(error)throw error;showStatus('admin-status','ok','Hall of Fame trophy removed.');await loadHofAdmin();}catch(error){showStatus('admin-status','error',humanizeError(error));}}
 
 /* ------------------------- Events ------------------------- */
 /* Do not fetch stored proof screenshots until the user expands a proof panel. */
