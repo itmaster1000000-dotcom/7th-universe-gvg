@@ -635,7 +635,8 @@ async function loadRegisteredGuilds(){
   try{
     const {data,error}=await db.rpc('get_gvg_registered_guilds');
     if(error) throw error;
-    state.registeredGuilds=data||[];
+    state.registeredGuilds=Array.isArray(data)?data:[];
+    state.registeredGuildsLoaded=true;
     if(countBadge) countBadge.textContent=`${state.registeredGuilds.length} GUILDS`;
     target.innerHTML=state.registeredGuilds.length
       ? state.registeredGuilds.map((g,i)=>{
@@ -1212,7 +1213,9 @@ async function removeLeader(leaderId,guildName){
     if(error) throw error;
 
     closeModal();
-    showStatus('admin-status','ok','Leader removed. The Auth account remains available for re-registration.');
+    clearSectionCache('member:');
+    invalidateGuildDirectoryCaches();
+    showStatus('admin-status','ok','Leader registration removed. The Auth account remains available for re-registration.');
     await loadAdminGuilds();
   }catch(error){
     showStatus('admin-status','error',humanizeError(error));
@@ -1539,29 +1542,40 @@ function populateMyGuildProfileEditor(){
   if(mine){input.value=mine.guild_uid||'';setLogoCooldownNote(mine);}else{input.value='';setLogoCooldownNote(null);}
 }
 async function loadPublicGuildProfiles(){
-  const target=$('public-guild-profile-grid');if(target)target.innerHTML='<div class="empty">Loading approved guild profiles...</div>';
+  const target=$('public-guild-profile-grid');
+  if(target)target.innerHTML='<div class="empty">Loading approved guild profiles...</div>';
   try{
     const registryPromise=state.registeredGuildsLoaded
       ? Promise.resolve({data:state.registeredGuilds,error:null})
       : db.rpc('get_gvg_registered_guilds').catch(error=>({data:null,error}));
     const [profilesResult,badgeResult,registryResult]=await Promise.all([
-      db.rpc('get_gvg_public_guild_profiles'),
-      db.rpc('get_gvg_public_badge_progress'),
+      db.rpc('get_gvg_public_guild_profiles').catch(error=>({data:null,error})),
+      db.rpc('get_gvg_public_badge_progress').catch(error=>({data:null,error})),
       registryPromise
     ]);
-    if(profilesResult.error)throw profilesResult.error;
-    if(badgeResult.error)throw badgeResult.error;
-    const profiles=Array.isArray(profilesResult.data)?profilesResult.data:[];
-    const progressRows=Array.isArray(badgeResult.data)?badgeResult.data:[];
-    if(!registryResult.error&&Array.isArray(registryResult.data)){state.registeredGuilds=registryResult.data;state.registeredGuildsLoaded=true;}
-    const progressByGuild=new Map(progressRows.map(row=>[normalizeGuild(row.guild_name_normalized||row.guild_name||''),row]));
+
+    const profilesOk=!profilesResult.error;
+    const registryOk=!registryResult.error&&Array.isArray(registryResult.data);
+    if(!profilesOk)console.warn('Public guild profile RPC failed; attempting approved registry fallback:',profilesResult.error);
+    if(badgeResult.error)console.warn('Badge progress is temporarily unavailable; guild cards will still load:',badgeResult.error);
+    if(registryOk){
+      state.registeredGuilds=registryResult.data;
+      state.registeredGuildsLoaded=true;
+    }
+
+    const profiles=profilesOk&&Array.isArray(profilesResult.data)?profilesResult.data:[];
+    const progressRows=!badgeResult.error&&Array.isArray(badgeResult.data)?badgeResult.data:[];
+    const progressByGuild=new Map(progressRows.map(row=>[
+      normalizeGuild(row.guild_name_normalized||row.guild_name||''),row
+    ]));
     const byGuild=new Map();
     profiles.forEach(profile=>{
       const key=normalizeGuild(profile.guild_name_normalized||profile.guild_name||'');
-      if(key)byGuild.set(key,{...profile});
+      if(key&&!byGuild.has(key))byGuild.set(key,{...profile});
     });
-    // Some approved guilds may lack a public-profile row (for example, older registrations).
-    // Keep them visible, but do not expose pending, rejected, or banned registrations publicly.
+
+    // Approved guilds with missing profile rows remain visible as incomplete cards.
+    // Never expose pending/rejected/banned entries through this fallback.
     (state.registeredGuilds||[]).forEach(guild=>{
       const key=normalizeGuild(guild.guild_name_normalized||guild.guild_name||'');
       const status=String(guild.approval_status||'').toLowerCase();
@@ -1570,19 +1584,28 @@ async function loadPublicGuildProfiles(){
       byGuild.set(key,{
         guild_name:guild.guild_name,
         guild_name_normalized:key,
-        guild_uid:'',
-        guild_logo_url:'',
+        guild_uid:'',guild_logo_url:'',
         total_played:0,wins:0,losses:0,win_rate:0,
         weekly_trophies:0,monthly_trophies:0,
         profile_incomplete:true
       });
     });
+
+    if(!byGuild.size&&!profilesOk&&!registryOk){
+      throw profilesResult.error||registryResult.error||new Error('Could not load guild profiles or the approved guild directory.');
+    }
+
     state.guildProfiles=[...byGuild.values()].map(profile=>({
       ...profile,
       ...(progressByGuild.get(normalizeGuild(profile.guild_name_normalized||profile.guild_name||''))||{})
     })).sort((a,b)=>String(a.guild_name||'').localeCompare(String(b.guild_name||'')));
-    renderPublicGuildProfiles();populateMyGuildProfileEditor();
-  }catch(error){console.error('Guild profiles failed:',error);if(target)target.innerHTML=`<div class="empty">Could not load profiles: ${escapeHtml(humanizeError(error))}</div>`;showStatus('guild-profile-status','error',humanizeError(error));}
+    renderPublicGuildProfiles();
+    populateMyGuildProfileEditor();
+  }catch(error){
+    console.error('Guild profiles failed:',error);
+    if(target)target.innerHTML=`<div class="empty">Could not load profiles: ${escapeHtml(humanizeError(error))}</div>`;
+    showStatus('guild-profile-status','error',humanizeError(error));
+  }
 }
 function renderBadgeGrid(profile,showLocked=true){
   const earned=GVG_BADGES.filter(b=>badgeUnlocked(b,profile));
@@ -1642,8 +1665,8 @@ async function uploadGuildLogo(file){
 async function saveMyGuildProfile(e){
   e.preventDefault();clearStatus('guild-profile-status');
   if(!guildApproved())return showStatus('guild-profile-status','error','Only an approved, active guild can update its profile.');
-  const myNorm=String(state.guild?.guild_name_normalized||normalizeGuild(state.guild?.guild_name));
-  const profile=(state.guildProfiles||[]).find(p=>String(p.guild_name_normalized)===myNorm);
+  const myNorm=normalizeGuild(state.guild?.guild_name_normalized||state.guild?.guild_name||'');
+  const profile=(state.guildProfiles||[]).find(p=>normalizeGuild(p.guild_name_normalized||p.guild_name||'')===myNorm);
   const file=$('guild-profile-logo').files?.[0]||null;
   if(file){const changed=profile?.guild_logo_changed_at?new Date(profile.guild_logo_changed_at).getTime():0;if(changed&&Date.now()<changed+3*24*60*60*1000)return showStatus('guild-profile-status','error','LOGO COOLDOWN: Your guild logo can only be changed once every 3 days.');}
   let uploadedLogoUrl=null;
