@@ -92,10 +92,45 @@ function markSectionLoaded(key){ sectionLoadCache.set(key, Date.now()); }
 function clearSectionCache(prefix=''){
   for(const key of sectionLoadCache.keys()) if(!prefix || key.startsWith(prefix)) sectionLoadCache.delete(key);
 }
+
+/* Approved/rejected results can change rankings immediately. Clear all related
+   short-lived caches so returning from Admin/Moderator never shows old points. */
+function invalidateResultViewCaches(){
+  clearSectionCache('member:ranking');
+  clearSectionCache('member:approved-results');
+  clearSectionCache('member:my-results');
+  clearSectionCache('member:challenges');
+  state.rankingCache={};
+}
+async function refreshVisibleMemberResultView(){
+  const dashboard=$('member-dashboard');
+  if(!dashboard || dashboard.style.display==='none') return;
+  const active=document.querySelector('#member-dashboard .member-view.active');
+  if(!active) return;
+  if(active.id==='member-section-ranking'){
+    await loadRanking(state.rankingMode||'current-week');
+  }else if(active.id==='member-section-results'){
+    await Promise.all([loadLiveChallenges(),loadApprovedResults(),loadMyResultSubmissions()]);
+  }else if(active.id==='member-section-challenges'){
+    await loadLiveChallenges();
+  }else if(active.id==='member-section-name-change'){
+    await loadMyGuildNameChangeStatus();
+  }
+}
+async function refreshMemberAfterPrivilegedView(){
+  if(!state.user) return;
+  await loadMyGuild();
+  syncRegisterNav();
+  setMemberAccessGate();
+  invalidateResultViewCaches();
+  clearSectionCache('member:name-change-status');
+  await refreshVisibleMemberResultView();
+}
 function invalidateGuildDirectoryCaches(){
   clearSectionCache('member:guild-options');
   clearSectionCache('member:registered-guilds');
   clearSectionCache('member:guild-profiles');
+  clearSectionCache('member:name-change-status');
   state.guildOptions=[];
   state.registeredGuilds=[];
   state.registeredGuildsLoaded=false;
@@ -274,7 +309,7 @@ function setMemberAccessGate(){
 }
 
 function openMemberSection(name){
-  const allowed=['rules','challenges','results','ranking','registered-guilds','guild-profiles','hall-of-fame'];
+  const allowed=['rules','challenges','results','ranking','registered-guilds','guild-profiles','name-change','hall-of-fame'];
   const section=allowed.includes(name)?name:'rules';
 
   if(!memberDashboardAllowed()){
@@ -293,10 +328,8 @@ function openMemberSection(name){
   ]);
   if(section==='ranking') setRankingMode(state.rankingMode || 'current-week');
   if(section==='registered-guilds') loadSectionCached('member:registered-guilds',loadRegisteredGuilds,30000);
-  if(section==='guild-profiles') Promise.all([
-    loadSectionCached('member:guild-profiles',loadPublicGuildProfiles,30000),
-    loadSectionCached('member:name-change-status',loadMyGuildNameChangeStatus,15000)
-  ]);
+  if(section==='guild-profiles') loadSectionCached('member:guild-profiles',loadPublicGuildProfiles,30000);
+  if(section==='name-change') loadSectionCached('member:name-change-status',loadMyGuildNameChangeStatus,15000);
   if(section==='hall-of-fame') loadSectionCached('member:hall-of-fame',loadHallOfFame,30000);
   window.scrollTo({top:0,behavior:'smooth'});
 }
@@ -1135,11 +1168,12 @@ function adminGuildInfo(g){
 }
 
 function adminGuildEdit(g){
+  const originalPoints=Number(g.points)||0;
   const leaders=leaderArray(g);
   const editableLeaders=leaders.filter(l=>l && l.id);
   const first=editableLeaders[0]||{id:g.id,contact:g.contact||'',email:''};
   const leaderOptions=editableLeaders.length?editableLeaders.map((l,i)=>`<option value="${escapeHtml(l.id)}" data-contact="${escapeHtml(l.contact||'')}" data-email="${escapeHtml(l.email||'')}">LEADER ${i+1} • ${escapeHtml(l.email||'Email unavailable')}</option>`).join(''):`<option value="${escapeHtml(g.id)}" data-contact="${escapeHtml(g.contact||'')}">REGISTERED RECORD</option>`;
-  openModal(`<div class="modal-head"><div><div class="kicker">Edit Guild</div><h3>${escapeHtml(g.guild_name)}</h3></div><button class="close-btn" type="button" data-action="close-modal">×</button></div><form id="edit-guild-form"><div class="field-grid"><label class="full">LEADER RECORD<select id="edit-leader-id">${leaderOptions}</select></label><label>CONTACT NUMBER<input id="edit-contact" type="tel" value="${escapeHtml(first.contact||g.contact||'')}" required /></label><label>CURRENT WEEK POINTS<input id="edit-points" type="number" step="1" value="${escapeHtml(g.points)}" required /></label><label class="full">LEADER APPROVAL STATUS<select id="edit-status"><option value="approved" ${editableLeaders[0]?.approval_status==='approved'?'selected':''}>Approved</option><option value="pending" ${editableLeaders[0]?.approval_status==='pending'?'selected':''}>Pending</option><option value="rejected" ${editableLeaders[0]?.approval_status==='rejected'?'selected':''}>Rejected</option></select></label></div><div class="hint">Select the individual leader record whose contact/status you want to edit. Weekly points remain shared by the guild.</div><div class="modal-actions"><button class="btn btn-primary" type="submit">SAVE CONTACT + POINTS</button><button class="btn btn-gold" id="edit-reset-password" type="button">CHANGE PASSWORD VIA RESET EMAIL</button><button class="btn btn-ghost" type="button" data-action="guild-info" data-id="${escapeHtml(g.id)}">CANCEL</button></div><div id="edit-status-message" class="status"></div></form>`);
+  openModal(`<div class="modal-head"><div><div class="kicker">Edit Guild</div><h3>${escapeHtml(g.guild_name)}</h3></div><button class="close-btn" type="button" data-action="close-modal">×</button></div><form id="edit-guild-form"><div class="field-grid"><label class="full">LEADER RECORD<select id="edit-leader-id">${leaderOptions}</select></label><label>CONTACT NUMBER<input id="edit-contact" type="tel" value="${escapeHtml(first.contact||g.contact||'')}" required /></label><label class="full">CURRENT WEEK POINTS (MANUAL ADJUSTMENT)<input id="edit-points" type="number" step="1" value="${escapeHtml(g.points)}" required /></label><label class="full">LEADER APPROVAL STATUS<select id="edit-status"><option value="approved" ${editableLeaders[0]?.approval_status==='approved'?'selected':''}>Approved</option><option value="pending" ${editableLeaders[0]?.approval_status==='pending'?'selected':''}>Pending</option><option value="rejected" ${editableLeaders[0]?.approval_status==='rejected'?'selected':''}>Rejected</option></select></label></div><div class="hint">Select the individual leader whose contact/status you want to edit. Weekly points are shared by the guild. Changing CURRENT WEEK POINTS manually changes the ranking total but does not create a match-result point event; only use it for an intentional penalty/correction. Contact/status-only edits should leave the displayed points unchanged.</div><div class="modal-actions"><button class="btn btn-primary" type="submit">SAVE CONTACT / STATUS / POINTS</button><button class="btn btn-gold" id="edit-reset-password" type="button">CHANGE PASSWORD VIA RESET EMAIL</button><button class="btn btn-ghost" type="button" data-action="guild-info" data-id="${escapeHtml(g.id)}">CANCEL</button></div><div id="edit-status-message" class="status"></div></form>`);
   const leaderSelect=$('edit-leader-id');
   const syncSelectedLeader=()=>{
     const o=leaderSelect.options[leaderSelect.selectedIndex];
@@ -1150,7 +1184,7 @@ function adminGuildEdit(g){
   leaderSelect.addEventListener('change',syncSelectedLeader);
   syncSelectedLeader();
   $('edit-reset-password').addEventListener('click',()=>{const o=leaderSelect.options[leaderSelect.selectedIndex];resetLeaderPassword(o?.dataset?.email||'');});
-  $('edit-guild-form').addEventListener('submit',async(event)=>{event.preventDefault();const leaderId=leaderSelect.value,contact=$('edit-contact').value.trim(),points=Number($('edit-points').value),status=$('edit-status').value;if(!Number.isInteger(points))return showStatus('edit-status-message','error','Points must be a whole number.');try{const {error}=await adminDb.rpc('admin_update_guild_controls',{p_guild_id:leaderId,p_contact:contact,p_points:points,p_approval_status:status});if(error)throw error;closeModal();showStatus('admin-status','ok','Guild controls updated.');await loadAdminGuilds();}catch(error){showStatus('edit-status-message','error',humanizeError(error));}});
+  $('edit-guild-form').addEventListener('submit',async(event)=>{event.preventDefault();const leaderId=leaderSelect.value,contact=$('edit-contact').value.trim(),points=Number($('edit-points').value),status=$('edit-status').value;if(!Number.isInteger(points))return showStatus('edit-status-message','error','Points must be a whole number.');try{const {error}=await adminDb.rpc('admin_update_guild_controls',{p_guild_id:leaderId,p_contact:contact,p_points:points===originalPoints?null:points,p_approval_status:status});if(error)throw error;invalidateResultViewCaches();closeModal();showStatus('admin-status','ok','Guild controls updated. Member ranking cache has been invalidated.');await loadAdminGuilds();}catch(error){showStatus('edit-status-message','error',humanizeError(error));}});
 }
 
 async function resetLeaderPassword(email){
@@ -1189,7 +1223,7 @@ async function setLeaderApproval(leaderId,status){
     const {error}=await adminDb.rpc('admin_update_guild_controls',{
       p_guild_id:leaderId,
       p_contact:found.leader.contact||'',
-      p_points:Number(found.guild.points)||0,
+      p_points:null,
       p_approval_status:status
     });
 
@@ -1233,11 +1267,11 @@ function preferredResultProofUrls(imageUrls){
 async function loadAdminResults(){
   try{const {data,error}=await adminDb.rpc('admin_get_results');if(error)throw error;const rows=data||[];state.results=rows;const target=$('admin-result-table');target.innerHTML=rows.length?rows.map(r=>{const imgs=preferredResultProofUrls(r.image_urls);const gallery=imgs.length?`<details class="proof-details"><summary>OPEN RESULT PROOF</summary><div class="proof-gallery">${imgs.map((u,i)=>`<a href="${escapeHtml(u)}" target="_blank" rel="noopener"><span class="proof-tag">RESULT PROOF</span><img data-proof-src="${escapeHtml(u)}" loading="lazy" decoding="async" alt="${escapeHtml(r.winner_guild)} vs ${escapeHtml(r.loser_guild)} result proof" /></a>`).join('')}</div></details>`:'<span class="muted">No proof</span>';return `<tr><td><strong>${escapeHtml(r.winner_guild)}</strong><div class="muted" style="margin-top:3px">DEFEAT</div><strong>${escapeHtml(r.loser_guild)}</strong></td><td>${escapeHtml(r.score)}</td><td><strong style="font-size:9px">${escapeHtml(formatDateTime(r.created_at))}</strong><div class="muted" style="margin-top:4px;font-size:7px">PAKISTAN TIME</div></td><td>${gallery}<div style="margin-top:6px"><span class="status-pill ${r.status==='approved'?'status-approved':r.status==='pending'?'status-pending':'status-rejected'}">${escapeHtml(r.status)}</span></div></td><td>${r.status==='pending'?`<div style="display:flex;gap:5px;flex-wrap:wrap"><button class="btn btn-green btn-small" type="button" data-action="approve-result" data-id="${escapeHtml(r.id)}">APPROVE</button><button class="btn btn-red btn-small" type="button" data-action="reject-result" data-id="${escapeHtml(r.id)}">REJECT</button></div>`:'—'}</td></tr>`;}).join(''):'<tr><td colspan="4">No result submissions.</td></tr>';}catch(error){showStatus('admin-status','error',humanizeError(error));}
 }
-async function approveResult(id){try{const {error}=await adminDb.rpc('admin_approve_result',{p_result_id:id});if(error)throw error;showStatus('admin-status','ok','Result approved and weekly points awarded.');clearSectionCache('admin:');await Promise.all([loadAdminResults(),loadAdminGuilds()]);markSectionLoaded('admin:results');markSectionLoaded('admin:guilds');}catch(error){showStatus('admin-status','error',humanizeError(error));}}
+async function approveResult(id){try{const {error}=await adminDb.rpc('admin_approve_result',{p_result_id:id});if(error)throw error;invalidateResultViewCaches();showStatus('admin-status','ok','Result approved. The database point-award function completed; rankings will reload on the next member view. WhatsApp delivery is handled by the webhook bridge.');clearSectionCache('admin:');await Promise.all([loadAdminResults(),loadAdminGuilds()]);markSectionLoaded('admin:results');markSectionLoaded('admin:guilds');}catch(error){showStatus('admin-status','error',humanizeError(error));}}
 async function rejectResult(id){
   const reason=await appPrompt('Add a short reason for rejecting this result.','Proof or result issue',{title:'Reject result',confirmText:'REJECT RESULT',placeholder:'Describe the issue...',required:true,danger:true});
   if(reason===null)return;
-  try{const {error}=await adminDb.rpc('admin_reject_result',{p_result_id:id,p_reason:reason.trim()||'Rejected by admin'});if(error)throw error;showStatus('admin-status','ok','Result rejected. The challenge is open again while it is still inside its cycle.');clearSectionCache('admin:results');await loadAdminResults();markSectionLoaded('admin:results');}catch(error){showStatus('admin-status','error',humanizeError(error));}
+  try{const {error}=await adminDb.rpc('admin_reject_result',{p_result_id:id,p_reason:reason.trim()||'Rejected by admin'});if(error)throw error;invalidateResultViewCaches();showStatus('admin-status','ok','Result rejected. The challenge is open again while it is still inside its cycle.');clearSectionCache('admin:results');await loadAdminResults();markSectionLoaded('admin:results');}catch(error){showStatus('admin-status','error',humanizeError(error));}
 }
 
 async function handleBan(e){e.preventDefault();clearStatus('ban-status');const guild=$('ban-guild').value.trim(),contact=$('ban-contact').value.trim(),duration=$('ban-duration').value,reason=$('ban-reason').value.trim()||'Rule violation';if(!guild&&!contact)return showStatus('ban-status','error','Enter a guild name or contact number.');let until=null;const now=new Date();if(duration==='1h')until=new Date(now.getTime()+60*60*1000);if(duration==='6h')until=new Date(now.getTime()+6*60*60*1000);if(duration==='1d')until=new Date(now.getTime()+24*60*60*1000);if(duration==='3d')until=new Date(now.getTime()+3*24*60*60*1000);if(duration==='7d')until=new Date(now.getTime()+7*24*60*60*1000);try{const {error}=await adminDb.rpc('admin_ban_guild_identity',{p_guild_name:guild||null,p_contact:contact||null,p_ban_until:until?until.toISOString():null,p_reason:reason});if(error)throw error;showStatus('ban-status','ok',until?`Guild banned until ${formatDateTime(until)}.`:'Guild permanently banned.');e.target.reset();$('ban-reason').value='Rule violation';await Promise.all([loadAdminGuilds(),loadBans()]);}catch(error){showStatus('ban-status','error',humanizeError(error));}}
@@ -1460,7 +1494,8 @@ async function moderatorApproveResult(id){
   if(!await appConfirm(`Approve this result and award weekly points?\n\n${row.winner_guild} defeated ${row.loser_guild}\nScore: ${row.score}\n\nThe existing weekly point-award function will run.`,{title:'Approve match result',confirmText:'APPROVE & AWARD POINTS'}))return;
   try{
     const {error}=await moderatorDb.rpc('moderator_approve_result',{p_result_id:id});if(error)throw error;
-    showStatus('moderator-results-status','ok','Result approved. The existing weekly points function has been called.');
+    invalidateResultViewCaches();
+    showStatus('moderator-results-status','ok','Result approved. The database point-award function completed; member rankings will reload after you return. WhatsApp delivery runs through the webhook bridge.');
     await loadModeratorResults();
   }catch(error){showStatus('moderator-results-status','error',humanizeError(error));}
 }
@@ -1468,6 +1503,7 @@ async function moderatorRejectResult(id){
   const reason=await appPrompt('Add a short reason for rejecting this result.','Proof or result issue',{title:'Reject result',confirmText:'REJECT RESULT',placeholder:'Describe the issue...',required:true,danger:true});if(reason===null)return;
   try{
     const {error}=await moderatorDb.rpc('moderator_reject_result',{p_result_id:id,p_reason:reason.trim()||'Rejected by moderator'});if(error)throw error;
+    invalidateResultViewCaches();
     showStatus('moderator-results-status','ok','Result rejected. The challenge was reopened when eligible.');
     await loadModeratorResults();
   }catch(error){showStatus('moderator-results-status','error',humanizeError(error));}
@@ -1947,7 +1983,7 @@ $('nav-moderator').addEventListener('click',async()=>{openView('moderator');awai
 $('moderator-login-form').addEventListener('submit',handleModeratorLogin);
 $('moderator-open-admin-login').addEventListener('click',async()=>{state.adminReturnToModerator=state.moderatorOk;openView('admin');await restoreAdmin();});
 $('moderator-admin-access').addEventListener('click',async()=>{state.adminReturnToModerator=state.moderatorOk;openView('admin');await restoreAdmin();});
-$('moderator-back').addEventListener('click',()=>openView(state.user?'member':'public'));
+$('moderator-back').addEventListener('click',async()=>{const target=state.user?'member':'public';openView(target);if(target==='member')await refreshMemberAfterPrivilegedView();});
 $('moderator-logout').addEventListener('click',handleModeratorLogout);
 $('moderator-guild-search').addEventListener('input',renderModeratorGuilds);
 document.querySelectorAll('[data-moderator-section]').forEach(btn=>btn.addEventListener('click',()=>openModeratorSection(btn.dataset.moderatorSection)));
@@ -1973,7 +2009,7 @@ $('hof-award-type')?.addEventListener('change',()=>{const type=$('hof-award-type
 $('hof-award-period')?.addEventListener('input',()=>syncHofAwardLabelFromPeriod(false));
 $('hof-award-label')?.addEventListener('input',()=>{ $('hof-award-label').dataset.autoGenerated='0'; });
 $('admin-login-form').addEventListener('submit',handleAdminLogin);
-$('admin-logout').addEventListener('click',async()=>{try{await adminDb.auth.signOut();}catch{}state.adminUser=null;state.adminOk=false;const target=state.adminReturnToModerator&&state.moderatorOk?'moderator':state.user?'member':'public';state.adminReturnToModerator=false;openView(target);});
+$('admin-logout').addEventListener('click',async()=>{try{await adminDb.auth.signOut();}catch{}state.adminUser=null;state.adminOk=false;const target=state.adminReturnToModerator&&state.moderatorOk?'moderator':state.user?'member':'public';state.adminReturnToModerator=false;openView(target);if(target==='member')await refreshMemberAfterPrivilegedView();});
 $('admin-guild-search').addEventListener('input',()=>renderGuildTable('all-guild-table',filteredGuilds()));
 $('modal-backdrop').addEventListener('click',(e)=>{if(e.target===$('modal-backdrop'))closeModal();});
 

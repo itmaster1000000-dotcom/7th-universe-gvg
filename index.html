@@ -1481,7 +1481,7 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
           <button class="member-tab" type="button" data-member-section="challenges">CHALLENGES</button>
           <button class="member-tab" type="button" data-member-section="results">RESULTS</button>
           <button class="member-tab" type="button" data-member-section="ranking">RANKING</button>
-          <button class="member-tab" type="button" data-member-section="registered-guilds">REGISTERED GUILDS</button><button class="member-tab" type="button" data-member-section="guild-profiles">GUILD PROFILES</button><button class="member-tab" type="button" data-member-section="hall-of-fame">HALL OF FAME</button>
+          <button class="member-tab" type="button" data-member-section="registered-guilds">REGISTERED GUILDS</button><button class="member-tab" type="button" data-member-section="guild-profiles">GUILD PROFILES</button><button class="member-tab" type="button" data-member-section="name-change">GUILD NAME CHANGE</button><button class="member-tab" type="button" data-member-section="hall-of-fame">HALL OF FAME</button>
         </div>
 
         <div id="member-section-rules" class="member-view active">
@@ -1597,7 +1597,16 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
             </form>
           </div>
           <div class="card" style="margin-top:14px">
-            <div class="panel-head"><div><div class="kicker">Guild Identity Approval</div><h3>REQUEST GUILD NAME CHANGE</h3><div class="subtle">A guild name changes only after Admin approval. After an approved name change, the next request is available after 3 days.</div></div><span class="badge badge-gold">ADMIN APPROVAL</span></div>
+            <div class="panel-head"><div><div class="kicker">Community Profiles</div><h3>ALL GUILD PROFILES</h3><div class="subtle">Tap any guild to view its record, trophies and unlocked achievements.</div></div><span id="public-profile-count" class="badge badge-green">LOADING</span></div>
+            <div class="search-bar"><input id="public-guild-profile-search" type="search" placeholder="Search guild name or Guild UID..." autocomplete="off" /><span class="search-icon">⌕</span></div>
+            <div id="public-guild-profile-grid" class="guild-profile-grid" style="margin-top:12px"><div class="empty">Loading guild profiles...</div></div>
+          </div>
+        </div>
+
+        <div id="member-section-name-change" class="member-view">
+          <div class="card">
+            <div class="panel-head"><div><div class="kicker">Guild Identity</div><h3>REQUEST GUILD NAME CHANGE</h3><div class="subtle">This section is available to each logged-in, approved guild. The new name becomes official only after Admin approval. A 3-day cooldown applies after an approved change.</div></div><span class="badge badge-gold">ADMIN APPROVAL</span></div>
+            <div class="hint" style="margin-bottom:12px">Your current name, pending request and cooldown are checked directly from Supabase. Do not create another account just to change a guild name.</div>
             <form id="guild-name-change-form" novalidate>
               <div class="field-grid">
                 <label class="full">NEW GUILD NAME<input id="guild-name-change-input" type="text" maxlength="50" minlength="3" placeholder="Enter requested guild name" autocomplete="off" required /></label>
@@ -1606,11 +1615,6 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
               <div class="split-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px"><button id="guild-name-change-submit" class="btn btn-primary" type="submit">SEND NAME CHANGE REQUEST</button></div>
               <div id="guild-name-change-status" class="status"></div>
             </form>
-          </div>
-          <div class="card" style="margin-top:14px">
-            <div class="panel-head"><div><div class="kicker">Community Profiles</div><h3>ALL GUILD PROFILES</h3><div class="subtle">Tap any guild to view its record, trophies and unlocked achievements.</div></div><span id="public-profile-count" class="badge badge-green">LOADING</span></div>
-            <div class="search-bar"><input id="public-guild-profile-search" type="search" placeholder="Search guild name or Guild UID..." autocomplete="off" /><span class="search-icon">⌕</span></div>
-            <div id="public-guild-profile-grid" class="guild-profile-grid" style="margin-top:12px"><div class="empty">Loading guild profiles...</div></div>
           </div>
         </div>
 
@@ -1897,7 +1901,7 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
   })();
   </script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="./script.js?v=27.0-verified-frontend-fixes"></script>
+  <script src="./script.js?v=28.0-result-refresh-name-change"></script>
 
   <style>
     .app-dialog-backdrop{position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(1,3,8,.82);backdrop-filter:blur(11px);-webkit-backdrop-filter:blur(11px)}
