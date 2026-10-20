@@ -744,7 +744,8 @@ let guildSearchSerial = 0;
 
 async function searchGuildSuggestions(query){
   const q=String(query||'').trim();
-  if(!q) return [];
+  // Start live guild lookup after the first two typed characters.
+  if(q.length < 2) return [];
   const serial=++guildSearchSerial;
   const localMatches=()=>getResultGuildNames().filter(name=>normalizeGuild(name).includes(normalizeGuild(q)));
   let remoteNames=[];
@@ -819,7 +820,7 @@ function paintGuildSuggestions(list,names){
 function renderGuildSuggestions(input,list){
   if(!input||!list) return;
   const q=input.value.trim();
-  if(q.length<1){
+  if(q.length<2){
     list.classList.remove('open');
     list.innerHTML='';
     return;
