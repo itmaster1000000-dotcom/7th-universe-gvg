@@ -773,9 +773,9 @@ async function searchGuildSuggestions(query){
 async function loadGuildOptions(){
   const registryPromise=state.registeredGuildsLoaded
     ? Promise.resolve({data:state.registeredGuilds,error:null})
-    : db.rpc('get_gvg_registered_guilds').catch(error=>({data:null,error}));
+    : Promise.resolve(db.rpc('get_gvg_registered_guilds')).catch(error=>({data:null,error}));
   const [optionsResult,registryResult]=await Promise.all([
-    db.rpc('get_gvg_guild_options').catch(error=>({data:null,error})),
+    Promise.resolve(db.rpc('get_gvg_guild_options')).catch(error=>({data:null,error})),
     registryPromise
   ]);
   if(optionsResult.error){
@@ -1584,10 +1584,10 @@ async function loadPublicGuildProfiles(){
   try{
     const registryPromise=state.registeredGuildsLoaded
       ? Promise.resolve({data:state.registeredGuilds,error:null})
-      : db.rpc('get_gvg_registered_guilds').catch(error=>({data:null,error}));
+      : Promise.resolve(db.rpc('get_gvg_registered_guilds')).catch(error=>({data:null,error}));
     const [profilesResult,badgeResult,registryResult]=await Promise.all([
-      db.rpc('get_gvg_public_guild_profiles').catch(error=>({data:null,error})),
-      db.rpc('get_gvg_public_badge_progress').catch(error=>({data:null,error})),
+      Promise.resolve(db.rpc('get_gvg_public_guild_profiles')).catch(error=>({data:null,error})),
+      Promise.resolve(db.rpc('get_gvg_public_badge_progress')).catch(error=>({data:null,error})),
       registryPromise
     ]);
 
