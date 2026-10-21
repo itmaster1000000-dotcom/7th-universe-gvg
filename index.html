@@ -1793,7 +1793,7 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
             <section class="admin-section moderator-card">
               <div class="admin-section-head"><div><div class="kicker">Guild Management</div><h3>GUILDS</h3><div class="subtle">Approve pending guild registrations or remove guilds. No ban controls or other Admin tools are available here.</div></div><span class="badge badge-gold">LIMITED CONTROLS</span></div>
               <div class="search-bar"><input id="moderator-guild-search" type="search" placeholder="Search guild name..." autocomplete="off" /><span class="search-icon">⌕</span></div>
-              <div class="moderator-note" style="margin:10px 0">Approval applies to the selected registered guild. Removing a guild deletes its registry entries; historical challenge/result records may remain.</div>
+              <div class="moderator-note" style="margin:10px 0">Approval applies to the selected registered guild. Removing a guild deletes its leader login email and contact numbers. Points, results and Hall of Fame records are kept, and the leader can register again.</div>
               <div class="admin-table-shell" style="margin-top:10px"><table class="moderator-table"><thead><tr><th>Guild</th><th>Status</th><th>Actions</th></tr></thead><tbody id="moderator-guild-table"><tr><td colspan="3">Loading guilds...</td></tr></tbody></table></div>
               <div id="moderator-guild-status" class="status"></div>
             </section>
@@ -1940,6 +1940,18 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
     @keyframes appDialogRise{from{opacity:0;transform:translateY(8px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
     @media(max-width:440px){.app-dialog{padding:18px;border-radius:20px}.app-dialog-actions{flex-direction:column-reverse}.app-dialog-btn{width:100%}}
     @media(prefers-reduced-motion:reduce){.app-dialog-backdrop.open,.app-dialog{animation:none}.app-dialog-btn{transition:none}}
+
+    /* v26: phone header fix — brand on top row, MODERATOR / REGISTER buttons on a second row (no overlap) */
+    @media(max-width:560px){
+      header .nav{grid-template-columns:1fr 1fr!important;grid-template-areas:"brand brand" "left right"!important;min-height:0!important;row-gap:8px!important;column-gap:10px!important;padding:9px 0 11px!important}
+      header .nav-center{grid-area:brand!important;justify-self:center!important;justify-content:center!important;gap:10px!important}
+      header .nav-left{grid-area:left!important;justify-content:flex-start!important}
+      header .nav-right{grid-area:right!important;justify-content:flex-end!important}
+      header .nav-center .brand-sub{display:none!important}
+      header .brand-title{font-size:24px!important;letter-spacing:.06em!important}
+      header .brand-logo{width:44px!important;height:44px!important}
+      header .nav-left .btn,header .nav-right .btn{min-height:38px!important;padding:8px 14px!important;font-size:10px!important;letter-spacing:.06em!important;white-space:nowrap!important}
+    }
   </style>
   <div id="app-dialog-backdrop" class="app-dialog-backdrop" aria-hidden="true"><div id="app-dialog" class="app-dialog" role="dialog" aria-modal="true" aria-labelledby="app-dialog-title"></div></div>
 
