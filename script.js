@@ -38,6 +38,80 @@ const moderatorDb = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: { storageKey: '7th-universe-moderator-session-v1', autoRefreshToken: true, persistSession: true, detectSessionInUrl: false }
 });
 
+/* ---------------------------------------------------------------------------
+   v26 — Cloudflare Turnstile (CAPTCHA) for register / login / password reset.
+   - The widget is invisible unless Cloudflare needs the visitor to tick a box;
+     then a small box appears at the bottom of the screen.
+   - A token can be used only once, so every auth call asks for a fresh token.
+   - If the CAPTCHA script cannot load (ad-blocker / bad network) we continue
+     without a token. Supabase then decides: if CAPTCHA is enforced it rejects
+     the request and the visitor sees a clear message.
+--------------------------------------------------------------------------- */
+const TURNSTILE_SITE_KEY = '0x4AAAAAAFe8LmQSp9rTt1lB';
+const captchaWidgets = {};
+const captchaPending = {};
+
+function waitForTurnstile(timeoutMs = 7000) {
+  return new Promise(resolve => {
+    const started = Date.now();
+    (function check() {
+      if (window.turnstile) return resolve(window.turnstile);
+      if (Date.now() - started > timeoutMs) return resolve(null);
+      setTimeout(check, 150);
+    })();
+  });
+}
+
+function ensureCaptchaBox(key) {
+  const id = `captcha-box-${key}`;
+  let box = document.getElementById(id);
+  if (!box) {
+    box = document.createElement('div');
+    box.id = id;
+    box.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:16px;z-index:2147483000;max-width:96vw;';
+    document.body.appendChild(box);
+  }
+  return box;
+}
+
+async function getCaptchaToken(key) {
+  try {
+    const ts = await waitForTurnstile();
+    if (!ts) return undefined;
+    const box = ensureCaptchaBox(key);
+    return await new Promise(resolve => {
+      let done = false;
+      const finish = value => {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        delete captchaPending[key];
+        resolve(value);
+      };
+      const timer = setTimeout(() => finish(undefined), 45000);
+      captchaPending[key] = finish;
+      if (captchaWidgets[key] === undefined) {
+        captchaWidgets[key] = ts.render(box, {
+          sitekey: TURNSTILE_SITE_KEY,
+          execution: 'execute',
+          appearance: 'interaction-only',
+          theme: 'dark',
+          callback: token => captchaPending[key] && captchaPending[key](token),
+          'error-callback': () => { captchaPending[key] && captchaPending[key](undefined); },
+          'timeout-callback': () => { captchaPending[key] && captchaPending[key](undefined); }
+        });
+      } else {
+        ts.reset(captchaWidgets[key]);
+      }
+      ts.execute(captchaWidgets[key]);
+    });
+  } catch (error) {
+    console.warn('CAPTCHA could not run:', error);
+    return undefined;
+  }
+}
+
+
 const state = {
   user: null,
   guild: null,
@@ -160,7 +234,12 @@ function formatWeekRange(startValue){
 function showStatus(id,type,message){ const el=$(id); if(!el) return; el.className=`status show ${type}`; el.textContent=message; }
 function clearStatus(id){ const el=$(id); if(!el) return; el.className='status'; el.textContent=''; }
 function setBusy(buttonId,busy,label){ let btn=$(buttonId); if(btn?.tagName==='FORM') btn=btn.querySelector('button[type=submit]'); if(!btn) return; btn.disabled=busy; if(busy) btn.dataset.oldText=btn.textContent; btn.textContent=busy?'PLEASE WAIT…':(label||btn.dataset.oldText||'SUBMIT'); }
-function humanizeError(error){ const msg=String(error?.message || error?.error_description || error || 'Unknown error').trim(); return msg.replace(/^(Error:\s*)/i,''); }
+function humanizeError(error){
+  const msg=String(error?.message || error?.error_description || error || 'Unknown error').trim().replace(/^(Error:\s*)/i,'');
+  if(/captcha/i.test(msg)) return 'Security check failed. Wait a few seconds and try again. If it keeps failing, refresh the page and turn off any ad-blocker for this site.';
+  if(/rate limit|too many requests|only request this after|over_.*rate_limit/i.test(msg)) return 'Too many attempts. Please wait a minute and try again.';
+  return msg;
+}
 
 /* Branded confirmation / prompt dialogs; replaces browser-native OK/Cancel popups. */
 function showAppDialog({kind='confirm',title='Please confirm',message='',confirmText='CONFIRM',cancelText='CANCEL',defaultValue='',placeholder='',required=false,danger=false}={}){
@@ -414,7 +493,7 @@ async function handleLogin(e){
   try{
     setBusy('login-form',true,'LOGIN TO GVG');
 
-    const {data,error}=await db.auth.signInWithPassword({email,password});
+    const {data,error}=await db.auth.signInWithPassword({email,password,options:{captchaToken:await getCaptchaToken('login')}});
     if(error) throw error;
 
     state.user=data.user;
@@ -509,7 +588,7 @@ async function handleRegister(e){
       Try the entered credentials first. If they work, reuse the existing
       Auth account. This is the normal path for a previously removed guild.
     */
-    const loginResult=await db.auth.signInWithPassword({email,password});
+    const loginResult=await db.auth.signInWithPassword({email,password,options:{captchaToken:await getCaptchaToken('register')}});
 
     if(!loginResult.error){
       state.user=loginResult.data.user;
@@ -537,7 +616,7 @@ async function handleRegister(e){
     const {data,error}=await db.auth.signUp({
       email,
       password,
-      options:{data:{account_type:'guild'}}
+      options:{data:{account_type:'guild'},captchaToken:await getCaptchaToken('register')}
     });
 
     if(error){
@@ -597,7 +676,7 @@ async function handleForgot(){
   try{
     setBusy('forgot-password',true,'SENDING...');
     const redirectTo=`${window.location.origin}${window.location.pathname}`;
-    const {error}=await db.auth.resetPasswordForEmail(email,{redirectTo});
+    const {error}=await db.auth.resetPasswordForEmail(email,{redirectTo,captchaToken:await getCaptchaToken('login')});
     if(error) throw error;
 
     showStatus(
@@ -1086,7 +1165,7 @@ async function handleAdminLogin(e){
   showStatus('admin-login-status','info','Checking admin account…');
   setBusy('admin-login-submit',true,'LOGIN AS ADMIN');
   try{
-    const {data,error}=await adminDb.auth.signInWithPassword({email,password});
+    const {data,error}=await adminDb.auth.signInWithPassword({email,password,options:{captchaToken:await getCaptchaToken('admin')}});
     if(error)throw error;
     const ok=await isAdmin();
     if(!ok){
@@ -1193,7 +1272,7 @@ async function resetLeaderPassword(email){
   if(!await appConfirm(`Send a password reset email to ${email}?`,{title:'Reset leader password',confirmText:'SEND RESET EMAIL'}))return;
   try{
     const redirectTo=`${window.location.origin}${window.location.pathname}`;
-    const {error}=await adminDb.auth.resetPasswordForEmail(email,{redirectTo});
+    const {error}=await adminDb.auth.resetPasswordForEmail(email,{redirectTo,captchaToken:await getCaptchaToken('admin-reset')});
     if(error)throw error;
     await appAlert('Password reset email sent.',{title:'Email requested',confirmText:'GOT IT'});
   }catch(error){await appAlert(humanizeError(error),{title:'Could not send email',danger:true,confirmText:'CLOSE'});}
@@ -1392,7 +1471,7 @@ async function handleModeratorLogin(e){
   if(!email||!password)return showStatus('moderator-login-status','error','Moderator email and password are required.');
   setBusy('moderator-login-submit',true,'LOGIN AS MODERATOR');
   try{
-    const {data,error}=await moderatorDb.auth.signInWithPassword({email,password});
+    const {data,error}=await moderatorDb.auth.signInWithPassword({email,password,options:{captchaToken:await getCaptchaToken('moderator')}});
     if(error)throw error;
     const ok=await isModerator();
     if(!ok){await moderatorDb.auth.signOut();throw new Error('This account is not an active moderator. Admin accounts use the separate Admin Access button.');}
