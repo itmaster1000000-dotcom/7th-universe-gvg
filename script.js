@@ -47,6 +47,14 @@ const moderatorDb = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
      without a token. Supabase then decides: if CAPTCHA is enforced it rejects
      the request and the visitor sees a clear message.
 --------------------------------------------------------------------------- */
+/* v27 — simple guild names only: English letters, numbers and single spaces (3-30 characters).
+   The database enforces the same rule, so this check only gives an instant, friendly message. */
+const SIMPLE_GUILD_NAME_MESSAGE = 'Guild name must use only English letters (A-Z, a-z), numbers and single spaces, 3 to 30 characters. No symbols or stylish fonts.';
+function isSimpleGuildName(name) {
+  const value = String(name || '');
+  return value.length >= 3 && value.length <= 30 && /^[A-Za-z0-9]+( [A-Za-z0-9]+)*$/.test(value);
+}
+
 const TURNSTILE_SITE_KEY = '0x4AAAAAAFe8LmQSp9rTt1lB';
 const captchaWidgets = {};
 const captchaPending = {};
@@ -512,11 +520,16 @@ async function handleRegister(e){
   e.preventDefault();
   clearStatus('register-status');
 
-  const guild=$('register-guild').value.trim();
+  const guild=$('register-guild').value.trim().replace(/\s+/g,' ');
   const contact=$('register-contact').value.trim();
   const email=$('register-email').value.trim().toLowerCase();
   const password=$('register-password').value;
   const passwordConfirm=$('register-password-confirm').value;
+
+  if(guild&&!isSimpleGuildName(guild)){
+    showStatus('register-status','error',SIMPLE_GUILD_NAME_MESSAGE);
+    return;
+  }
 
   if(!guild||!contact||!email||!password||!passwordConfirm){
     showStatus('register-status','error','Guild name, contact, email, password and confirm password are required.');
@@ -1848,8 +1861,8 @@ async function submitGuildNameChangeRequest(e){
   const availableAt=liveStatus?.name_change_available_at?new Date(liveStatus.name_change_available_at):null;
   if(liveStatus?.request_status==='pending')return showStatus('guild-name-change-status','error','Your current name-change request is already pending Admin approval.');
   if(availableAt&&Number.isFinite(availableAt.getTime())&&availableAt.getTime()>Date.now())return showStatus('guild-name-change-status','error',`Name-change cooldown is active until ${formatDateTime(availableAt.toISOString())} Pakistan time.`);
-  const requested=$('guild-name-change-input').value.trim();
-  if(requested.length<3||requested.length>50)return showStatus('guild-name-change-status','error','New guild name must be 3 to 50 characters.');
+  const requested=$('guild-name-change-input').value.trim().replace(/\s+/g,' ');
+  if(!isSimpleGuildName(requested))return showStatus('guild-name-change-status','error',SIMPLE_GUILD_NAME_MESSAGE);
   if(normalizeGuild(requested)===normalizeGuild(state.guild?.guild_name))return showStatus('guild-name-change-status','error','Enter a different guild name.');
   try{
     setBusy('guild-name-change-submit',true,'SENDING REQUEST');
