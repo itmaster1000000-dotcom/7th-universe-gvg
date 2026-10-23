@@ -1835,7 +1835,7 @@ async function loadMyGuildNameChangeStatus(){
     const status=String(row?.request_status||'');
     const requested=String(row?.requested_guild_name||'');
     const availableAt=row?.name_change_available_at?new Date(row.name_change_available_at):null;
-    const cooldown=Boolean(availableAt&&Number.isFinite(availableAt.getTime())&&availableAt.getTime()>Date.now());
+    const cooldown=Boolean(availableAt&&Number.isFinite(availableAt.getTime())&&availableAt.getTime()>Date.now()+60000);
     if(status==='pending'){
       note.textContent=`CURRENT NAME: ${current}. Your request for “${requested}” is waiting for Admin approval. Your current name stays active until approval.`;
       button.disabled=true;button.textContent='REQUEST PENDING';if(input)input.disabled=true;
@@ -1860,7 +1860,7 @@ async function submitGuildNameChangeRequest(e){
   const liveStatus=state.guildNameChangeStatus;
   const availableAt=liveStatus?.name_change_available_at?new Date(liveStatus.name_change_available_at):null;
   if(liveStatus?.request_status==='pending')return showStatus('guild-name-change-status','error','Your current name-change request is already pending Admin approval.');
-  if(availableAt&&Number.isFinite(availableAt.getTime())&&availableAt.getTime()>Date.now())return showStatus('guild-name-change-status','error',`Name-change cooldown is active until ${formatDateTime(availableAt.toISOString())} Pakistan time.`);
+  if(availableAt&&Number.isFinite(availableAt.getTime())&&availableAt.getTime()>Date.now()+60000)return showStatus('guild-name-change-status','error',`Name-change cooldown is active until ${formatDateTime(availableAt.toISOString())} Pakistan time.`);
   const requested=$('guild-name-change-input').value.trim().replace(/\s+/g,' ');
   if(!isSimpleGuildName(requested))return showStatus('guild-name-change-status','error',SIMPLE_GUILD_NAME_MESSAGE);
   if(normalizeGuild(requested)===normalizeGuild(state.guild?.guild_name))return showStatus('guild-name-change-status','error','Enter a different guild name.');
