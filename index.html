@@ -1947,7 +1947,30 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
   </script>
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="./script.js?v=28.0-result-refresh-name-change"></script>
+  <script>
+(function(){
+  window.__GVG_HTML_VERSION='29.0';
+  function show(msg){
+    try{
+      var d=document.getElementById('gvg-fatal');
+      if(!d){d=document.createElement('div');d.id='gvg-fatal';
+        d.setAttribute('style','position:fixed;left:8px;right:8px;top:8px;z-index:99999;padding:12px 14px;border-radius:12px;background:#2a0409;border:1px solid #ff3d5b;color:#ffd7dd;font:13px/1.5 system-ui,sans-serif;box-shadow:0 10px 40px rgba(0,0,0,.6)');
+        document.body.appendChild(d);}
+      d.textContent=msg;
+    }catch(e){}
+  }
+  window.addEventListener('error',function(e){
+    if(!e||!e.filename||e.filename.indexOf(location.origin)!==0)return;
+    show('Website error: '+(e.message||'unknown')+' ('+String(e.filename).split('/').pop().split('?')[0]+':'+(e.lineno||'?')+'). Please send a screenshot of this message.');
+  });
+  window.addEventListener('load',function(){
+    if(window.__GVG_SCRIPT_VERSION!==window.__GVG_HTML_VERSION){
+      show('Update mismatch: index.html is v'+window.__GVG_HTML_VERSION+' but script.js is '+(window.__GVG_SCRIPT_VERSION?('v'+window.__GVG_SCRIPT_VERSION):'missing or an old copy')+'. Upload BOTH new files (index.html and script.js) to the website repo, wait for deploy, then hard-refresh.');
+    }
+  });
+})();
+</script>
+<script src="./script.js?v=29.0-my-guild-hub"></script>
 
   <style>
     .app-dialog-backdrop{position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(1,3,8,.82);backdrop-filter:blur(11px);-webkit-backdrop-filter:blur(11px)}

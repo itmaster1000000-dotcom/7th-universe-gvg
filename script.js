@@ -1,3 +1,4 @@
+window.__GVG_SCRIPT_VERSION='29.0';
 /*
   7TH UNIVERSE GVG — FINAL FRONTEND
   Uses two isolated Supabase Auth clients so the Admin browser session
