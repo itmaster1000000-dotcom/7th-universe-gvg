@@ -1432,6 +1432,68 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
 .hof-detail-award-panel .hof-detail-award-custom-label{margin:7px 0 10px;padding:7px 8px;border:1px solid rgba(238,199,91,.16);border-radius:8px;color:#b8c6b8;background:rgba(255,255,255,.025);font-size:8px;font-weight:850;text-align:center;overflow-wrap:anywhere}
 .trophy-3d.trophy-modal:not(.is-dragging) svg{transform-style:preserve-3d}
 </style>
+
+<style>
+/* v30 — Hall of Fame: prestige design (scoped to .hof2) */
+.hof2{position:relative;overflow:hidden;border:1px solid rgba(231,193,90,.3)!important;background:radial-gradient(120% 70% at 50% -8%,rgba(212,17,54,.20),transparent 62%),linear-gradient(180deg,#0d0a0b,#060607)!important;box-shadow:0 18px 60px rgba(0,0,0,.55),inset 0 0 0 1px rgba(255,255,255,.02)!important}
+.hof2::before{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,transparent 42%,rgba(231,193,90,.07) 50%,transparent 58%);background-size:260% 100%;animation:hof2sheen 8s linear infinite}
+@keyframes hof2sheen{0%{background-position:160% 0}100%{background-position:-110% 0}}
+@keyframes hof2spin{to{transform:translateX(-50%) rotate(360deg)}}
+@keyframes hof2float{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+.hof2>*{position:relative}
+.hof2-hero{text-align:center;padding:26px 8px 18px;margin-bottom:16px;border-bottom:1px solid rgba(231,193,90,.18)}
+.hof2-rays{position:absolute;left:50%;top:-70px;width:380px;height:380px;transform:translateX(-50%);background:repeating-conic-gradient(from 0deg,rgba(231,193,90,.085) 0 5deg,transparent 5deg 15deg);-webkit-mask:radial-gradient(circle,#000 0,transparent 66%);mask:radial-gradient(circle,#000 0,transparent 66%);animation:hof2spin 80s linear infinite;pointer-events:none}
+.hof2-crest{position:relative;width:70px;height:70px;margin:0 auto 12px;border-radius:50%;display:grid;place-items:center;font-size:32px;background:radial-gradient(circle at 30% 24%,#fff6c8,#e7c15a 46%,#8a6a1d);box-shadow:0 0 0 3px rgba(231,193,90,.22),0 0 46px rgba(231,193,90,.38),inset 0 -6px 12px rgba(0,0,0,.28);animation:hof2float 4.5s ease-in-out infinite}
+.hof2-kicker{position:relative;font-size:10px;font-weight:800;letter-spacing:.3em;color:#d6b25a}
+.hof2-title{position:relative;margin:8px 0 6px;font-size:36px;letter-spacing:.16em;line-height:1.05;background:linear-gradient(180deg,#fff7d2 0%,#e7c15a 52%,#9a7421 100%);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 2px 10px rgba(231,193,90,.25))}
+.hof2-sub{position:relative;color:#b6a583;font-size:12.5px}
+.hof2-stats{position:relative;display:grid;grid-template-columns:1fr 1fr 1.5fr;gap:8px;margin-top:18px}
+.hof2-stats>div{padding:11px 6px;border-radius:14px;background:rgba(231,193,90,.05);border:1px solid rgba(231,193,90,.2)}
+.hof2-stats b{display:block;font-size:20px;color:#fff1b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hof2-stats span{display:block;margin-top:4px;font-size:8.5px;letter-spacing:.14em;color:#a8946a}
+.hof2 .hof-type-tabs{display:grid!important;grid-template-columns:1fr 1fr;gap:0!important;padding:4px;border-radius:999px;background:rgba(0,0,0,.45);border:1px solid rgba(231,193,90,.25)}
+.hof2 .hof-type-tab{border:0!important;border-radius:999px!important;background:transparent!important;color:#b9a67b!important;font-weight:800;letter-spacing:.07em;padding:12px 8px!important;box-shadow:none!important}
+.hof2 .hof-type-tab.active{background:linear-gradient(135deg,#f3d37a,#b78a26)!important;color:#1b1303!important;box-shadow:0 4px 22px rgba(231,193,90,.35)!important}
+.hof2 .hof-year-grid{display:flex!important;gap:9px;overflow-x:auto;padding:14px 2px 4px;scrollbar-width:none}
+.hof2 .hof-year-grid::-webkit-scrollbar{display:none}
+.hof2 .hof-year-tile{flex:0 0 auto;min-width:104px;padding:11px 16px!important;border-radius:12px!important;background:linear-gradient(180deg,#15110a,#0b0907)!important;border:1px solid rgba(231,193,90,.22)!important;color:#e8d29a!important;font-weight:900;letter-spacing:.1em;text-align:center}
+.hof2 .hof-year-tile small{color:#8f7d55!important;letter-spacing:.14em}
+.hof2 .hof-year-tile.active{background:linear-gradient(135deg,#f3d37a,#b78a26)!important;color:#1b1303!important;border-color:#fff0b0!important;box-shadow:0 6px 24px rgba(231,193,90,.35)}
+.hof2 .hof-year-tile.active small{color:#4b3606!important}
+.hof2 .hof-period-heading{margin:18px 0 10px;text-align:center;font-size:11px;font-weight:900;letter-spacing:.24em;color:#d6b25a}
+.hof2 .hof-period-heading::before,.hof2 .hof-period-heading::after{content:"";display:inline-block;width:34px;height:1px;vertical-align:middle;margin:0 10px;background:linear-gradient(90deg,transparent,rgba(231,193,90,.6))}
+.hof2 .hof-period-heading::after{transform:scaleX(-1)}
+.hof2 .hof-period-grid{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:10px}
+.hof2 .hof-period-tile{display:flex!important;flex-direction:column;align-items:center;gap:5px;padding:12px 4px 10px!important;border-radius:16px!important;background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.01))!important;border:1px solid rgba(255,255,255,.08)!important;color:#cdbf9a!important;text-align:center;transition:transform .2s,box-shadow .2s,border-color .2s}
+.hof2 .hof-period-tile:active{transform:scale(.97)}
+.hof2 .pt-ring{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;font-size:20px;border:2px dashed rgba(255,255,255,.16);color:#6f6650;background:rgba(0,0,0,.3)}
+.hof2 .hof-period-tile b{font-size:11px;letter-spacing:.08em;color:#e8dcc0}
+.hof2 .hof-period-tile small{display:block;max-width:100%;padding:0 4px;font-size:9px!important;letter-spacing:.05em;color:#8d8266!important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hof2 .hof-period-tile.has-award{border-color:rgba(231,193,90,.45)!important;background:linear-gradient(180deg,rgba(231,193,90,.12),rgba(231,193,90,.02))!important}
+.hof2 .hof-period-tile.has-award .pt-ring{border:2px solid #f0cf72;color:#2a1c02;background:radial-gradient(circle at 30% 25%,#fff4c2,#e7c15a 55%,#9a7421);box-shadow:0 0 18px rgba(231,193,90,.45)}
+.hof2 .hof-period-tile.has-award small{color:#f0d890!important;font-weight:800}
+.hof2 .hof-period-tile.active{border-color:#fff0b0!important;box-shadow:0 0 0 1px rgba(255,240,176,.5),0 10px 30px rgba(231,193,90,.25)}
+.hof2 .hof-interaction-hint{margin:14px 0 8px;text-align:center;font-size:9.5px;letter-spacing:.14em;color:#8d7d57}
+/* champion showcase */
+.hof2 .hof2-showcase{position:relative;display:block!important;padding:0!important;border-radius:22px!important;overflow:hidden;background:linear-gradient(180deg,#14100a,#080708)!important;border:1px solid rgba(231,193,90,.4)!important;box-shadow:0 20px 60px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.03) inset}
+.hof2-spot{position:absolute;left:50%;top:-30px;width:320px;height:320px;transform:translateX(-50%);background:radial-gradient(circle,rgba(231,193,90,.28),transparent 65%);pointer-events:none}
+.hof2-ribbon{position:relative;margin:0 auto;width:max-content;max-width:92%;padding:9px 26px;font-size:11px;font-weight:900;letter-spacing:.2em;color:#1b1303;background:linear-gradient(180deg,#fbe9a0,#d9ab3a);clip-path:polygon(0 0,100% 0,calc(100% - 12px) 50%,100% 100%,0 100%,12px 50%);text-align:center}
+.hof2-stage{position:relative;display:grid;place-items:center;padding:14px 0 0}
+.hof2-stage .trophy-3d{width:150px!important;height:auto!important;margin:0 auto;filter:drop-shadow(0 14px 22px rgba(0,0,0,.6))}
+.hof2-champ{position:relative;padding:8px 18px 22px;text-align:center}
+.hof2-logo{width:86px;height:86px;margin:2px auto 12px;border-radius:50%;padding:3px;background:conic-gradient(#fff0b0,#c99a2e,#fff0b0,#8a6a1d,#fff0b0);box-shadow:0 0 30px rgba(231,193,90,.35)}
+.hof2-logo>*{width:100%;height:100%;border-radius:50%;object-fit:cover;background:#0b0b10;display:grid;place-items:center;font-size:34px}
+.hof2-guild{font-size:26px;font-weight:900;letter-spacing:.07em;line-height:1.1;text-transform:uppercase;word-break:break-word;background:linear-gradient(180deg,#fff7d2,#e7c15a 60%,#a47a22);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hof2-uid{margin-top:7px;font-size:11px;letter-spacing:.14em;color:#a8946a}
+.hof2-meta{margin-top:10px;display:inline-block;padding:7px 14px;border-radius:999px;font-size:10.5px;font-weight:800;letter-spacing:.1em;color:#f0d890;background:rgba(231,193,90,.08);border:1px solid rgba(231,193,90,.25)}
+.hof2-notes{margin:12px auto 0;max-width:420px;font-size:12.5px;line-height:1.55;color:#b9ad92}
+.hof2-cta{margin-top:16px}
+.hof2-cta .btn{background:linear-gradient(135deg,#f3d37a,#b78a26)!important;color:#1b1303!important;border:0!important;font-weight:900;letter-spacing:.08em;box-shadow:0 6px 24px rgba(231,193,90,.35)!important}
+.hof2 .hof-awaiting-card{border-radius:20px!important;border:1px dashed rgba(231,193,90,.35)!important;background:rgba(231,193,90,.04)!important}
+.hof2 .hof-awaiting-icon{color:#e7c15a!important;text-shadow:0 0 22px rgba(231,193,90,.5)}
+@media(max-width:420px){.hof2-title{font-size:28px;letter-spacing:.11em}.hof2-guild{font-size:22px}.hof2 .hof-period-grid{grid-template-columns:repeat(3,1fr)}.hof2-stats{grid-template-columns:1fr 1fr 1.3fr}}
+@media(prefers-reduced-motion:reduce){.hof2::before,.hof2-rays,.hof2-crest{animation:none!important}}
+</style>
 </head>
 <body>
   <div class="topline"></div>
@@ -1455,6 +1517,15 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
             <div id="login-status" class="status"></div>
             <div class="hint" style="text-align:center;margin-top:11px">IF YOU ALREADY HAVE AN ACCOUNT THEN LOGIN • New account? Use the REGISTER NEW ACCOUNT button above.</div>
           </form>
+          <div class="guest-box">
+            <button id="guest-toggle" class="guest-toggle" type="button" aria-expanded="false"><span>&#128065; NOT REGISTERED? VIEW AS GUEST</span><i>&#9662;</i></button>
+            <form id="guest-form" class="hidden" novalidate>
+              <div class="hint" style="margin:10px 0">Enter a guild name and its 4-digit guild code to browse all guild profiles and the Hall of Fame. Guests can only read; nothing can be edited.</div>
+              <div class="field-grid"><label>GUILD NAME<input id="guest-guild" type="text" maxlength="40" placeholder="Guild name" autocomplete="off" /></label><label>4-DIGIT CODE<input id="guest-code" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="0000" autocomplete="off" /></label></div>
+              <div class="center-actions"><button id="guest-submit" class="btn btn-gold" type="submit">VIEW AS GUEST</button></div>
+              <div id="guest-status" class="status"></div>
+            </form>
+          </div>
         </div>
       </div>
 
@@ -1596,6 +1667,11 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
         </div>
 
         <div id="member-section-guild-profiles" class="member-view">
+          <div class="guild-switch" id="guild-switch" role="tablist" aria-label="Guild section views">
+            <button type="button" class="gs-btn active" data-guild-view="all" role="tab" aria-selected="true">&#9876; ALL GUILDS</button>
+            <button type="button" class="gs-btn" id="gs-mine" data-guild-view="mine" role="tab" aria-selected="false">&#128100; MY PROFILE</button>
+          </div>
+          <div id="guild-view-mine" class="hidden">
           <div class="card my-hub" id="my-guild-hub">
             <div class="panel-head"><div><div class="kicker">Guild Control Center</div><h3>MY GUILD</h3><div class="subtle">Your guild identity, this week&rsquo;s performance and account tools.</div></div><span id="my-hub-status" class="badge badge-pending">LOADING</span></div>
             <div class="hub-identity">
@@ -1644,7 +1720,25 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
               <div id="guild-contact-status" class="status"></div>
             </form>
           </div>
-<div class="card danger-zone" style="margin-top:14px">
+<div class="card" style="margin-top:14px" id="roster-card">
+            <div class="panel-head"><div><div class="kicker">Team</div><h3>TEAM ROSTER</h3><div class="subtle">Add up to 10 team member names. After you save, the list can be changed again only after 3 days.</div></div><span id="roster-count" class="badge badge-gold">0 / 10</span></div>
+            <form id="guild-roster-form" novalidate>
+              <div id="roster-grid" class="roster-grid"></div>
+              <div id="roster-lock-note" class="hint"></div>
+              <div class="split-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px"><button id="guild-roster-save" class="btn btn-primary" type="submit">SAVE TEAM LIST</button></div>
+              <div id="guild-roster-status" class="status"></div>
+            </form>
+          </div>
+          <div class="card" style="margin-top:14px" id="guild-code-card">
+            <div class="panel-head"><div><div class="kicker">Guest Access</div><h3>GUILD CODE</h3><div class="subtle">A 4-digit code. Anyone who knows your guild name and this code can view guild profiles and the Hall of Fame (read only, no editing). You can change it any time.</div></div></div>
+            <form id="guild-code-form" novalidate>
+              <div class="field-grid"><label class="full">4-DIGIT GUILD CODE<input id="guild-code-input" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="e.g. 4821" autocomplete="off" /></label></div>
+              <div id="guild-code-current" class="hint">No code set yet.</div>
+              <div class="split-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px"><button id="guild-code-save" class="btn btn-primary" type="submit">SAVE GUILD CODE</button></div>
+              <div id="guild-code-status" class="status"></div>
+            </form>
+          </div>
+          <div class="card danger-zone" style="margin-top:14px">
             <div class="panel-head"><div><div class="kicker">Danger zone</div><h3>DELETE MY ACCOUNT</h3><div class="subtle">Your login and phone number are erased and your access ends immediately. Points, results and Hall of Fame records stay. To come back you must register again and get Admin approval.</div></div></div>
             <form id="guild-delete-form" novalidate>
               <div class="field-grid"><label class="full">TYPE DELETE TO CONFIRM<input id="guild-delete-confirm" type="text" maxlength="10" placeholder="DELETE" autocomplete="off" /></label></div>
@@ -1652,10 +1746,14 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
               <div id="guild-delete-status" class="status"></div>
             </form>
           </div>
+          </div>
+          <div id="guild-view-all">
           <div class="card" style="margin-top:14px">
             <div class="panel-head"><div><div class="kicker">Community Profiles</div><h3>ALL GUILD PROFILES</h3><div class="subtle">Tap any guild to view its record, trophies and unlocked achievements.</div></div><span id="public-profile-count" class="badge badge-green">LOADING</span></div>
             <div class="search-bar"><input id="public-guild-profile-search" type="search" placeholder="Search guild name or Guild UID..." autocomplete="off" /><span class="search-icon">⌕</span></div>
             <div id="public-guild-profile-grid" class="guild-profile-grid" style="margin-top:12px"><div class="empty">Loading guild profiles...</div></div>
+          </div>
+        
           </div>
         </div>
 
@@ -1664,8 +1762,19 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
         </div>
 
         <div id="member-section-hall-of-fame" class="member-view">
-          <div class="card hof-main-card">
-            <div class="hof-heading"><div><div class="kicker">Champions Legacy</div><h3>HALL OF FAME</h3><div class="subtle">Every official trophy stays here permanently. Weekly and monthly awards are entered by the Admin.</div></div><span class="badge badge-gold">🏆 LEGENDS</span></div>
+          <div class="card hof-main-card hof2">
+            <div class="hof2-hero">
+              <div class="hof2-rays" aria-hidden="true"></div>
+              <div class="hof2-crest" aria-hidden="true">&#127942;</div>
+              <div class="hof2-kicker">7TH UNIVERSE &middot; CHAMPIONS LEGACY</div>
+              <h3 class="hof2-title">HALL OF FAME</h3>
+              <div class="hof2-sub">Every official trophy is engraved here permanently.</div>
+              <div class="hof2-stats">
+                <div><b id="hof2-total">0</b><span>TROPHIES</span></div>
+                <div><b id="hof2-champs">0</b><span>CHAMPIONS</span></div>
+                <div><b id="hof2-latest">&mdash;</b><span>LATEST CHAMPION</span></div>
+              </div>
+            </div>
             <div class="hof-type-tabs" role="tablist" aria-label="Hall of Fame types"><button class="hof-type-tab active" type="button" data-hof-type="weekly">🏆 WEEKLY CHAMPIONS</button><button class="hof-type-tab" type="button" data-hof-type="monthly">👑 MONTHLY CHAMPIONS</button></div>
             <div id="hof-year-grid" class="hof-year-grid"><div class="empty">Loading years...</div></div>
             <div id="hof-period-heading" class="hof-period-heading">SELECT A YEAR</div>
@@ -1949,7 +2058,7 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
 (function(){
-  window.__GVG_HTML_VERSION='29.0';
+  window.__GVG_HTML_VERSION='30.0';
   function show(msg){
     try{
       var d=document.getElementById('gvg-fatal');
@@ -1970,7 +2079,7 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
   });
 })();
 </script>
-<script src="./script.js?v=29.0-my-guild-hub"></script>
+<script src="./script.js?v=30.0-roster-guest"></script>
 
   <style>
     .app-dialog-backdrop{position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(1,3,8,.82);backdrop-filter:blur(11px);-webkit-backdrop-filter:blur(11px)}
@@ -1998,6 +2107,26 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
     @media(max-width:440px){.app-dialog{padding:18px;border-radius:20px}.app-dialog-actions{flex-direction:column-reverse}.app-dialog-btn{width:100%}}
     @media(prefers-reduced-motion:reduce){.app-dialog-backdrop.open,.app-dialog{animation:none}.app-dialog-btn{transition:none}}
 
+
+    /* v1.10 — guild switch, roster, guest */
+    .guild-switch{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0 0 14px}
+    .gs-btn{flex:0 1 auto;padding:11px 16px;border-radius:999px;border:1px solid rgba(255,61,91,.3);background:rgba(255,255,255,.03);color:#e9c6cc;font:800 12px/1 inherit;letter-spacing:.09em;cursor:pointer;transition:all .2s}
+    .gs-btn.active{background:linear-gradient(135deg,#d41136,#8f0a22);border-color:#ff5d73;color:#fff;box-shadow:0 0 22px rgba(212,17,54,.35)}
+    .gs-btn:focus-visible{outline:2px solid #ff5d73;outline-offset:2px}
+    .roster-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+    .roster-slot{display:flex;align-items:center;gap:8px;padding:0 10px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid rgba(255,61,91,.16)}
+    .roster-slot span{flex:0 0 22px;height:22px;border-radius:7px;display:grid;place-items:center;font-size:11px;font-weight:800;background:rgba(255,61,91,.16);color:#ff9aa9}
+    .roster-slot input{border:0!important;background:transparent!important;box-shadow:none!important;padding:12px 0!important;min-width:0;width:100%}
+    .guest-box{margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,.08)}
+    .guest-toggle{width:100%;display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-radius:12px;border:1px dashed rgba(238,199,91,.4);background:rgba(238,199,91,.05);color:#f0d590;font:800 12px/1.2 inherit;letter-spacing:.07em;cursor:pointer}
+    .pp-extras{margin-top:14px;display:grid;gap:12px}
+    .pp-block{padding:12px 14px;border-radius:14px;background:rgba(255,255,255,.03);border:1px solid rgba(255,61,91,.16)}
+    .pp-block h4{margin:0 0 9px;font-size:11px;letter-spacing:.12em;color:#ff9aa9}
+    .pp-chips{display:flex;flex-wrap:wrap;gap:7px}
+    .pp-chip{padding:6px 11px;border-radius:999px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);font-size:12.5px;font-weight:700}
+    .pp-rival{display:flex;align-items:center;gap:12px}
+    .pp-rival-main{min-width:0}.pp-rival-name{font-weight:900;letter-spacing:.04em;word-break:break-word}.pp-rival-meta{margin-top:4px;font-size:12px;color:#c9a0a8}
+    @media(max-width:420px){.gs-btn{padding:10px 12px;font-size:11px}.roster-grid{grid-template-columns:1fr}}
     /* v1.9 — My Guild control center */
     .my-hub{border:1px solid rgba(255,61,91,.22);background:linear-gradient(160deg,rgba(40,6,12,.92),rgba(8,8,12,.96))}
     .hub-identity{display:flex;align-items:center;gap:14px;margin:6px 0 16px}

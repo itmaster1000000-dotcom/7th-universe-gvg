@@ -1,4 +1,4 @@
-window.__GVG_SCRIPT_VERSION='29.0';
+window.__GVG_SCRIPT_VERSION='30.0';
 /*
   7TH UNIVERSE GVG — FINAL FRONTEND
   Uses two isolated Supabase Auth clients so the Admin browser session
@@ -370,7 +370,7 @@ function openView(name){
 }
 
 function memberDashboardAllowed(){
-  return Boolean(state.user && guildApproved());
+  return Boolean(state.guest) || Boolean(state.user && guildApproved());
 }
 
 function setMemberAccessGate(){
@@ -391,6 +391,7 @@ function setMemberAccessGate(){
   }
 
   if(tabs) tabs.classList.toggle('hidden',!allowed);
+  document.querySelectorAll('[data-member-section]').forEach(btn=>btn.classList.toggle('hidden',Boolean(state.guest)&&!['guild-profiles','hall-of-fame'].includes(btn.dataset.memberSection)));
 
   document.querySelectorAll('.member-view').forEach(el=>{
     if(!allowed) el.classList.remove('active');
@@ -399,7 +400,7 @@ function setMemberAccessGate(){
 
 function openMemberSection(name){
   const allowed=['rules','challenges','results','ranking','guild-profiles','hall-of-fame'];
-  const section=allowed.includes(name)?name:'rules';
+  const section=state.guest?(['guild-profiles','hall-of-fame'].includes(name)?name:'guild-profiles'):(allowed.includes(name)?name:'rules');
 
   if(!memberDashboardAllowed()){
     setMemberAccessGate();
@@ -418,9 +419,8 @@ function openMemberSection(name){
   if(section==='ranking') setRankingMode(state.rankingMode || 'current-week');
   if(section==='registered-guilds') loadSectionCached('member:registered-guilds',loadRegisteredGuilds,30000);
   if(section==='guild-profiles'){
+    setGuildView('all');
     loadSectionCached('member:guild-profiles',loadPublicGuildProfiles,30000);
-    loadSectionCached('member:name-change-status',loadMyGuildNameChangeStatus,15000);
-    loadMyGuildHub();
   }
   if(section==='name-change') loadSectionCached('member:name-change-status',loadMyGuildNameChangeStatus,15000);
   if(section==='hall-of-fame') loadSectionCached('member:hall-of-fame',loadHallOfFame,30000);
@@ -750,6 +750,7 @@ async function handleUpdatePassword(event){
 
 async function renderMemberIdentity(){
   const info=$('member-identity'), badge=$('member-status-badge'); if(!info||!badge)return;
+  if(state.guest){info.textContent=`GUEST VIEW • ${state.guest.guild_name} • READ ONLY`;badge.className='badge badge-gold';badge.textContent='GUEST';return;}
   if(!state.user){info.textContent='Not logged in';badge.className='badge badge-red';badge.textContent='LOGOUT';return;}
   const g=state.guild;
   if(!g){info.textContent=`${state.user.email} • No guild registration yet`;badge.className='badge badge-gold';badge.textContent='NOT REGISTERED';return;}
@@ -1142,7 +1143,10 @@ async function loadRanking(mode=state.rankingMode || 'current-week'){
 function syncRegisterNav(){
   const registerButton=$('nav-register'),logoutButton=$('nav-logout');
   if(!registerButton||!logoutButton) return;
-  if(state.user){
+  logoutButton.textContent=state.guest?'EXIT GUEST':'LOGOUT';
+  if(state.guest){
+    logoutButton.classList.remove('hidden');registerButton.classList.add('hidden');
+  }else if(state.user){
     logoutButton.classList.remove('hidden');
     /* A logged-in leader whose registry row was removed must still be able
        to open REGISTER and recreate the guild registration. */
@@ -1165,7 +1169,7 @@ async function refreshMember({reloadGuild=true}={}){
   // Do not prefetch hidden tabs on login. The selected tab loads its own data.
   setMemberAccessGate();
 }
-async function handleLogout(){try{await db.auth.signOut();}catch{}state.user=null;state.guild=null;openView('public');syncRegisterNav();$('login-password').value='';}
+async function handleLogout(){try{await db.auth.signOut();}catch{}state.guest=null;try{sessionStorage.removeItem('gvg_guest');}catch{}state.user=null;state.guild=null;openView('public');syncRegisterNav();$('login-password').value='';}
 
 /* ------------------------- ADMIN ------------------------- */
 async function isAdmin(){
@@ -1682,12 +1686,14 @@ async function loadPublicGuildProfiles(){
   const target=$('public-guild-profile-grid');
   if(target)target.innerHTML='<div class="empty">Loading approved guild profiles...</div>';
   try{
-    const registryPromise=state.registeredGuildsLoaded
+    const registryPromise=state.guest
+      ? Promise.resolve({data:null,error:new Error('guest')})
+      : state.registeredGuildsLoaded
       ? Promise.resolve({data:state.registeredGuilds,error:null})
       : Promise.resolve(db.rpc('get_gvg_registered_guilds')).catch(error=>({data:null,error}));
     const [profilesResult,badgeResult,registryResult]=await Promise.all([
-      Promise.resolve(db.rpc('get_gvg_public_guild_profiles')).catch(error=>({data:null,error})),
-      Promise.resolve(db.rpc('get_gvg_public_badge_progress')).catch(error=>({data:null,error})),
+      Promise.resolve(readRpc('get_gvg_public_guild_profiles')).catch(error=>({data:null,error})),
+      Promise.resolve(readRpc('get_gvg_public_badge_progress')).catch(error=>({data:null,error})),
       registryPromise
     ]);
 
@@ -1767,6 +1773,7 @@ function openPublicGuildProfile(norm){
   const html=`<div class="modal-head"><div><div class="kicker">Public Guild Profile</div><h3>${escapeHtml(p.guild_name)}</h3></div><button class="close-btn" type="button" data-action="close-modal">×</button></div>
     <div style="display:flex;align-items:center;gap:12px;margin:12px 0">${guildAvatarMarkup(p,true)}<div><div style="font-weight:900">GUILD UID</div><div class="guild-profile-uid">${escapeHtml(p.guild_uid||'Not added yet')}</div>${p.profile_incomplete?'':`<div class="guild-profile-meta">${unlocked}/40 achievements unlocked</div>`}</div></div>${statsMarkup}`;
   openModal(html);
+  fillGuildProfileExtras(p.guild_name_normalized||normalizeGuild(p.guild_name));
 }
 function publicStoragePathFromUrl(publicUrl,bucket){
   try{
@@ -1980,7 +1987,7 @@ function customTrophyLabel(award){
 }
 async function loadHallOfFame(){
   try{
-    const [settingsRes,yearsRes]=await Promise.all([db.rpc('get_gvg_hof_settings'),db.rpc('get_gvg_hall_of_fame_years',{p_award_type:state.hofMode})]);
+    const [settingsRes,yearsRes]=await Promise.all([readRpc('get_gvg_hof_settings'),readRpc('get_gvg_hall_of_fame_years',{p_award_type:state.hofMode})]);
     if(settingsRes.error)throw settingsRes.error;if(yearsRes.error)throw yearsRes.error;
     const s=Array.isArray(settingsRes.data)?settingsRes.data[0]:settingsRes.data;if(s)state.hofSettings=s;
     const years=(yearsRes.data||[]).map(x=>Number(x.award_year));state.hofYears=years;if(!state.hofYear||!years.includes(Number(state.hofYear)))state.hofYear=Number(state.hofSettings.season_year||years[0]||new Date().getFullYear());
@@ -1991,12 +1998,20 @@ async function loadHallOfFame(){
 function renderHofYearGrid(years){const target=$('hof-year-grid');if(!target)return;target.innerHTML=(years||[]).length?years.map(y=>`<button class="hof-year-tile ${Number(y)===Number(state.hofYear)?'active':''}" type="button" data-action="hof-select-year" data-year="${Number(y)}">${Number(y)}<small style="display:block;margin-top:5px;font-size:8px">${state.hofMode==='weekly'?'WEEKLY SEASON':'MONTHLY ARCHIVE'}</small></button>`).join(''):'<div class="empty">No years available.</div>';}
 async function loadHallOfFameYear(){
   const target=$('hof-selected-award');if(target)target.innerHTML='<div class="empty">Loading trophy archive...</div>';
-  const {data,error}=await db.rpc('get_gvg_hall_of_fame',{p_award_type:state.hofMode,p_award_year:Number(state.hofYear)});if(error)throw error;state.hofAwards=data||[];
+  const {data,error}=await readRpc('get_gvg_hall_of_fame',{p_award_type:state.hofMode,p_award_year:Number(state.hofYear)});if(error)throw error;state.hofAwards=data||[];updateHofStats();
   const heading=$('hof-period-heading');if(heading)heading.textContent=state.hofMode==='weekly'?`${state.hofYear} • SELECT WEEK`:`${state.hofYear} • SELECT MONTH`;
   const maxAwardWeek=Math.max(0,...state.hofAwards.filter(a=>a.award_type==='weekly').map(a=>Number(a.period_number)||0));const selectedYear=Number(state.hofYear);const seasonYear=Number(state.hofSettings.season_year);const maxWeek=selectedYear===seasonYear?Number(state.hofSettings.current_week||11):(selectedYear<seasonYear?Math.max(53,maxAwardWeek):Math.max(1,maxAwardWeek));
   const count=state.hofMode==='weekly'?Math.max(1,Math.min(60,maxWeek)):12;
-  $('hof-period-grid').innerHTML=Array.from({length:count},(_,i)=>i+1).map(n=>{const found=state.hofAwards.find(a=>Number(a.period_number)===n);return `<button class="hof-period-tile ${Number(state.hofPeriod)===n?'active':''}" type="button" data-action="hof-select-period" data-period="${n}">${escapeHtml(hallPeriodLabel(state.hofMode,n))}<small>${found?'🏆 CHAMPION ADDED':'AWAITING CHAMPION'}</small></button>`;}).join('');
+  $('hof-period-grid').innerHTML=Array.from({length:count},(_,i)=>i+1).map(n=>{const found=state.hofAwards.find(a=>Number(a.period_number)===n);return `<button class="hof-period-tile ${found?'has-award':'is-empty'} ${Number(state.hofPeriod)===n?'active':''}" type="button" data-action="hof-select-period" data-period="${n}"><span class="pt-ring">${found?'🏆':'🔒'}</span><b>${escapeHtml(hallPeriodLabel(state.hofMode,n))}</b><small>${found?escapeHtml(found.guild_name||'CHAMPION'):'AWAITING'}</small></button>`;}).join('');
   if(!state.hofPeriod||state.hofPeriod>count)state.hofPeriod=1;renderHallSelectedAward();
+}
+function updateHofStats(){
+  const list=(state.hofAwards||[]).filter(a=>String(a.award_type)===String(state.hofMode)&&Number(a.award_year)===Number(state.hofYear));
+  const set=id=>$(id);
+  if(set('hof2-total')) set('hof2-total').textContent=String(list.length);
+  if(set('hof2-champs')) set('hof2-champs').textContent=String(new Set(list.map(a=>a.guild_name_normalized||normalizeGuild(a.guild_name))).size);
+  const latest=list.slice().sort((a,b)=>Number(b.period_number)-Number(a.period_number))[0];
+  if(set('hof2-latest')) set('hof2-latest').textContent=latest?String(latest.guild_name||'—'):'—';
 }
 function currentHallAward(){
   return (state.hofAwards||[]).find(x=>String(x.award_type)===String(state.hofMode)&&Number(x.award_year)===Number(state.hofYear)&&Number(x.period_number)===Number(state.hofPeriod))||null;
@@ -2011,7 +2026,9 @@ function renderHallSelectedAward(){
     return;
   }
   const date=a.awarded_at?formatDateTime(a.awarded_at):'';
-  target.innerHTML=`<article class="hof-award-card"><div class="trophy-3d trophy-inline" data-trophy-3d aria-label="Drag to rotate trophy">${trophySvg()}</div><div><div class="hof-award-label">${escapeHtml(canonicalTrophyTitle(a))}</div>${customTrophyLabel(a)?`<div class="hof-award-custom-label">${escapeHtml(customTrophyLabel(a))}</div>`:''}<div class="hof-award-guild">${escapeHtml(a.guild_name)}</div><div class="hof-award-uid">GUILD UID: ${escapeHtml(a.guild_uid||'Not added')}</div><div class="hof-award-meta">${escapeHtml(String(a.award_year))} · ${escapeHtml(hallPeriodLabel(a.award_type,Number(a.period_number)))}${date?' · AWARDED '+escapeHtml(date):''}</div>${a.notes?`<div class="hof-award-notes">${escapeHtml(a.notes)}</div>`:''}<div class="hof-award-actions"><span class="hint">Drag the trophy to rotate it.</span><button class="btn btn-gold btn-small" type="button" data-action="hof-open-details">OPEN CHAMPION SHOWCASE ↗</button></div></div></article>`;
+  const logoUrl=a.guild_logo_url||'';
+  const logoHtml=logoUrl?`<img src="${escapeHtml(logoUrl)}" alt="" loading="lazy" />`:'<span>🛡️</span>';
+  target.innerHTML=`<article class="hof-award-card hof2-showcase"><div class="hof2-spot" aria-hidden="true"></div><div class="hof2-ribbon">${escapeHtml(canonicalTrophyTitle(a))}</div><div class="hof2-stage"><div class="trophy-3d trophy-inline" data-trophy-3d aria-label="Drag to rotate trophy">${trophySvg()}</div></div><div class="hof2-champ"><div class="hof2-logo">${logoHtml}</div><div class="hof2-guild">${escapeHtml(a.guild_name)}</div><div class="hof2-uid">GUILD UID · ${escapeHtml(a.guild_uid||'NOT ADDED')}</div><div class="hof2-meta">${escapeHtml(String(a.award_year))} · ${escapeHtml(hallPeriodLabel(a.award_type,Number(a.period_number)))}${date?' · '+escapeHtml(date):''}</div>${customTrophyLabel(a)?`<div class="hof2-notes">${escapeHtml(customTrophyLabel(a))}</div>`:''}${a.notes?`<div class="hof2-notes">${escapeHtml(a.notes)}</div>`:''}<div class="hof2-cta"><button class="btn btn-gold btn-small" type="button" data-action="hof-open-details">OPEN CHAMPION SHOWCASE ↗</button></div></div></article>`;
   bindTrophy3D(target);
 }
 async function openHallOfFamePeriodDetails(){
@@ -2027,7 +2044,7 @@ async function openHallOfFamePeriodDetails(){
   let profile=(state.guildProfiles||[]).find(p=>String(p.guild_name_normalized||normalizeGuild(p.guild_name))===String(award.guild_name_normalized||normalizeGuild(award.guild_name)))||null;
   if(!profile||(!profile.guild_logo_url&&!award.guild_logo_url)){
     try{
-      const {data,error}=await db.rpc('get_gvg_public_guild_profiles');
+      const {data,error}=await readRpc('get_gvg_public_guild_profiles');
       if(!error&&Array.isArray(data)){
         state.guildProfiles=data;
         profile=data.find(p=>String(p.guild_name_normalized||normalizeGuild(p.guild_name))===String(award.guild_name_normalized||normalizeGuild(award.guild_name)))||profile;
@@ -2201,7 +2218,166 @@ document.addEventListener('click',event=>{
 });
 
 $('guild-name-change-form')?.addEventListener('submit',submitGuildNameChangeRequest);
+
+/* ===== v1.10: Guild section switch, team roster, guild code, guest access, profile extras ===== */
+async function readRpc(name,args){
+  if(state.guest){
+    const map={
+      get_gvg_public_guild_profiles:['profiles'],
+      get_gvg_public_badge_progress:['badges'],
+      get_gvg_hof_settings:['hof_settings'],
+      get_gvg_hall_of_fame_years:['hof_years',args?.p_award_type],
+      get_gvg_hall_of_fame:['hof',args?.p_award_type,args?.p_award_year],
+      get_gvg_guild_roster:['roster',args?.p_norm],
+      get_gvg_guild_rival:['rival',args?.p_norm]
+    };
+    const m=map[name];
+    if(!m) return {data:null,error:new Error('Not available in guest mode.')};
+    return Promise.resolve(db.rpc('guest_read',{p_guild:state.guest.guild_name,p_code:state.guest.code,p_what:m[0],p_arg:m[1]??null,p_year:m[2]??null}));
+  }
+  return Promise.resolve(db.rpc(name,args));
+}
+function setGuildView(view){
+  const mine=view==='mine'&&!state.guest;
+  $('guild-view-mine')?.classList.toggle('hidden',!mine);
+  $('guild-view-all')?.classList.toggle('hidden',mine);
+  document.querySelectorAll('[data-guild-view]').forEach(b=>{const on=b.dataset.guildView===(mine?'mine':'all');b.classList.toggle('active',on);b.setAttribute('aria-selected',on?'true':'false');});
+  $('gs-mine')?.classList.toggle('hidden',Boolean(state.guest));
+  if(mine){
+    loadMyGuildHub();
+    loadSectionCached('member:name-change-status',loadMyGuildNameChangeStatus,15000);
+    populateMyGuildProfileEditor();
+    loadMyRoster();
+  }
+}
+async function loadMyRoster(){
+  if(!state.user||!state.guild) return;
+  try{
+    const {data,error}=await db.rpc('get_my_gvg_roster');
+    if(error) throw error;
+    state.myRoster=(Array.isArray(data)?data[0]:data)||{};
+    renderRosterForm();
+  }catch(error){ console.error('Roster load failed:',error); showStatus('guild-roster-status','error',humanizeError(error)); }
+}
+function updateRosterCount(){
+  const n=[...document.querySelectorAll('#roster-grid input')].filter(i=>i.value.trim()).length;
+  const c=$('roster-count'); if(c) c.textContent=`${n} / 10`;
+}
+function renderRosterForm(){
+  const grid=$('roster-grid'); if(!grid) return;
+  const r=state.myRoster||{};
+  const members=Array.isArray(r.members)?r.members:[];
+  const locked=r.can_change===false;
+  if(!grid.children.length){
+    grid.innerHTML=Array.from({length:10},(_,i)=>`<label class="roster-slot"><span>${i+1}</span><input type="text" maxlength="24" data-roster-slot="${i}" placeholder="Member ${i+1}" autocomplete="off" /></label>`).join('');
+    grid.addEventListener('input',updateRosterCount);
+  }
+  grid.querySelectorAll('input').forEach((el,i)=>{el.value=members[i]||'';el.disabled=locked;});
+  const save=$('guild-roster-save'); if(save) save.disabled=locked;
+  const note=$('roster-lock-note');
+  if(note) note.textContent=locked
+    ? `Team list is locked until ${formatDateTime(r.next_change_at)} (3-day rule).`
+    : (members.length?'You can change the list now. After saving, it is locked for 3 days.':'Your first list is saved immediately. After saving, it is locked for 3 days.');
+  const codeNote=$('guild-code-current');
+  if(codeNote) codeNote.textContent=r.code?`Current guild code: ${r.code}`:'No code set yet. Guests cannot enter until you set one.';
+  updateRosterCount();
+}
+async function submitRoster(e){
+  e.preventDefault(); clearStatus('guild-roster-status');
+  if(!guildApproved()) return showStatus('guild-roster-status','error','Only an approved, active guild can submit a team list.');
+  const names=[...document.querySelectorAll('#roster-grid input')].map(i=>i.value.trim()).filter(Boolean);
+  if(!names.length) return showStatus('guild-roster-status','error','Add at least 1 team member.');
+  if(names.some(n=>n.length<2||n.length>24)) return showStatus('guild-roster-status','error','Each name must be 2 to 24 characters.');
+  const ok=await appConfirm('Save this team list?\n\nAfter saving you cannot change it for 3 days.',{title:'Save team list',confirmText:'SAVE TEAM LIST'});
+  if(!ok) return;
+  try{
+    setBusy('guild-roster-save',true,'SAVING');
+    const {error}=await db.rpc('save_my_gvg_roster',{p_members:names});
+    if(error) throw error;
+    await loadMyRoster();
+    showStatus('guild-roster-status','ok','Team list saved. It is locked for the next 3 days.');
+  }catch(error){ showStatus('guild-roster-status','error',humanizeError(error)); }
+  finally{ setBusy('guild-roster-save',false,'SAVE TEAM LIST'); }
+}
+async function submitGuildCode(e){
+  e.preventDefault(); clearStatus('guild-code-status');
+  if(!guildApproved()) return showStatus('guild-code-status','error','Only an approved, active guild can set a guild code.');
+  const code=$('guild-code-input').value.trim();
+  if(!/^\d{4}$/.test(code)) return showStatus('guild-code-status','error','The guild code must be exactly 4 digits.');
+  try{
+    setBusy('guild-code-save',true,'SAVING');
+    const {error}=await db.rpc('set_my_gvg_guild_code',{p_code:code});
+    if(error) throw error;
+    $('guild-code-input').value='';
+    await loadMyRoster();
+    showStatus('guild-code-status','ok','Guild code saved. Share it only with people who should see the profiles.');
+  }catch(error){ showStatus('guild-code-status','error',humanizeError(error)); }
+  finally{ setBusy('guild-code-save',false,'SAVE GUILD CODE'); }
+}
+async function submitGuestLogin(e){
+  e.preventDefault(); clearStatus('guest-status');
+  const guild=$('guest-guild').value.trim(), code=$('guest-code').value.trim();
+  if(!guild||!/^\d{4}$/.test(code)) return showStatus('guest-status','error','Enter the guild name and its 4-digit code.');
+  try{
+    setBusy('guest-submit',true,'CHECKING');
+    const {data,error}=await db.rpc('guest_login',{p_guild:guild,p_code:code});
+    if(error) throw error;
+    const d=Array.isArray(data)?data[0]:data;
+    if(!d||!d.guild_name) throw new Error('Guild name or code is wrong.');
+    state.guest={guild_name:d.guild_name,guild_name_normalized:d.guild_name_normalized,code};
+    try{sessionStorage.setItem('gvg_guest',JSON.stringify({g:guild,c:code}));}catch{}
+    $('guest-code').value='';
+    enterGuest();
+  }catch(error){ showStatus('guest-status','error',humanizeError(error)); }
+  finally{ setBusy('guest-submit',false,'VIEW AS GUEST'); }
+}
+function enterGuest(){
+  clearSectionCache('member:');
+  openView('member');
+  renderMemberIdentity();
+  setMemberAccessGate();
+  syncRegisterNav();
+  openMemberSection('guild-profiles');
+}
+async function restoreGuest(){
+  let saved=null; try{saved=JSON.parse(sessionStorage.getItem('gvg_guest')||'null');}catch{}
+  if(!saved?.g||!saved?.c) return;
+  try{
+    const {data,error}=await db.rpc('guest_login',{p_guild:saved.g,p_code:saved.c});
+    if(error) throw error;
+    const d=Array.isArray(data)?data[0]:data;
+    if(!d?.guild_name) throw new Error('expired');
+    state.guest={guild_name:d.guild_name,guild_name_normalized:d.guild_name_normalized,code:saved.c};
+    enterGuest();
+  }catch{ try{sessionStorage.removeItem('gvg_guest');}catch{} }
+}
+async function fillGuildProfileExtras(norm){
+  const host=$('modal'); if(!host||!norm) return;
+  host.insertAdjacentHTML('beforeend','<div id="pp-extras" class="pp-extras"><div class="hint">Loading team and rival...</div></div>');
+  const safe=p=>Promise.resolve(p).catch(error=>({data:null,error}));
+  const [rosterRes,rivalRes]=await Promise.all([safe(readRpc('get_gvg_guild_roster',{p_norm:norm})),safe(readRpc('get_gvg_guild_rival',{p_norm:norm}))]);
+  const box=$('pp-extras'); if(!box) return;
+  const roster=Array.isArray(rosterRes.data)?rosterRes.data[0]:rosterRes.data;
+  const members=Array.isArray(roster?.members)?roster.members:[];
+  const rival=Array.isArray(rivalRes.data)?rivalRes.data[0]:rivalRes.data;
+  let html='';
+  html+=`<div class="pp-block"><h4>TEAM ROSTER${members.length?` • ${members.length}`:''}</h4>${members.length?`<div class="pp-chips">${members.map(n=>`<span class="pp-chip">${escapeHtml(n)}</span>`).join('')}</div>`:'<div class="hint">The leader has not submitted a team list yet.</div>'}</div>`;
+  if(rival&&Number(rival.matches)>=2){
+    html+=`<div class="pp-block"><h4>MAIN RIVAL</h4><div class="pp-rival">${guildAvatarMarkup(rival,true)}<div class="pp-rival-main"><div class="pp-rival-name">${escapeHtml(rival.guild_name||'')}</div><div class="pp-rival-meta">${Number(rival.matches)} matches played • ${Number(rival.wins)} won • ${Number(rival.losses)} lost</div></div></div></div>`;
+  }else{
+    html+=`<div class="pp-block"><h4>MAIN RIVAL</h4><div class="hint">A rival appears after a guild plays the same opponent at least 2 times.</div></div>`;
+  }
+  box.innerHTML=html;
+}
+document.addEventListener('click',event=>{
+  const b=event.target.closest?.('[data-guild-view]'); if(b){event.preventDefault();setGuildView(b.dataset.guildView);}
+  const t=event.target.closest?.('#guest-toggle'); if(t){const f=$('guest-form');const open=f.classList.toggle('hidden')===false;t.setAttribute('aria-expanded',open?'true':'false');}
+});
+
 $('guild-contact-form')?.addEventListener('submit',submitGuildContact);
+$('guild-roster-form')?.addEventListener('submit',submitRoster);
+$('guild-code-form')?.addEventListener('submit',submitGuildCode);
+$('guest-form')?.addEventListener('submit',submitGuestLogin);
 $('guild-delete-form')?.addEventListener('submit',submitDeleteAccount);
 $('ban-form')?.addEventListener('submit',handleBan);
 $('public-guild-profile-search')?.addEventListener('input',renderPublicGuildProfiles);
@@ -2256,6 +2432,6 @@ $('password-recovery-form').addEventListener('submit',async(e)=>{
   renderRules();renderWeaponSkillChoices();
   const {data:{session}}=await db.auth.getSession();
   if(session){state.user=session.user;clearSectionCache('member:');await loadMyGuild();await completePendingRegistration();await enterMember({skipGuildReload:true});syncRegisterNav();}
-  else{state.user=null;state.guild=null;syncRegisterNav();openView('public');}
+  else{state.user=null;state.guild=null;syncRegisterNav();openView('public');await restoreGuest();}
   await restoreAdmin();
 })();
