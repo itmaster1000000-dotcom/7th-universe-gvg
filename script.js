@@ -1,4 +1,4 @@
-window.__GVG_SCRIPT_VERSION='30.0';
+window.__GVG_SCRIPT_VERSION='31.0';
 /*
   7TH UNIVERSE GVG — FINAL FRONTEND
   Uses two isolated Supabase Auth clients so the Admin browser session
@@ -1379,7 +1379,7 @@ async function rejectResult(id){
   try{const {error}=await adminDb.rpc('admin_reject_result',{p_result_id:id,p_reason:reason.trim()||'Rejected by admin'});if(error)throw error;invalidateResultViewCaches();showStatus('admin-status','ok','Result rejected. The challenge is open again while it is still inside its cycle.');clearSectionCache('admin:results');await loadAdminResults();markSectionLoaded('admin:results');}catch(error){showStatus('admin-status','error',humanizeError(error));}
 }
 
-async function handleBan(e){e.preventDefault();clearStatus('ban-status');const guild=$('ban-guild').value.trim(),contact=$('ban-contact').value.trim(),duration=$('ban-duration').value,reason=$('ban-reason').value.trim()||'Rule violation';if(!guild&&!contact)return showStatus('ban-status','error','Enter a guild name or contact number.');let until=null;const now=new Date();if(duration==='1h')until=new Date(now.getTime()+60*60*1000);if(duration==='6h')until=new Date(now.getTime()+6*60*60*1000);if(duration==='1d')until=new Date(now.getTime()+24*60*60*1000);if(duration==='3d')until=new Date(now.getTime()+3*24*60*60*1000);if(duration==='7d')until=new Date(now.getTime()+7*24*60*60*1000);try{const {error}=await adminDb.rpc('admin_ban_guild_identity',{p_guild_name:guild||null,p_contact:contact||null,p_ban_until:until?until.toISOString():null,p_reason:reason});if(error)throw error;showStatus('ban-status','ok',until?`Guild banned until ${formatDateTime(until)}.`:'Guild permanently banned.');e.target.reset();$('ban-reason').value='Rule violation';await Promise.all([loadAdminGuilds(),loadBans()]);}catch(error){showStatus('ban-status','error',humanizeError(error));}}
+async function handleBan(e){e.preventDefault();clearStatus('ban-status');const guild=$('ban-guild').value.trim(),duration=$('ban-duration').value,reason=$('ban-reason').value.trim()||'Rule violation';if(!guild)return showStatus('ban-status','error','Enter the guild name to ban.');let until=null;const now=new Date();if(duration==='1h')until=new Date(now.getTime()+60*60*1000);if(duration==='6h')until=new Date(now.getTime()+6*60*60*1000);if(duration==='1d')until=new Date(now.getTime()+24*60*60*1000);if(duration==='3d')until=new Date(now.getTime()+3*24*60*60*1000);if(duration==='7d')until=new Date(now.getTime()+7*24*60*60*1000);try{const {error}=await adminDb.rpc('admin_ban_guild_identity',{p_guild_name:guild,p_contact:null,p_ban_until:until?until.toISOString():null,p_reason:reason});if(error)throw error;showStatus('ban-status','ok',until?`Guild banned until ${formatDateTime(until)}.`:'Guild permanently banned.');e.target.reset();$('ban-reason').value='Rule violation';await Promise.all([loadAdminGuilds(),loadBans()]);}catch(error){showStatus('ban-status','error',humanizeError(error));}}
 async function loadBans(){
   try{const {data,error}=await adminDb.rpc('admin_get_active_bans');if(error)throw error;state.bans=data||[];const target=$('ban-list');target.innerHTML=state.bans.length?state.bans.map(b=>`<div class="challenge-card"><div class="meta-row"><div><div class="name">${escapeHtml(b.guild_name||'Identity ban')}</div><div class="subtle">${escapeHtml(formatContact(b.contact||''))}</div></div><span class="badge badge-red">${b.ban_until?escapeHtml(formatDateTime(b.ban_until)):'PERMANENT'}</span></div><div class="contact-line"><span class="muted" style="font-size:8px">${escapeHtml(b.reason||'Rule violation')}</span><button class="btn btn-green btn-small" type="button" data-action="unban-identity" data-guild="${escapeHtml(b.guild_name||'')}" data-contact="${escapeHtml(b.contact||'')}">UNBAN</button></div></div>`).join(''):'<div class="empty">No active bans.</div>';}catch(error){console.error(error);}
 }
@@ -1616,58 +1616,94 @@ async function moderatorRejectResult(id){
 
 
 /* ---------------- GUILD PROFILES, 40 BADGES & HALL OF FAME ---------------- */
-const GVG_BADGES = [
- {id:1,name:'First Battle',file:'01_first_battle.png',desc:'Complete 1 match.',metric:'total_played',min:1},
- {id:2,name:'Active Guild',file:'02_active_guild.png',desc:'Complete 5 matches.',metric:'total_played',min:5},
- {id:3,name:'Battle Ready',file:'03_battle_ready.png',desc:'Complete 10 matches.',metric:'total_played',min:10},
- {id:4,name:'Challenger',file:'04_challenger.png',desc:'Complete 25 matches.',metric:'total_played',min:25},
- {id:5,name:'Arena Regular',file:'05_arena_regular.png',desc:'Complete 50 matches.',metric:'total_played',min:50},
- {id:6,name:'Elite Presence',file:'06_elite_presence.png',desc:'Complete 100 matches.',metric:'total_played',min:100},
- {id:7,name:'Legendary Presence',file:'07_legendary_presence.png',desc:'Complete 200 matches.',metric:'total_played',min:200},
- {id:8,name:'First Victory',file:'08_first_victory.png',desc:'Win 1 match.',metric:'wins',min:1},
- {id:9,name:'Triple Threat',file:'09_triple_threat.png',desc:'Win 3 matches.',metric:'wins',min:3},
- {id:10,name:'Five Victories',file:'10_five_victories.png',desc:'Win 5 matches.',metric:'wins',min:5},
- {id:11,name:'Victory Hunter',file:'11_victory_hunter.png',desc:'Win 10 matches.',metric:'wins',min:10},
- {id:12,name:'Battle Master',file:'12_battle_master.png',desc:'Win 25 matches.',metric:'wins',min:25},
- {id:13,name:'Elite Winner',file:'13_elite_winner.png',desc:'Win 50 matches.',metric:'wins',min:50},
- {id:14,name:'Century of Victories',file:'14_century_of_victories.png',desc:'Win 100 matches.',metric:'wins',min:100},
- {id:15,name:'Legendary Conqueror',file:'15_legendary_conqueror.png',desc:'Win 200 matches.',metric:'wins',min:200},
- {id:16,name:'Hot Streak',file:'16_hot_streak.png',desc:'Win 3 consecutive matches.',metric:'max_win_streak',min:3},
- {id:17,name:'Unstoppable',file:'17_unstoppable.png',desc:'Win 5 consecutive matches.',metric:'max_win_streak',min:5},
- {id:18,name:'Dominator',file:'18_dominator.png',desc:'Win 7 consecutive matches.',metric:'max_win_streak',min:7},
- {id:19,name:'Perfect Ten',file:'19_perfect_ten.png',desc:'Win 10 consecutive matches.',metric:'max_win_streak',min:10},
- {id:20,name:'Unbroken Legend',file:'20_unbroken_legend.png',desc:'Win 15 consecutive matches.',metric:'max_win_streak',min:15},
- {id:21,name:'Sharp Tacticians',file:'21_sharp_tacticians.png',desc:'Reach 60% win rate with at least 10 matches.',metric:'win_rate',min:60,minPlayed:10},
- {id:22,name:'Elite Tacticians',file:'22_elite_tacticians.png',desc:'Reach 70% win rate with at least 10 matches.',metric:'win_rate',min:70,minPlayed:10},
- {id:23,name:'Champion Standard',file:'23_champion_standard.png',desc:'Reach 80% win rate with at least 10 matches.',metric:'win_rate',min:80,minPlayed:10},
- {id:24,name:'Supreme Guild',file:'24_supreme_guild.png',desc:'Reach 90% win rate with at least 10 matches.',metric:'win_rate',min:90,minPlayed:10},
- {id:25,name:'Near Perfect',file:'25_near_perfect.png',desc:'Reach 95% win rate with at least 20 matches.',metric:'win_rate',min:95,minPlayed:20},
- {id:26,name:'Top Ten Debut',file:'26_top_ten_debut.png',desc:'Finish in weekly Top 10 once.',metric:'top10_weeks',min:1},
- {id:27,name:'Top Ten Regular',file:'27_top_ten_regular.png',desc:'Finish in weekly Top 10 for 5 different weeks.',metric:'top10_weeks',min:5},
- {id:28,name:'Top Five Finisher',file:'28_top_five_finisher.png',desc:'Finish in weekly Top 5 for 3 different weeks.',metric:'top5_weeks',min:3},
- {id:29,name:'Podium Contender',file:'29_podium_contender.png',desc:'Finish in weekly Top 3 for 3 different weeks.',metric:'top3_weeks',min:3},
- {id:30,name:'Weekly Number One',file:'30_weekly_number_one.png',desc:'Finish first in weekly ranking once.',metric:'weekly_number_one_count',min:1},
- {id:31,name:'Weekly Dominator',file:'31_weekly_dominator.png',desc:'Finish in weekly Top 5 for 5 different weeks.',metric:'top5_weeks',min:5},
- {id:32,name:'Consistent Challenger',file:'32_consistent_challenger.png',desc:'Finish in weekly Top 10 for 10 different weeks.',metric:'top10_weeks',min:10},
- {id:33,name:'Four-Week Commitment',file:'33_four_week_commitment.png',desc:'Complete matches in 4 consecutive competition weeks.',metric:'max_consecutive_active_weeks',min:4},
- {id:34,name:'Eight-Week Commitment',file:'34_eight_week_commitment.png',desc:'Complete matches in 8 consecutive competition weeks.',metric:'max_consecutive_active_weeks',min:8},
- {id:35,name:'Rival Collector',file:'35_rival_collector.png',desc:'Play against 10 different guilds.',metric:'opponents_count',min:10},
- {id:36,name:'Rival Breaker',file:'36_rival_breaker.png',desc:'Defeat 10 different guilds.',metric:'opponent_wins',min:10},
- {id:37,name:'Guild Conqueror',file:'37_guild_conqueror.png',desc:'Defeat 25 different guilds.',metric:'opponent_wins',min:25},
- {id:38,name:'Monthly Marathon',file:'38_monthly_marathon.png',desc:'Complete 20 matches in one month.',metric:'max_month_matches',min:20},
- {id:39,name:'Veteran Guild',file:'39_veteran_guild.png',desc:'Play in at least 6 different months.',metric:'active_months',min:6},
- {id:40,name:'Legacy Guild',file:'40_legacy_guild.png',desc:'Play in at least 12 different months.',metric:'active_months',min:12}
+/* ===== v1.11: 100-badge achievement system (20 missions x 5 tiers) ===== */
+const GVG_TIER_NAMES=['BRONZE','SILVER','GOLD','PLATINUM','DIAMOND'];
+const GVG_TIER_KEYS=['bronze','silver','gold','platinum','diamond'];
+const GVG_MISSIONS=[
+ {n:1,name:'FRONTLINE',req:t=>`Play ${t} approved matches`},
+ {n:2,name:'VICTORY STAR',req:t=>`Win ${t} matches`},
+ {n:3,name:'CROWN RUN',req:t=>`Finish ${t} completed week${t>1?'s':''} in the Top 10 (3+ matches each)`},
+ {n:4,name:'WEEK WARLORD',req:t=>`Win ${t} matches in a single week`},
+ {n:5,name:'WEEKLY CHAMPION',req:t=>`Win ${t} Weekly Champion title${t>1?'s':''}`},
+ {n:6,name:'MONTHLY CHAMPION',req:t=>`Win ${t} Monthly Champion title${t>1?'s':''}`},
+ {n:7,name:'UNBROKEN SHIELD',req:t=>`Complete ${t} week${t>1?'s':''} with 3+ matches and zero losses`},
+ {n:8,name:'POINTS MOUNTAIN',req:t=>`Score ${t}+ points in a single week`},
+ {n:9,name:'CONQUEROR',req:t=>`Defeat ${t} different guilds`},
+ {n:10,name:'DIPLOMAT',req:t=>`Face ${t} different guilds`},
+ {n:11,name:'FIREPOWER',req:t=>`Earn ${t} Perfect Day${t>1?'s':''} (3+ matches in a day, all won)`},
+ {n:12,name:'RESILIENCE',req:t=>`Win ${t} match${t>1?'es':''} right after a loss`},
+ {n:13,name:'NEMESIS',req:t=>`Beat the same rival ${t} times`},
+ {n:14,name:'PODIUM',req:t=>`Finish ${t} completed week${t>1?'s':''} in the Top 3 (3+ matches each)`},
+ {n:15,name:'PRECISION',req:(t,min)=>`Hold a ${t}% win rate over ${min}+ matches`},
+ {n:16,name:'HOT STREAK',req:t=>`Win ${t} matches in a row`},
+ {n:17,name:'GIANT SLAYER',req:t=>`Beat ${t} guild${t>1?'s':''} that finished a week in the Top 10`},
+ {n:18,name:'ENDURANCE',req:t=>`Play 3+ matches for ${t} weeks in a row`},
+ {n:19,name:'LOYALTY',req:t=>`Be active on ${t} different days`},
+ {n:20,name:'UNIVERSE LEGEND',req:t=>`Earn ${t} badges across missions 1 to 19`}
 ];
+function badgeFile(mission,tier){
+  const n=(mission-1)*5+tier, set=Math.floor((n-1)/20)+1, row=Math.floor(((n-1)%20)/5)+1;
+  return `./assets/badges/badge_${String(n).padStart(3,'0')}_set${set}_row${row}_${GVG_TIER_KEYS[tier-1]}.png`;
+}
+function applyBadgeData(data){
+  const d=Array.isArray(data)?data[0]:data;
+  state.badgeConfig=Array.isArray(d?.config)?d.config:[];
+  state.badgeTierMap={};
+  state.badgeConfig.forEach(r=>{(state.badgeTierMap[r.m]=state.badgeTierMap[r.m]||[])[Number(r.t)-1]=r;});
+  state.badgeByGuild=new Map((Array.isArray(d?.guilds)?d.guilds:[]).map(g=>[normalizeGuild(g.n),g]));
+}
+function guildBadgeInfo(p){return state.badgeByGuild?.get(normalizeGuild(p?.guild_name_normalized||p?.guild_name||''))||null;}
+function titleTierFromText(t){const x=String(t||'');return x.startsWith('🥉')?1:x.startsWith('🥈')?2:x.startsWith('🥇')?3:x.startsWith('💠')?4:x.startsWith('💎')?5:0;}
+function titleChipMarkup(text){
+  if(!text) return '';
+  const tier=titleTierFromText(text);
+  return `<span class="rank-chip ${tier?`tier-${tier}`:'champ'}">${escapeHtml(text)}</span>`;
+}
+function topBadgeStripMarkup(info){
+  if(!info) return '';
+  const list=GVG_MISSIONS.map((m,i)=>({m,t:Number(info.t?.[i])||0})).filter(x=>x.t>0).sort((a,b)=>b.t-a.t||a.m.n-b.m.n).slice(0,4);
+  if(!list.length) return '';
+  return `<div class="badge-strip">${list.map(x=>`<img src="${badgeFile(x.m.n,x.t)}" alt="${escapeHtml(x.m.name)} ${GVG_TIER_NAMES[x.t-1]}" title="${escapeHtml(x.m.name)} · ${GVG_TIER_NAMES[x.t-1]}" loading="lazy" />`).join('')}</div>`;
+}
+function fmtMissionValue(n,v){const x=Number(v)||0;return n===15?`${x.toFixed(1)}%`:String(Math.round(x*10)/10);}
+function renderAchievements(profile){
+  const info=guildBadgeInfo(profile);
+  if(!state.badgeConfig?.length) return '<div class="guild-badge-section-title">ACHIEVEMENTS</div><div class="hint">Achievements are not available right now.</div>';
+  const score=info?.score||0;
+  const cards=GVG_MISSIONS.map((m,i)=>{
+    const t=Number(info?.t?.[i])||0, v=Number(info?.v?.[i])||0;
+    const rows=state.badgeTierMap?.[m.n]||[];
+    const next=t<5?rows[t]:null;
+    const pct=next?Math.max(0,Math.min(100,Math.round(v/Number(next.th)*100))):100;
+    const played=Number(info?.v?.[0])||0;
+    let progress=next?`${fmtMissionValue(m.n,v)} / ${fmtMissionValue(m.n,next.th)}`:'MAX TIER';
+    if(next&&m.n===15&&played<Number(next.min||0)) progress=`${fmtMissionValue(15,v)} · needs ${next.min}+ matches (${played} played)`;
+    const req=next?m.req(Number(next.th),Number(next.min||0)):'Every tier completed';
+    const pips=[1,2,3,4,5].map(k=>`<i class="${k<=t?`on k${k}`:''}"></i>`).join('');
+    return `<div class="ach-card ${t?`tier-${t}`:'locked'}"><img src="${badgeFile(m.n,Math.max(1,t))}" alt="${escapeHtml(m.name)}" loading="lazy" /><strong>${m.name}</strong><span class="ach-tier">${t?GVG_TIER_NAMES[t-1]:'LOCKED'}</span><div class="ach-pips">${pips}</div><small>${escapeHtml(req)}</small><div class="ach-bar"><i style="width:${pct}%"></i></div><em>${escapeHtml(progress)}</em></div>`;
+  }).join('');
+  return `<div class="guild-badge-section-title">ACHIEVEMENTS • ${score}/100 BADGES</div><div class="hint" style="margin:0 0 10px">20 missions, 5 tiers each. Badges count approved results since the badge program started.</div><div class="ach-grid">${cards}</div>`;
+}
 function numberMetric(p,key){return Number(p?.[key]||0);}
-function badgeUnlocked(b,p){return numberMetric(p,`badge_${b.metric}`)>=b.min && (!b.minPlayed||numberMetric(p,'badge_total_played')>=b.minPlayed);}
-function badgeImgPath(file){return `./${file}`;}
 function guildAvatarMarkup(p,small=false){return p?.guild_logo_url?`<div class="guild-profile-avatar" ${small?'style="width:56px;height:56px;flex-basis:56px"':''}><img src="${escapeHtml(p.guild_logo_url)}" alt="${escapeHtml(p.guild_name)} logo" loading="lazy" /></div>`:`<div class="guild-profile-avatar" ${small?'style="width:56px;height:56px;flex-basis:56px"':''}><span style="font-size:27px">🛡️</span></div>`;}
+
+/* Guild ranking list: guilds with 5+ approved matches are RANKED by win rate (highest first), so a lucky 1-0 guild cannot sit above a proven one.
+   Guilds with fewer matches follow (still by win rate), and guilds with no matches come last. */
+const GVG_MIN_RANKED_MATCHES=5;
+function guildWinStats(p){const w=Number(p?.wins)||0,l=Number(p?.losses)||0,t=w+l;return {w,l,t,rate:t?w/t:-1};}
+function rankGuildProfiles(list){
+  const decorated=list.map(p=>({p,s:guildWinStats(p)}));
+  const band=x=>x.s.t>=GVG_MIN_RANKED_MATCHES?0:(x.s.t>0?1:2);
+  decorated.sort((A,B)=>band(A)-band(B)||B.s.rate-A.s.rate||B.s.t-A.s.t||B.s.w-A.s.w||String(A.p.guild_name||'').localeCompare(String(B.p.guild_name||'')));
+  let n=0;
+  return decorated.map(x=>{x.p.rank_no=band(x)===0?++n:0;x.p.win_rate_pct=x.s.t?Math.round(x.s.rate*1000)/10:null;x.p.matches_played=x.s.t;return x.p;});
+}
 function renderPublicGuildProfiles(){
   const target=$('public-guild-profile-grid'); if(!target)return;
   const q=String($('public-guild-profile-search')?.value||'').trim().toLowerCase();
   const rows=(state.guildProfiles||[]).filter(p=>!q||String(p.guild_name||'').toLowerCase().includes(q)||String(p.guild_uid||'').toLowerCase().includes(q));
   const count=$('public-profile-count');if(count)count.textContent=`${rows.length} GUILDS`;
-  target.innerHTML=rows.length?rows.map(p=>`<article class="guild-profile-card">${guildAvatarMarkup(p,true)}<div class="guild-profile-main"><div class="guild-profile-name">${escapeHtml(p.guild_name)}</div><div class="guild-profile-uid">UID: ${escapeHtml(p.guild_uid||'Not added')}</div>${p.profile_incomplete?'<div class="guild-profile-meta">PROFILE SETUP PENDING · MATCH STATS NOT AVAILABLE</div>':`<div class="guild-profile-meta">${numberMetric(p,'total_played')} PLAYED · ${numberMetric(p,'wins')}W / ${numberMetric(p,'losses')}L</div><div class="guild-profile-meta">🏆 ${numberMetric(p,'weekly_trophies')} weekly · ${numberMetric(p,'monthly_trophies')} monthly</div>`}<button class="btn btn-green btn-small" style="margin-top:8px" type="button" data-action="open-public-guild-profile" data-guild="${escapeHtml(p.guild_name_normalized||normalizeGuild(p.guild_name))}">VIEW PROFILE</button></div></article>`).join(''):'<div class="empty">No approved guild profiles match this search.</div>';
+  target.innerHTML=rows.length?rows.map(p=>{const info=guildBadgeInfo(p);return `<article class="guild-profile-card" data-rt="${Number(info?.rt)||0}">${guildAvatarMarkup(p,true)}<div class="guild-profile-main"><div class="guild-profile-name">${p.rank_no?`<span class="rank-no">#${p.rank_no}</span>`:''}${escapeHtml(p.guild_name)}</div><div class="guild-profile-uid">UID: ${escapeHtml(p.guild_uid||'Not added')}</div>${titleChipMarkup(info?.title)}${p.profile_incomplete?'<div class="guild-profile-meta">PROFILE SETUP PENDING · MATCH STATS NOT AVAILABLE</div>':`<div class="guild-profile-meta">${numberMetric(p,'total_played')} PLAYED · ${numberMetric(p,'wins')}W / ${numberMetric(p,'losses')}L${p.win_rate_pct!==null&&p.win_rate_pct!==undefined?` · <span class="wr-chip">${p.win_rate_pct}% WIN RATE</span>`:''}</div>${p.matches_played>0&&p.matches_played<GVG_MIN_RANKED_MATCHES?`<div class="guild-profile-meta" style="opacity:.7">Unranked · needs ${GVG_MIN_RANKED_MATCHES} matches (${p.matches_played} played)</div>`:''}<div class="guild-profile-meta">🏆 ${numberMetric(p,'weekly_trophies')} weekly · ${numberMetric(p,'monthly_trophies')} monthly</div>${topBadgeStripMarkup(info)}`}<button class="btn btn-green btn-small" style="margin-top:8px" type="button" data-action="open-public-guild-profile" data-guild="${escapeHtml(p.guild_name_normalized||normalizeGuild(p.guild_name))}">VIEW PROFILE</button></div></article>`;}).join(''):'<div class="empty">No approved guild profiles match this search.</div>';
 }
 function setLogoCooldownNote(profile){
   const note=$('guild-logo-cooldown-note'),file=$('guild-profile-logo');if(!note||!file)return;
@@ -1693,7 +1729,7 @@ async function loadPublicGuildProfiles(){
       : Promise.resolve(db.rpc('get_gvg_registered_guilds')).catch(error=>({data:null,error}));
     const [profilesResult,badgeResult,registryResult]=await Promise.all([
       Promise.resolve(readRpc('get_gvg_public_guild_profiles')).catch(error=>({data:null,error})),
-      Promise.resolve(readRpc('get_gvg_public_badge_progress')).catch(error=>({data:null,error})),
+      Promise.resolve(readRpc('get_gvg_badges_v2')).catch(error=>({data:null,error})),
       registryPromise
     ]);
 
@@ -1707,10 +1743,7 @@ async function loadPublicGuildProfiles(){
     }
 
     const profiles=profilesOk&&Array.isArray(profilesResult.data)?profilesResult.data:[];
-    const progressRows=!badgeResult.error&&Array.isArray(badgeResult.data)?badgeResult.data:[];
-    const progressByGuild=new Map(progressRows.map(row=>[
-      normalizeGuild(row.guild_name_normalized||row.guild_name||''),row
-    ]));
+    applyBadgeData(!badgeResult.error?badgeResult.data:null);
     const byGuild=new Map();
     profiles.forEach(profile=>{
       const key=normalizeGuild(profile.guild_name_normalized||profile.guild_name||'');
@@ -1738,17 +1771,7 @@ async function loadPublicGuildProfiles(){
       throw profilesResult.error||registryResult.error||new Error('Could not load guild profiles or the approved guild directory.');
     }
 
-    state.guildProfiles=[...byGuild.values()].map(profile=>({
-      ...profile,
-      ...(progressByGuild.get(normalizeGuild(profile.guild_name_normalized||profile.guild_name||''))||{})
-    })).sort((a,b)=>{
-      // Highest win rate first. Guilds with no matches go last. Ties: more matches played, then name.
-      const stat=p=>{const w=Number(p.wins)||0,l=Number(p.losses)||0,t=w+l;return {t,w,rate:t?w/t:-1};};
-      const A=stat(a),B=stat(b);
-      if(B.rate!==A.rate)return B.rate-A.rate;
-      if(B.t!==A.t)return B.t-A.t;
-      return String(a.guild_name||'').localeCompare(String(b.guild_name||''));
-    });
+    state.guildProfiles=rankGuildProfiles([...byGuild.values()].map(profile=>({...profile})));
     renderPublicGuildProfiles();
     populateMyGuildProfileEditor();
   }catch(error){
@@ -1757,21 +1780,16 @@ async function loadPublicGuildProfiles(){
     showStatus('guild-profile-status','error',humanizeError(error));
   }
 }
-function renderBadgeGrid(profile,showLocked=true){
-  const earned=GVG_BADGES.filter(b=>badgeUnlocked(b,profile));
-  const shown=showLocked?GVG_BADGES:earned;
-  const started=profile?.badge_program_started_at?formatDateTime(profile.badge_program_started_at):'the program start date';
-  return `<div class="guild-badge-section-title">UNLOCKED BADGES • ${earned.length}/40</div><div class="hint" style="margin:0 0 10px">Badge missions count only approved results from ${escapeHtml(started)} onward. Older match history does not unlock badges; lifetime statistics and Weekly/Monthly Champion trophies are unchanged.</div><div class="guild-badge-grid">${shown.map(b=>{const ok=badgeUnlocked(b,profile);return `<div class="guild-badge-item ${ok?'unlocked':'locked'}"><img src="${badgeImgPath(b.file)}" alt="${escapeHtml(b.name)}" loading="lazy" /><strong>${escapeHtml(b.name)}</strong><small>${escapeHtml(b.desc)}</small><span class="guild-badge-status ${ok?'complete':'pending'}">${ok?'UNLOCKED':'LOCKED'}</span></div>`;}).join('')}</div>`;
-}
 function openPublicGuildProfile(norm){
   const p=(state.guildProfiles||[]).find(x=>normalizeGuild(x.guild_name_normalized||x.guild_name)===normalizeGuild(norm));if(!p)return;
-  const unlocked=GVG_BADGES.filter(b=>badgeUnlocked(b,p)).length;
+  const info=guildBadgeInfo(p);
+  const unlocked=info?.score||0;
   const statsMarkup=p.profile_incomplete
     ? '<div class="hint" style="margin-top:10px">This approved guild is listed, but its public profile data has not been created yet. UID, logo, match statistics and achievements will appear after profile data is available.</div>'
     : `<div class="guild-profile-kpis"><div class="guild-profile-kpi"><span>Played</span><strong>${numberMetric(p,'total_played')}</strong></div><div class="guild-profile-kpi"><span>Wins</span><strong>${numberMetric(p,'wins')}</strong></div><div class="guild-profile-kpi"><span>Losses</span><strong>${numberMetric(p,'losses')}</strong></div><div class="guild-profile-kpi"><span>Win Rate</span><strong>${Number(p.win_rate||0).toFixed(1)}%</strong></div></div>
-    <div class="guild-profile-kpis"><div class="guild-profile-kpi"><span>Weekly trophies</span><strong>🏆 ${numberMetric(p,'weekly_trophies')}</strong></div><div class="guild-profile-kpi"><span>Monthly trophies</span><strong>👑 ${numberMetric(p,'monthly_trophies')}</strong></div><div class="guild-profile-kpi"><span>Top 10 weeks</span><strong>${numberMetric(p,'top10_weeks')}</strong></div><div class="guild-profile-kpi"><span>Longest streak</span><strong>${numberMetric(p,'max_win_streak')}</strong></div></div>${renderBadgeGrid(p,true)}<div class="hint" style="margin-top:12px">Statistics use approved results only. Trophies are official awards added by the GVG Admin.</div>`;
+    <div class="guild-profile-kpis"><div class="guild-profile-kpi"><span>Weekly trophies</span><strong>🏆 ${numberMetric(p,'weekly_trophies')}</strong></div><div class="guild-profile-kpi"><span>Monthly trophies</span><strong>👑 ${numberMetric(p,'monthly_trophies')}</strong></div><div class="guild-profile-kpi"><span>Top 10 weeks</span><strong>${numberMetric(p,'top10_weeks')}</strong></div><div class="guild-profile-kpi"><span>Longest streak</span><strong>${numberMetric(p,'max_win_streak')}</strong></div></div>${renderAchievements(p)}<div class="hint" style="margin-top:12px">Statistics use approved results only. Trophies are official awards added by the GVG Admin.</div>`;
   const html=`<div class="modal-head"><div><div class="kicker">Public Guild Profile</div><h3>${escapeHtml(p.guild_name)}</h3></div><button class="close-btn" type="button" data-action="close-modal">×</button></div>
-    <div style="display:flex;align-items:center;gap:12px;margin:12px 0">${guildAvatarMarkup(p,true)}<div><div style="font-weight:900">GUILD UID</div><div class="guild-profile-uid">${escapeHtml(p.guild_uid||'Not added yet')}</div>${p.profile_incomplete?'':`<div class="guild-profile-meta">${unlocked}/40 achievements unlocked</div>`}</div></div>${statsMarkup}`;
+    <div style="display:flex;align-items:center;gap:12px;margin:12px 0">${guildAvatarMarkup(p,true)}<div><div style="font-weight:900">GUILD UID</div><div class="guild-profile-uid">${escapeHtml(p.guild_uid||'Not added yet')}</div>${p.profile_incomplete?'':`<div class="guild-profile-meta">${unlocked}/100 badges earned</div>`}${titleChipMarkup(info?.title)}</div></div>${statsMarkup}`;
   openModal(html);
   fillGuildProfileExtras(p.guild_name_normalized||normalizeGuild(p.guild_name));
 }
@@ -1990,7 +2008,7 @@ async function loadHallOfFame(){
     const [settingsRes,yearsRes]=await Promise.all([readRpc('get_gvg_hof_settings'),readRpc('get_gvg_hall_of_fame_years',{p_award_type:state.hofMode})]);
     if(settingsRes.error)throw settingsRes.error;if(yearsRes.error)throw yearsRes.error;
     const s=Array.isArray(settingsRes.data)?settingsRes.data[0]:settingsRes.data;if(s)state.hofSettings=s;
-    const years=(yearsRes.data||[]).map(x=>Number(x.award_year));state.hofYears=years;if(!state.hofYear||!years.includes(Number(state.hofYear)))state.hofYear=Number(state.hofSettings.season_year||years[0]||new Date().getFullYear());
+    const years=(yearsRes.data||[]).map(x=>Number(x&&typeof x==='object'?x.award_year:x)).filter(Number.isFinite);state.hofYears=years;if(!state.hofYear||!years.includes(Number(state.hofYear)))state.hofYear=Number(state.hofSettings.season_year||years[0]||new Date().getFullYear());
     document.querySelectorAll('[data-hof-type]').forEach(b=>b.classList.toggle('active',b.dataset.hofType===state.hofMode));
     renderHofYearGrid(years);await loadHallOfFameYear();
   }catch(error){console.error('Hall of Fame load failed:',error);$('hof-year-grid').innerHTML=`<div class="empty">Could not load Hall of Fame. Run the supplied Supabase migration first. ${escapeHtml(humanizeError(error))}</div>`;}
@@ -2219,12 +2237,50 @@ document.addEventListener('click',event=>{
 
 $('guild-name-change-form')?.addEventListener('submit',submitGuildNameChangeRequest);
 
+
+/* ===== v1.11: title chooser (My Profile) ===== */
+async function loadMyTitleOptions(){
+  const box=$('title-options'); if(!box||!state.user||!state.guild) return;
+  try{
+    const {data,error}=await db.rpc('get_my_gvg_title_options');
+    if(error) throw error;
+    const d=(Array.isArray(data)?data[0]:data)||{};
+    state.myTitle=d;
+    const items=[
+      {key:'rank',label:'RANK TITLE',text:d.rank,locked:'Locked. Earn badges to unlock your first rank title.'},
+      {key:'weekly',label:'WEEKLY CHAMPION',text:d.weekly,locked:'Locked. Win a Weekly Champion title.'},
+      {key:'monthly',label:'MONTHLY CHAMPION',text:d.monthly,locked:'Locked. Win a Monthly Champion title.'},
+      {key:'none',label:'NO TITLE',text:'Show only my guild name.',locked:''}
+    ];
+    box.innerHTML=items.map(it=>{
+      const avail=it.key==='none'||Boolean(it.text);
+      return `<label class="title-opt ${avail?'':'disabled'}"><input type="radio" name="guild-title-choice" value="${it.key}" ${d.choice===it.key?'checked':''} ${avail?'':'disabled'} /><span><b>${it.label}</b><em>${escapeHtml(avail?(it.text||''):it.locked)}</em></span></label>`;
+    }).join('');
+    const slot=$('my-hub-title'); if(slot) slot.innerHTML=titleChipMarkup(d.current);
+  }catch(error){ console.error('Title options failed:',error); const st=$('guild-title-status'); if(st) showStatus('guild-title-status','error',humanizeError(error)); }
+}
+async function submitGuildTitle(e){
+  e.preventDefault(); clearStatus('guild-title-status');
+  const picked=document.querySelector('input[name="guild-title-choice"]:checked')?.value;
+  if(!picked) return showStatus('guild-title-status','error','Choose one option first.');
+  try{
+    setBusy('guild-title-save',true,'SAVING');
+    const {error}=await db.rpc('set_my_gvg_title_choice',{p_choice:picked});
+    if(error) throw error;
+    await loadMyTitleOptions();
+    state.guildProfiles=null; clearSectionCache('member:guild-profiles');
+    showStatus('guild-title-status','ok','Title saved. It now shows on your profile and in new WhatsApp challenges and results.');
+  }catch(error){ showStatus('guild-title-status','error',humanizeError(error)); }
+  finally{ setBusy('guild-title-save',false,'SAVE TITLE'); }
+}
+
 /* ===== v1.10: Guild section switch, team roster, guild code, guest access, profile extras ===== */
 async function readRpc(name,args){
   if(state.guest){
     const map={
       get_gvg_public_guild_profiles:['profiles'],
       get_gvg_public_badge_progress:['badges'],
+      get_gvg_badges_v2:['badges2'],
       get_gvg_hof_settings:['hof_settings'],
       get_gvg_hall_of_fame_years:['hof_years',args?.p_award_type],
       get_gvg_hall_of_fame:['hof',args?.p_award_type,args?.p_award_year],
@@ -2247,6 +2303,7 @@ function setGuildView(view){
     loadMyGuildHub();
     loadSectionCached('member:name-change-status',loadMyGuildNameChangeStatus,15000);
     populateMyGuildProfileEditor();
+    loadMyTitleOptions();
     loadMyRoster();
   }
 }
@@ -2376,6 +2433,7 @@ document.addEventListener('click',event=>{
 
 $('guild-contact-form')?.addEventListener('submit',submitGuildContact);
 $('guild-roster-form')?.addEventListener('submit',submitRoster);
+$('guild-title-form')?.addEventListener('submit',submitGuildTitle);
 $('guild-code-form')?.addEventListener('submit',submitGuildCode);
 $('guest-form')?.addEventListener('submit',submitGuestLogin);
 $('guild-delete-form')?.addEventListener('submit',submitDeleteAccount);

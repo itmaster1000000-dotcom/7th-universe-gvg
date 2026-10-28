@@ -1676,7 +1676,7 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
             <div class="panel-head"><div><div class="kicker">Guild Control Center</div><h3>MY GUILD</h3><div class="subtle">Your guild identity, this week&rsquo;s performance and account tools.</div></div><span id="my-hub-status" class="badge badge-pending">LOADING</span></div>
             <div class="hub-identity">
               <div class="hub-logo" id="my-hub-logo"><span>&#9876;</span></div>
-              <div class="hub-id-text"><div class="hub-name" id="my-hub-name">&mdash;</div><div class="hub-meta" id="my-hub-meta">&mdash;</div></div>
+              <div class="hub-id-text"><div class="hub-name" id="my-hub-name">&mdash;</div><div id="my-hub-title" class="hub-title"></div><div class="hub-meta" id="my-hub-meta">&mdash;</div></div>
             </div>
             <div class="hub-stats">
               <div class="hub-stat"><span>WEEK POINTS</span><b id="my-hub-points">0</b></div>
@@ -1720,7 +1720,15 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
               <div id="guild-contact-status" class="status"></div>
             </form>
           </div>
-<div class="card" style="margin-top:14px" id="roster-card">
+<div class="card" style="margin-top:14px" id="title-card">
+            <div class="panel-head"><div><div class="kicker">Recognition</div><h3>TITLE &amp; BADGE DISPLAY</h3><div class="subtle">Choose the title shown on your profile and next to your guild name in WhatsApp challenges and results.</div></div></div>
+            <form id="guild-title-form" novalidate>
+              <div id="title-options" class="title-options"><div class="hint">Loading your titles...</div></div>
+              <div class="split-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px"><button id="guild-title-save" class="btn btn-primary" type="submit">SAVE TITLE</button></div>
+              <div id="guild-title-status" class="status"></div>
+            </form>
+          </div>
+          <div class="card" style="margin-top:14px" id="roster-card">
             <div class="panel-head"><div><div class="kicker">Team</div><h3>TEAM ROSTER</h3><div class="subtle">Add up to 10 team member names. After you save, the list can be changed again only after 3 days.</div></div><span id="roster-count" class="badge badge-gold">0 / 10</span></div>
             <form id="guild-roster-form" novalidate>
               <div id="roster-grid" class="roster-grid"></div>
@@ -1847,7 +1855,7 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
               </section>
             </div>
 
-            <div id="admin-section-ban" class="admin-panel-view"><section class="admin-section"><div class="admin-section-head"><div><div class="kicker">Enforcement</div><h3>BAN GUILD</h3><div class="subtle">Permanent or timed ban by guild name/contact number. Ban is shared across both leaders.</div></div><span class="badge badge-red">BAN CONTROL</span></div><div class="admin-panel"><form id="ban-form" novalidate><div class="field-grid"><label class="full">GUILD NAME<input id="ban-guild" type="text" maxlength="80" placeholder="Guild name" /></label><label class="full">CONTACT NUMBER<input id="ban-contact" type="tel" maxlength="30" placeholder="03XXXXXXXXX" /></label><label class="full">BAN DURATION<select id="ban-duration"><option value="permanent">Permanent</option><option value="1h">1 Hour</option><option value="6h">6 Hours</option><option value="1d">1 Day</option><option value="3d">3 Days</option><option value="7d">7 Days</option></select></label><label class="full">REASON<input id="ban-reason" type="text" maxlength="250" value="Rule violation" /></label></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px"><button class="btn btn-red" type="submit">BAN GUILD</button></div><div id="ban-status" class="status"></div></form><div class="divider"></div><div class="kicker">Active Ban Records</div><div id="ban-list" class="challenge-list" style="margin-top:9px"><div class="empty">Loading bans...</div></div></div></section></div>
+            <div id="admin-section-ban" class="admin-panel-view"><section class="admin-section"><div class="admin-section-head"><div><div class="kicker">Enforcement</div><h3>BAN GUILD</h3><div class="subtle">Permanent or timed ban by guild name. The ban covers both leaders of the guild.</div></div><span class="badge badge-red">BAN CONTROL</span></div><div class="admin-panel"><form id="ban-form" novalidate><div class="field-grid"><label class="full">GUILD NAME<input id="ban-guild" type="text" maxlength="80" placeholder="Guild name" /></label><label class="full">BAN DURATION<select id="ban-duration"><option value="permanent">Permanent</option><option value="1h">1 Hour</option><option value="6h">6 Hours</option><option value="1d">1 Day</option><option value="3d">3 Days</option><option value="7d">7 Days</option></select></label><label class="full">REASON<input id="ban-reason" type="text" maxlength="250" value="Rule violation" /></label></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px"><button class="btn btn-red" type="submit">BAN GUILD</button></div><div id="ban-status" class="status"></div></form><div class="divider"></div><div class="kicker">Active Ban Records</div><div id="ban-list" class="challenge-list" style="margin-top:9px"><div class="empty">Loading bans...</div></div></div></section></div>
             <div id="admin-section-trophies" class="admin-panel-view">
               <section class="admin-section">
                 <div class="admin-section-head"><div><div class="kicker">Official Champion Awards</div><h3>HALL OF FAME CONTROL</h3><div class="subtle">Only Admin can award or remove official weekly/monthly trophies. Changing these records does not alter weekly ranking points.</div></div><span class="badge badge-gold">ADMIN ONLY</span></div>
@@ -2058,7 +2066,7 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
 (function(){
-  window.__GVG_HTML_VERSION='30.0';
+  window.__GVG_HTML_VERSION='31.0';
   function show(msg){
     try{
       var d=document.getElementById('gvg-fatal');
@@ -2079,7 +2087,7 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
   });
 })();
 </script>
-<script src="./script.js?v=30.0-roster-guest"></script>
+<script src="./script.js?v=31.0-badges-titles"></script>
 
   <style>
     .app-dialog-backdrop{position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(1,3,8,.82);backdrop-filter:blur(11px);-webkit-backdrop-filter:blur(11px)}
@@ -2108,6 +2116,48 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
     @media(prefers-reduced-motion:reduce){.app-dialog-backdrop.open,.app-dialog{animation:none}.app-dialog-btn{transition:none}}
 
 
+
+    /* v31 — achievements, rank titles, tier styles */
+    :root{--t1:#cd8b4f;--t1g:rgba(205,139,79,.38);--t2:#d3dce6;--t2g:rgba(211,220,230,.34);--t3:#f3c64e;--t3g:rgba(243,198,78,.45);--t4:#86dbff;--t4g:rgba(134,219,255,.5);--t5:#72f3ff;--t5g:rgba(114,243,255,.62)}
+    @keyframes achsheen{0%{background-position:160% 0}100%{background-position:-110% 0}}
+    @keyframes dmndpulse{0%,100%{box-shadow:0 0 14px var(--t5g)}50%{box-shadow:0 0 26px var(--t5g),0 0 44px rgba(167,139,250,.35)}}
+    .rank-chip{display:inline-flex;align-items:center;max-width:100%;margin:7px 0 2px;padding:5px 11px;border-radius:999px;font-size:10.5px;font-weight:900;letter-spacing:.08em;line-height:1.25;color:var(--tc,#ddd);border:1px solid var(--tc,#888);background:linear-gradient(135deg,rgba(255,255,255,.07),rgba(0,0,0,.3));box-shadow:0 0 14px var(--tg,transparent)}
+    .rank-chip.tier-1{--tc:var(--t1);--tg:var(--t1g)}.rank-chip.tier-2{--tc:var(--t2);--tg:var(--t2g)}.rank-chip.tier-3{--tc:var(--t3);--tg:var(--t3g);background:linear-gradient(135deg,rgba(243,198,78,.16),rgba(0,0,0,.3))}
+    .rank-chip.tier-4{--tc:var(--t4);--tg:var(--t4g);border-width:2px;background:linear-gradient(135deg,rgba(134,219,255,.16),rgba(0,0,0,.32))}
+    .rank-chip.tier-5{--tc:var(--t5);--tg:var(--t5g);border-width:2px;background:linear-gradient(115deg,#06202b,#0f4358,#06202b);background-size:240% 100%;animation:achsheen 4.5s linear infinite;text-shadow:0 0 10px rgba(114,243,255,.7);color:#d9fbff}
+    .rank-chip.champ{--tc:#f3d37a;--tg:rgba(231,193,90,.4);background:linear-gradient(135deg,rgba(231,193,90,.15),rgba(0,0,0,.3))}
+    .hub-title{margin-top:2px}
+    .guild-profile-card[data-rt="1"]{border-color:var(--t1)!important}.guild-profile-card[data-rt="2"]{border-color:var(--t2)!important}
+    .guild-profile-card[data-rt="3"]{border-color:var(--t3)!important;box-shadow:0 0 18px var(--t3g)}.guild-profile-card[data-rt="4"]{border-color:var(--t4)!important;box-shadow:0 0 20px var(--t4g)}
+    .guild-profile-card[data-rt="5"]{border-color:var(--t5)!important;animation:dmndpulse 3.6s ease-in-out infinite}
+    .badge-strip{display:flex;gap:5px;margin-top:8px}.badge-strip img{width:30px;height:30px;object-fit:contain;filter:drop-shadow(0 2px 5px rgba(0,0,0,.7))}
+    .ach-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+    .ach-card{position:relative;overflow:hidden;padding:12px 9px 11px;border-radius:16px;text-align:center;background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.012));border:1px solid rgba(255,255,255,.1)}
+    .ach-card img{width:88px;height:88px;object-fit:contain;filter:drop-shadow(0 6px 10px rgba(0,0,0,.6))}
+    .ach-card strong{display:block;margin-top:4px;font-size:11.5px;letter-spacing:.08em}
+    .ach-tier{display:block;margin-top:3px;font-size:10px;font-weight:900;letter-spacing:.16em;color:#8a8a93}
+    .ach-pips{display:flex;justify-content:center;gap:4px;margin:7px 0 6px}.ach-pips i{width:14px;height:5px;border-radius:99px;background:rgba(255,255,255,.1)}
+    .ach-pips i.k1{background:var(--t1)}.ach-pips i.k2{background:var(--t2)}.ach-pips i.k3{background:var(--t3)}.ach-pips i.k4{background:var(--t4)}.ach-pips i.k5{background:var(--t5);box-shadow:0 0 8px var(--t5g)}
+    .ach-card small{display:block;min-height:30px;font-size:10.5px;line-height:1.35;color:#a79aa0}
+    .ach-bar{height:5px;margin:7px 4px 4px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden}.ach-bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#9a6a3a,#f1b866)}
+    .ach-card em{display:block;font-style:normal;font-size:10px;font-weight:800;letter-spacing:.05em;color:#cfc2c7}
+    .ach-card.locked img{filter:grayscale(1) brightness(.33) contrast(1.15);opacity:.75}.ach-card.locked strong{color:#8d8890}
+    .ach-card.tier-1{border-color:var(--t1);box-shadow:inset 0 0 0 1px var(--t1g)}.ach-card.tier-1 .ach-tier{color:var(--t1)}
+    .ach-card.tier-2{border-color:var(--t2);box-shadow:inset 0 0 0 1px var(--t2g)}.ach-card.tier-2 .ach-tier{color:var(--t2)}.ach-card.tier-2 .ach-bar i{background:linear-gradient(90deg,#8d99a8,#e5ecf4)}
+    .ach-card.tier-3{border-color:var(--t3);box-shadow:0 0 16px var(--t3g),inset 0 0 0 1px var(--t3g)}.ach-card.tier-3 .ach-tier{color:var(--t3)}.ach-card.tier-3 .ach-bar i{background:linear-gradient(90deg,#c99a2e,#ffe28a)}
+    .ach-card.tier-4{border:2px solid var(--t4);box-shadow:0 0 20px var(--t4g),inset 0 0 0 1px var(--t4g);background:linear-gradient(180deg,rgba(134,219,255,.09),rgba(255,255,255,.01))}.ach-card.tier-4 .ach-tier{color:var(--t4)}.ach-card.tier-4 .ach-bar i{background:linear-gradient(90deg,#4fb6e8,#b9ecff)}
+    .ach-card.tier-5{border:2px solid var(--t5);background:linear-gradient(180deg,rgba(114,243,255,.12),rgba(167,139,250,.05));animation:dmndpulse 3.6s ease-in-out infinite}
+    .ach-card.tier-5::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:linear-gradient(115deg,transparent 40%,rgba(170,245,255,.2) 50%,transparent 60%);background-size:250% 100%;animation:achsheen 4s linear infinite}
+    .ach-card.tier-5 .ach-tier{color:var(--t5);text-shadow:0 0 10px var(--t5g)}.ach-card.tier-5 .ach-bar i{background:linear-gradient(90deg,#4fe9ff,#a78bfa)}
+    .title-options{display:grid;gap:9px}
+    .title-opt{display:flex;align-items:flex-start;gap:11px;padding:12px 13px;border-radius:14px;cursor:pointer;background:rgba(255,255,255,.03);border:1px solid rgba(255,61,91,.18)}
+    .title-opt input{margin-top:3px;accent-color:#ff3d5b}.title-opt span b{display:block;font-size:11px;letter-spacing:.12em;color:#ff9aa9}.title-opt span em{display:block;margin-top:4px;font-style:normal;font-size:13px;font-weight:800;color:#fff;word-break:break-word}
+    .title-opt.disabled{opacity:.55;cursor:not-allowed}.title-opt.disabled em{color:#a89aa0;font-weight:600;font-size:12px}
+    @media(max-width:360px){.ach-grid{grid-template-columns:1fr}}
+
+    /* v31 - ranking chips */
+    .rank-no{display:inline-block;margin-right:8px;padding:2px 8px;border-radius:8px;font-size:.62em;letter-spacing:.06em;vertical-align:middle;background:linear-gradient(135deg,#f3d37a,#b78a26);color:#1b1303}
+    .wr-chip{display:inline-block;padding:1px 8px;border-radius:999px;font-weight:800;background:rgba(80,200,120,.12);border:1px solid rgba(80,200,120,.35);color:#9be8b4}
     /* v1.10 — guild switch, roster, guest */
     .guild-switch{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0 0 14px}
     .gs-btn{flex:0 1 auto;padding:11px 16px;border-radius:999px;border:1px solid rgba(255,61,91,.3);background:rgba(255,255,255,.03);color:#e9c6cc;font:800 12px/1 inherit;letter-spacing:.09em;cursor:pointer;transition:all .2s}
