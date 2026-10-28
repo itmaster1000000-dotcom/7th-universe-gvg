@@ -1,4 +1,4 @@
-window.__GVG_SCRIPT_VERSION='31.0';
+window.__GVG_SCRIPT_VERSION='32.0';
 /*
   7TH UNIVERSE GVG — FINAL FRONTEND
   Uses two isolated Supabase Auth clients so the Admin browser session
@@ -1620,26 +1620,26 @@ async function moderatorRejectResult(id){
 const GVG_TIER_NAMES=['BRONZE','SILVER','GOLD','PLATINUM','DIAMOND'];
 const GVG_TIER_KEYS=['bronze','silver','gold','platinum','diamond'];
 const GVG_MISSIONS=[
- {n:1,name:'FRONTLINE',req:t=>`Play ${t} approved matches`},
- {n:2,name:'VICTORY STAR',req:t=>`Win ${t} matches`},
- {n:3,name:'CROWN RUN',req:t=>`Finish ${t} completed week${t>1?'s':''} in the Top 10 (3+ matches each)`},
+ {n:1,name:'FRONTLINE VETERAN',req:t=>`Play ${t} approved matches`},
+ {n:2,name:'VICTORY LEGION',req:t=>`Win ${t} matches`},
+ {n:3,name:'ELITE SEASONS',req:t=>`Finish ${t} completed week${t>1?'s':''} in the Top 10 (3+ matches each)`},
  {n:4,name:'WEEK WARLORD',req:t=>`Win ${t} matches in a single week`},
- {n:5,name:'WEEKLY CHAMPION',req:t=>`Win ${t} Weekly Champion title${t>1?'s':''}`},
- {n:6,name:'MONTHLY CHAMPION',req:t=>`Win ${t} Monthly Champion title${t>1?'s':''}`},
- {n:7,name:'UNBROKEN SHIELD',req:t=>`Complete ${t} week${t>1?'s':''} with 3+ matches and zero losses`},
- {n:8,name:'POINTS MOUNTAIN',req:t=>`Score ${t}+ points in a single week`},
+ {n:5,name:'WEEKLY CHAMPION',req:t=>`Be crowned Weekly Champion ${t} time${t>1?'s':''}`},
+ {n:6,name:'MONTHLY CHAMPION',req:t=>`Be crowned Monthly Champion ${t} time${t>1?'s':''}`},
+ {n:7,name:'IRON WALL',req:t=>`Finish ${t} week${t>1?'s':''} unbeaten (3+ matches, zero losses)`},
+ {n:8,name:'SUMMIT POINTS',req:t=>`Score ${t}+ points in a single week`},
  {n:9,name:'CONQUEROR',req:t=>`Defeat ${t} different guilds`},
- {n:10,name:'DIPLOMAT',req:t=>`Face ${t} different guilds`},
- {n:11,name:'FIREPOWER',req:t=>`Earn ${t} Perfect Day${t>1?'s':''} (3+ matches in a day, all won)`},
+ {n:10,name:'WORLD TOUR',req:t=>`Face ${t} different guilds`},
+ {n:11,name:'FLAWLESS DAYS',req:t=>`Earn ${t} Flawless Day${t>1?'s':''} (3+ matches in a day, all won)`},
  {n:12,name:'RESILIENCE',req:t=>`Win ${t} match${t>1?'es':''} right after a loss`},
- {n:13,name:'NEMESIS',req:t=>`Beat the same rival ${t} times`},
- {n:14,name:'PODIUM',req:t=>`Finish ${t} completed week${t>1?'s':''} in the Top 3 (3+ matches each)`},
+ {n:13,name:'NEMESIS',req:t=>`Defeat the same rival ${t} times`},
+ {n:14,name:'PODIUM FINISH',req:t=>`Finish ${t} completed week${t>1?'s':''} in the Top 3 (3+ matches each)`},
  {n:15,name:'PRECISION',req:(t,min)=>`Hold a ${t}% win rate over ${min}+ matches`},
- {n:16,name:'HOT STREAK',req:t=>`Win ${t} matches in a row`},
+ {n:16,name:'WINNING STREAK',req:t=>`Win ${t} matches in a row`},
  {n:17,name:'GIANT SLAYER',req:t=>`Beat ${t} guild${t>1?'s':''} that finished a week in the Top 10`},
  {n:18,name:'ENDURANCE',req:t=>`Play 3+ matches for ${t} weeks in a row`},
  {n:19,name:'LOYALTY',req:t=>`Be active on ${t} different days`},
- {n:20,name:'UNIVERSE LEGEND',req:t=>`Earn ${t} badges across missions 1 to 19`}
+ {n:20,name:'UNIVERSE LEGEND',req:t=>`Unlock ${t} badges across missions 1 to 19`}
 ];
 function badgeFile(mission,tier){
   const n=(mission-1)*5+tier, set=Math.floor((n-1)/20)+1, row=Math.floor(((n-1)%20)/5)+1;
@@ -1666,24 +1666,40 @@ function topBadgeStripMarkup(info){
   return `<div class="badge-strip">${list.map(x=>`<img src="${badgeFile(x.m.n,x.t)}" alt="${escapeHtml(x.m.name)} ${GVG_TIER_NAMES[x.t-1]}" title="${escapeHtml(x.m.name)} · ${GVG_TIER_NAMES[x.t-1]}" loading="lazy" />`).join('')}</div>`;
 }
 function fmtMissionValue(n,v){const x=Number(v)||0;return n===15?`${x.toFixed(1)}%`:String(Math.round(x*10)/10);}
-function renderAchievements(profile){
-  const info=guildBadgeInfo(profile);
-  if(!state.badgeConfig?.length) return '<div class="guild-badge-section-title">ACHIEVEMENTS</div><div class="hint">Achievements are not available right now.</div>';
-  const score=info?.score||0;
-  const cards=GVG_MISSIONS.map((m,i)=>{
-    const t=Number(info?.t?.[i])||0, v=Number(info?.v?.[i])||0;
-    const rows=state.badgeTierMap?.[m.n]||[];
-    const next=t<5?rows[t]:null;
-    const pct=next?Math.max(0,Math.min(100,Math.round(v/Number(next.th)*100))):100;
+const GVG_TIER_ICONS=['🥉','🥈','🥇','💠','💎'];
+function achInner(norm,tier,sel){
+  const info=state.badgeByGuild?.get(norm)||null;
+  const tierOf=i=>Number(info?.t?.[i])||0;
+  const counts=[1,2,3,4,5].map(T=>GVG_MISSIONS.filter((m,i)=>tierOf(i)>=T).length);
+  const tabs=`<div class="ach-tabs">${[1,2,3,4,5].map(T=>`<button type="button" class="ach-tab k${T} ${T===tier?'active':''}" data-ach-tier="${T}"><b>${GVG_TIER_ICONS[T-1]}</b>${GVG_TIER_NAMES[T-1]}<span>${counts[T-1]}/20</span></button>`).join('')}</div>`;
+  let detail=`<div class="hint" style="margin:0 0 10px">${GVG_TIER_NAMES[tier-1]} badges: ${counts[tier-1]}/20 unlocked. Tap any badge to see its mission.</div>`;
+  if(sel){
+    const m=GVG_MISSIONS[sel-1], i=sel-1, v=Number(info?.v?.[i])||0, row=state.badgeTierMap?.[m.n]?.[tier-1];
+    const th=Number(row?.th)||0, min=Number(row?.min||0), unlocked=tierOf(i)>=tier;
     const played=Number(info?.v?.[0])||0;
-    let progress=next?`${fmtMissionValue(m.n,v)} / ${fmtMissionValue(m.n,next.th)}`:'MAX TIER';
-    if(next&&m.n===15&&played<Number(next.min||0)) progress=`${fmtMissionValue(15,v)} · needs ${next.min}+ matches (${played} played)`;
-    const req=next?m.req(Number(next.th),Number(next.min||0)):'Every tier completed';
-    const pips=[1,2,3,4,5].map(k=>`<i class="${k<=t?`on k${k}`:''}"></i>`).join('');
-    return `<div class="ach-card ${t?`tier-${t}`:'locked'}"><img src="${badgeFile(m.n,Math.max(1,t))}" alt="${escapeHtml(m.name)}" loading="lazy" /><strong>${m.name}</strong><span class="ach-tier">${t?GVG_TIER_NAMES[t-1]:'LOCKED'}</span><div class="ach-pips">${pips}</div><small>${escapeHtml(req)}</small><div class="ach-bar"><i style="width:${pct}%"></i></div><em>${escapeHtml(progress)}</em></div>`;
-  }).join('');
-  return `<div class="guild-badge-section-title">ACHIEVEMENTS • ${score}/100 BADGES</div><div class="hint" style="margin:0 0 10px">20 missions, 5 tiers each. Badges count approved results since the badge program started.</div><div class="ach-grid">${cards}</div>`;
+    const pct=unlocked?100:(th?Math.max(0,Math.min(100,Math.round(v/th*100))):0);
+    let progress=unlocked?'UNLOCKED':`${fmtMissionValue(m.n,v)} / ${fmtMissionValue(m.n,th)}`;
+    if(!unlocked&&m.n===15&&played<min) progress=`${fmtMissionValue(15,v)} · needs ${min}+ matches (${played} played)`;
+    detail=`<div class="ach-detail"><img src="${badgeFile(m.n,tier)}" alt="${escapeHtml(m.name)}" /><div><strong>${m.name} • ${GVG_TIER_NAMES[tier-1]}</strong><small>${escapeHtml(m.req(th,min))}</small><div class="ach-bar"><i style="width:${pct}%"></i></div><em>${escapeHtml(progress)}</em></div></div>`;
+  }
+  const cells=GVG_MISSIONS.map((m,i)=>`<button type="button" class="ach-cell ${tierOf(i)>=tier?'on':'off'} ${sel===m.n?'sel':''}" data-ach-badge="${m.n}" aria-label="${escapeHtml(m.name)} ${GVG_TIER_NAMES[tier-1]}"><img src="${badgeFile(m.n,tier)}" alt="" loading="lazy" /><span>${m.name}</span></button>`).join('');
+  return `${tabs}${detail}<div class="ach-grid2">${cells}</div>`;
 }
+function renderAchievements(profile){
+  if(!state.badgeConfig?.length) return '<div class="guild-badge-section-title">ACHIEVEMENTS</div><div class="hint">Achievements are not available right now.</div>';
+  const norm=normalizeGuild(profile?.guild_name_normalized||profile?.guild_name||'');
+  const info=state.badgeByGuild?.get(norm)||null;
+  const score=info?.score||0;
+  let start=1;
+  for(let T=5;T>=1;T-=1){ if(GVG_MISSIONS.some((m,i)=>(Number(info?.t?.[i])||0)>=T)){start=T;break;} }
+  return `<div class="guild-badge-section-title">ACHIEVEMENTS • ${score}/100 BADGES</div><div class="ach-wrap" data-guild="${escapeHtml(norm)}" data-tier="${start}">${achInner(norm,start,0)}</div>`;
+}
+document.addEventListener('click',event=>{
+  const tab=event.target.closest?.('[data-ach-tier]');
+  if(tab){const w=tab.closest('.ach-wrap'); if(w){w.dataset.tier=tab.dataset.achTier; w.innerHTML=achInner(w.dataset.guild,Number(w.dataset.tier),0);} return;}
+  const cell=event.target.closest?.('[data-ach-badge]');
+  if(cell){const w=cell.closest('.ach-wrap'); if(w){const cur=Number(cell.dataset.achBadge); w.innerHTML=achInner(w.dataset.guild,Number(w.dataset.tier),cur);} }
+});
 function numberMetric(p,key){return Number(p?.[key]||0);}
 function guildAvatarMarkup(p,small=false){return p?.guild_logo_url?`<div class="guild-profile-avatar" ${small?'style="width:56px;height:56px;flex-basis:56px"':''}><img src="${escapeHtml(p.guild_logo_url)}" alt="${escapeHtml(p.guild_name)} logo" loading="lazy" /></div>`:`<div class="guild-profile-avatar" ${small?'style="width:56px;height:56px;flex-basis:56px"':''}><span style="font-size:27px">🛡️</span></div>`;}
 
@@ -1714,7 +1730,7 @@ function setLogoCooldownNote(profile){
   else{note.textContent=changed?'Logo change is available. After saving a new logo, the next change is locked for 3 days.':'First logo upload is available immediately. After changing it, a 3-day cooldown applies.';file.disabled=false;}
 }
 function populateMyGuildProfileEditor(){
-  const input=$('guild-profile-uid');if(!input||!state.guild)return;
+  const input=$('guild-profile-uid');if(!input||!state.guild){refreshMyProfileForm();return;}
   const mine=(state.guildProfiles||[]).find(p=>String(p.guild_name_normalized||'')===String(state.guild.guild_name_normalized||normalizeGuild(state.guild.guild_name)));
   if(mine){input.value=mine.guild_uid||'';setLogoCooldownNote(mine);}else{input.value='';setLogoCooldownNote(null);}
 }
@@ -1857,41 +1873,151 @@ async function saveMyGuildProfile(e){
   }
   finally{setBusy('guild-profile-save',false,'SAVE GUILD PROFILE');}
 }
+function setPfChip(id,kind,text){const c=$(id);if(!c)return;c.className=`pf-chip ${kind}`;c.textContent=text;}
 async function loadMyGuildNameChangeStatus(){
-  const note=$('guild-name-change-note'),button=$('guild-name-change-submit'),input=$('guild-name-change-input');
-  if(!note||!button)return;
-  if(!state.user||!state.guild){
-    note.textContent='Login with an approved guild account to request a name change.';
-    if(button){button.disabled=true;button.textContent='LOGIN REQUIRED';}
-    if(input)input.disabled=true;
-    return;
-  }
-  note.textContent='Checking the name-change cooldown and request status…';
-  button.disabled=true;button.textContent='CHECKING STATUS…';if(input)input.disabled=true;
+  const input=$('pf-name'),note=$('pf-note-name');
+  if(!input||!note)return;
+  if(!state.user||!state.guild){setPfChip('pf-chip-name','','LOGIN');note.textContent='Login with an approved guild account.';input.disabled=true;return;}
   try{
     const {data,error}=await db.rpc('get_my_gvg_guild_name_change_status');if(error)throw error;
     const row=Array.isArray(data)?(data[0]||null):data;state.guildNameChangeStatus=row;
-    const current=String(row?.current_guild_name||state.guild.guild_name||'');
     const status=String(row?.request_status||'');
     const requested=String(row?.requested_guild_name||'');
     const availableAt=row?.name_change_available_at?new Date(row.name_change_available_at):null;
     const cooldown=Boolean(availableAt&&Number.isFinite(availableAt.getTime())&&availableAt.getTime()>Date.now()+60000);
     if(status==='pending'){
-      note.textContent=`CURRENT NAME: ${current}. Your request for “${requested}” is waiting for Admin approval. Your current name stays active until approval.`;
-      button.disabled=true;button.textContent='REQUEST PENDING';if(input)input.disabled=true;
+      setPfChip('pf-chip-name','pending','PENDING APPROVAL');
+      note.textContent=`Your request for "${requested}" is waiting for Admin approval. Your current name stays active until then.`;
+      input.disabled=true;
     }else if(cooldown){
-      note.textContent=`NAME-CHANGE COOLDOWN ACTIVE. Your current name is ${current}. The next request can be sent after ${formatDateTime(availableAt.toISOString())} Pakistan time. The form is locked until then.`;
-      button.disabled=true;button.textContent='COOLDOWN ACTIVE';if(input)input.disabled=true;
+      setPfChip('pf-chip-name','locked','LOCKED');
+      note.textContent=`Locked until ${formatDateTime(availableAt.toISOString())} Pakistan time (3-day rule after an approved change).`;
+      input.disabled=true;
     }else{
-      const extra=status==='approved'?' Your last request was approved.':' Previous request status: '+(status==='rejected'?'REJECTED.':'none.')+' ';
-      note.textContent=`CURRENT NAME: ${current}. ${extra}You can request a different name now. The name changes only after Admin approval; a 3-day cooldown begins after an approved change.`;
-      button.disabled=false;button.textContent='SEND NAME CHANGE REQUEST';if(input)input.disabled=false;
+      setPfChip('pf-chip-name','ready','READY');
+      note.textContent=status==='rejected'?'Your last request was rejected. A new name needs Admin approval.':'A new name needs Admin approval. Your current name stays active until then.';
+      input.disabled=false;
     }
   }catch(error){
     state.guildNameChangeStatus=null;
-    note.textContent=`Could not verify name-change eligibility: ${humanizeError(error)}. Refresh the page and try again; the request button stays disabled until status can be verified.`;
-    button.disabled=true;button.textContent='STATUS UNAVAILABLE';if(input)input.disabled=true;
+    setPfChip('pf-chip-name','locked','UNAVAILABLE');
+    note.textContent=`Could not check the name status: ${humanizeError(error)}`;
+    input.disabled=true;
     console.error('Guild name-change status check failed:',error);
+  }
+}
+function myGuildProfileRow(){
+  const myNorm=normalizeGuild(state.guild?.guild_name_normalized||state.guild?.guild_name||'');
+  return (state.guildProfiles||[]).find(p=>normalizeGuild(p.guild_name_normalized||p.guild_name||'')===myNorm)||null;
+}
+function logoLockInfo(profile){
+  const changed=profile?.guild_logo_changed_at?new Date(profile.guild_logo_changed_at).getTime():0;
+  const readyAt=changed?changed+3*24*60*60*1000:0;
+  return {locked:Boolean(readyAt&&readyAt>Date.now()),readyAt,hasLogo:Boolean(profile?.guild_logo_url)};
+}
+async function refreshMyProfileForm(){
+  const g=state.guild;
+  if(!g||!$('my-profile-form'))return;
+  $('pf-current-name').textContent=g.guild_name||'—';
+  $('pf-current-contact').textContent=g.contact?formatContact(g.contact):'—';
+  if(!(state.guildProfiles||[]).length){try{await loadPublicGuildProfiles();}catch{}}
+  const mine=myGuildProfileRow();
+  $('pf-current-uid').textContent=mine?.guild_uid?String(mine.guild_uid):'Not added yet';
+  const lock=logoLockInfo(mine);
+  const logoInput=$('pf-logo');
+  $('pf-current-logo').textContent=lock.hasLogo?'A logo is set. PNG / JPG / WEBP, max 2 MB.':'No logo yet. PNG / JPG / WEBP, max 2 MB.';
+  if(lock.locked){
+    setPfChip('pf-chip-logo','locked','LOCKED');
+    $('pf-note-logo').textContent=`Locked until ${formatDateTime(new Date(lock.readyAt).toISOString())} Pakistan time (3-day rule).`;
+    if(logoInput){logoInput.value='';logoInput.disabled=true;}
+  }else{
+    setPfChip('pf-chip-logo','ready','READY');
+    $('pf-note-logo').textContent=lock.hasLogo?'After you change the logo it is locked for 3 days.':'Your first logo upload is allowed at once. After that it is locked for 3 days.';
+    if(logoInput)logoInput.disabled=false;
+  }
+  const uidInput=$('pf-uid');if(uidInput)uidInput.disabled=false;
+  await loadMyGuildNameChangeStatus();
+}
+async function saveMyProfile(e){
+  e.preventDefault();clearStatus('my-profile-status');
+  if(!guildApproved())return showStatus('my-profile-status','error','Only an approved, active guild can update its profile.');
+  const nameNew=$('pf-name').value.trim().replace(/\s+/g,' ');
+  const contactNew=$('pf-contact').value.trim();
+  const uidNew=$('pf-uid').value.trim();
+  const file=$('pf-logo').files?.[0]||null;
+  if(!nameNew&&!contactNew&&!uidNew&&!file)return showStatus('my-profile-status','error','Nothing to save. Fill in at least one field.');
+  const results=[];let anyError=false,anyOk=false;
+  const add=(kind,text)=>{results.push({kind,text});if(kind==='error')anyError=true;if(kind==='ok')anyOk=true;};
+  setBusy('my-profile-save',true,'SAVE CHANGES');
+  try{
+    await refreshMyProfileForm();
+    const mine=myGuildProfileRow();
+    const lock=logoLockInfo(mine);
+
+    /* ---- UID + logo (one database call) ---- */
+    const currentUid=String(mine?.guild_uid||'');
+    const uidChanged=Boolean(uidNew)&&uidNew!==currentUid;
+    const useLogo=Boolean(file)&&!lock.locked;
+    if(file&&lock.locked)add('skip',`Logo skipped: locked until ${formatDateTime(new Date(lock.readyAt).toISOString())} Pakistan time.`);
+    if(uidNew&&!uidChanged)add('skip','UID skipped: it is already '+uidNew+'.');
+    if(uidChanged||useLogo){
+      let uploaded=null;
+      const previousLogo=mine?.guild_logo_url??state.guild?.guild_logo_url??null;
+      try{
+        let logoUrl=previousLogo;
+        if(useLogo){uploaded=await uploadGuildLogo(file);logoUrl=uploaded;}
+        const {error}=await db.rpc('save_gvg_guild_profile',{p_guild_uid:(uidChanged?uidNew:currentUid)||null,p_logo_url:logoUrl});
+        if(error)throw error;
+        if(useLogo&&previousLogo&&previousLogo!==logoUrl)await removeReplacedStorageObject(previousLogo,'guild-logos');
+        add('ok',[uidChanged?'Guild UID updated':'',useLogo?'Guild logo updated':''].filter(Boolean).join(' and ')+'.');
+        $('pf-uid').value='';$('pf-logo').value='';
+      }catch(error){
+        if(uploaded)await removeReplacedStorageObject(uploaded,'guild-logos');
+        add('error','UID / logo: '+humanizeError(error));
+      }
+    }
+
+    /* ---- Contact number ---- */
+    if(contactNew){
+      const digits=contactNew.replace(/\D/g,'');
+      if(digits.length<10||digits.length>15)add('error','Phone number: enter 10 to 15 digits.');
+      else{
+        try{
+          const {error}=await db.rpc('update_my_gvg_contact',{p_contact:contactNew});
+          if(error)throw error;
+          add('ok','Phone number updated. New challenges will use it.');
+          $('pf-contact').value='';
+        }catch(error){add('error','Phone number: '+humanizeError(error));}
+      }
+    }
+
+    /* ---- Guild name (goes to Admin approval) ---- */
+    if(nameNew){
+      const st=state.guildNameChangeStatus;
+      const availableAt=st?.name_change_available_at?new Date(st.name_change_available_at):null;
+      if(st?.request_status==='pending')add('skip','Name skipped: a name request is already waiting for Admin approval.');
+      else if(availableAt&&Number.isFinite(availableAt.getTime())&&availableAt.getTime()>Date.now()+60000)add('skip',`Name skipped: locked until ${formatDateTime(availableAt.toISOString())} Pakistan time.`);
+      else if(!isSimpleGuildName(nameNew))add('error','Name: '+SIMPLE_GUILD_NAME_MESSAGE);
+      else if(normalizeGuild(nameNew)===normalizeGuild(state.guild?.guild_name))add('skip','Name skipped: it is the same as your current name.');
+      else{
+        try{
+          const {error}=await db.rpc('request_gvg_guild_name_change',{p_requested_guild_name:nameNew});
+          if(error)throw error;
+          add('ok',`Name request "${nameNew}" sent to Admin for approval. Your current name stays active until it is approved.`);
+          $('pf-name').value='';
+        }catch(error){add('error','Name: '+humanizeError(error));}
+      }
+    }
+
+    clearSectionCache('member:guild-profiles');
+    try{await loadMyGuild();await renderMemberIdentity();await loadPublicGuildProfiles();markSectionLoaded('member:guild-profiles');}catch(refreshError){console.warn('Profile refresh failed:',refreshError);}
+    await loadMyGuildHub();
+    await refreshMyProfileForm();
+  }finally{setBusy('my-profile-save',false,'SAVE CHANGES');}
+  const el=$('my-profile-status');
+  if(el){
+    el.className=`status show ${anyError?'error':(anyOk?'ok':'error')}`;
+    el.innerHTML=`<ul class="pf-results">${results.map(r=>`<li>${r.kind==='ok'?'✅':(r.kind==='skip'?'⏸️':'⚠️')} ${escapeHtml(r.text)}</li>`).join('')}</ul>`;
   }
 }
 async function submitGuildNameChangeRequest(e){
@@ -2141,6 +2267,7 @@ $('forgot-password').addEventListener('click',handleForgot);
 $('challenge-form').addEventListener('submit',handleChallengeSubmit);
 $('result-form').addEventListener('submit',handleResultSubmit);
 $('guild-profile-form')?.addEventListener('submit',saveMyGuildProfile);
+$('my-profile-form')?.addEventListener('submit',saveMyProfile);
 
 /* ===== v1.9: My Guild hub, phone change, delete account, ban form, temporary password ===== */
 function renderHubLogo(g){
@@ -2301,8 +2428,7 @@ function setGuildView(view){
   $('gs-mine')?.classList.toggle('hidden',Boolean(state.guest));
   if(mine){
     loadMyGuildHub();
-    loadSectionCached('member:name-change-status',loadMyGuildNameChangeStatus,15000);
-    populateMyGuildProfileEditor();
+    refreshMyProfileForm();
     loadMyTitleOptions();
     loadMyRoster();
   }

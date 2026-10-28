@@ -1687,44 +1687,43 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
             <div class="hub-today"><div class="hub-today-row"><span>TODAY&rsquo;S MATCHES</span><b id="my-hub-today">0 / 5</b></div><div class="hub-bar"><i id="my-hub-today-bar"></i></div></div>
             <div id="my-hub-error" class="status"></div>
           </div>
-          <div class="card">
-            <div class="panel-head"><div><div class="kicker">Guild Identity</div><h3>MY GUILD PROFILE</h3><div class="subtle">Set your in-game Guild UID and logo. A changed logo can only be changed again after 3 days.</div></div><span class="badge badge-green">PROFILE</span></div>
-            <form id="guild-profile-form" novalidate>
-              <div class="field-grid">
-                <label class="full">IN-GAME GUILD UID<input id="guild-profile-uid" type="text" maxlength="40" placeholder="Enter your game Guild UID" autocomplete="off" /></label>
-                <label class="full">GUILD LOGO (PNG / JPG / WEBP, MAX 2 MB)<input id="guild-profile-logo" type="file" accept="image/jpeg,image/png,image/webp" /></label>
+          <div class="card" id="my-profile-card" style="margin-top:14px">
+            <div class="panel-head"><div><div class="kicker">Guild Identity</div><h3>PROFILE DETAILS</h3><div class="subtle">Fill in only what you want to change. Empty fields stay as they are, and locked fields are skipped.</div></div></div>
+            <form id="my-profile-form" novalidate>
+              <div class="pf-list">
+                <div class="pf-row" id="pf-row-name">
+                  <div class="pf-head"><span class="pf-label">GUILD NAME</span><span class="pf-chip" id="pf-chip-name">...</span></div>
+                  <div class="pf-current" id="pf-current-name">&mdash;</div>
+                  <input id="pf-name" type="text" maxlength="30" placeholder="New guild name (needs Admin approval)" autocomplete="off" />
+                  <div class="pf-note" id="pf-note-name"></div>
+                </div>
+                <div class="pf-row" id="pf-row-contact">
+                  <div class="pf-head"><span class="pf-label">CONTACT NUMBER</span><span class="pf-chip ready" id="pf-chip-contact">READY</span></div>
+                  <div class="pf-current" id="pf-current-contact">&mdash;</div>
+                  <input id="pf-contact" type="tel" inputmode="tel" maxlength="20" placeholder="New phone number" autocomplete="off" />
+                  <div class="pf-note">Your own number (each leader has one). Up to 2 changes per day.</div>
+                </div>
+                <div class="pf-row" id="pf-row-uid">
+                  <div class="pf-head"><span class="pf-label">GUILD UID</span><span class="pf-chip ready" id="pf-chip-uid">READY</span></div>
+                  <div class="pf-current" id="pf-current-uid">&mdash;</div>
+                  <input id="pf-uid" type="text" inputmode="numeric" maxlength="20" placeholder="New in-game Guild UID" autocomplete="off" />
+                </div>
+                <div class="pf-row" id="pf-row-logo">
+                  <div class="pf-head"><span class="pf-label">GUILD LOGO</span><span class="pf-chip" id="pf-chip-logo">...</span></div>
+                  <div class="pf-current" id="pf-current-logo">PNG / JPG / WEBP, max 2 MB</div>
+                  <input id="pf-logo" type="file" accept="image/png,image/jpeg,image/webp" />
+                  <div class="pf-note" id="pf-note-logo"></div>
+                </div>
               </div>
-              <div id="guild-logo-cooldown-note" class="hint">First logo upload is available immediately. After changing it, a 3-day cooldown applies.</div>
-              <div class="split-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px"><button id="guild-profile-save" class="btn btn-primary" type="submit">SAVE GUILD PROFILE</button></div>
-              <div id="guild-profile-status" class="status"></div>
+              <div class="split-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"><button id="my-profile-save" class="btn btn-primary" type="submit">SAVE CHANGES</button></div>
+              <div id="my-profile-status" class="status"></div>
             </form>
           </div>
-          <div class="card" style="margin-top:14px">
-            <div class="panel-head"><div><div class="kicker">Guild Identity</div><h3>REQUEST GUILD NAME CHANGE</h3><div class="subtle">This section is available to each logged-in, approved guild. The new name becomes official only after Admin approval. A 3-day cooldown applies after an approved change.</div></div><span class="badge badge-gold">ADMIN APPROVAL</span></div>
-            <div class="hint" style="margin-bottom:12px">Your current name, pending request and cooldown are checked directly from Supabase. Do not create another account just to change a guild name.</div>
-            <form id="guild-name-change-form" novalidate>
-              <div class="field-grid">
-                <label class="full">NEW GUILD NAME<input id="guild-name-change-input" type="text" maxlength="30" minlength="3" placeholder="Letters and numbers only, e.g. ELITE FORCE" autocomplete="off" required /></label>
-              </div>
-              <div id="guild-name-change-note" class="hint">Loading your latest name-change request...</div>
-              <div class="split-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px"><button id="guild-name-change-submit" class="btn btn-primary" type="submit">SEND NAME CHANGE REQUEST</button></div>
-              <div id="guild-name-change-status" class="status"></div>
-            </form>
-          </div>
-<div class="card" style="margin-top:14px">
-            <div class="panel-head"><div><div class="kicker">Contact</div><h3>CHANGE PHONE NUMBER</h3><div class="subtle">The WhatsApp number shown on your challenges. You can change it up to 2 times per day.</div></div></div>
-            <form id="guild-contact-form" novalidate>
-              <div class="field-grid"><label class="full">NEW PHONE NUMBER<input id="guild-contact-input" type="tel" inputmode="tel" maxlength="20" placeholder="03XXXXXXXXX or +92XXXXXXXXXX" autocomplete="off" /></label></div>
-              <div id="guild-contact-current" class="hint">Current number: &mdash;</div>
-              <div class="split-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px"><button id="guild-contact-save" class="btn btn-primary" type="submit">SAVE PHONE NUMBER</button></div>
-              <div id="guild-contact-status" class="status"></div>
-            </form>
-          </div>
-<div class="card" style="margin-top:14px" id="title-card">
-            <div class="panel-head"><div><div class="kicker">Recognition</div><h3>TITLE &amp; BADGE DISPLAY</h3><div class="subtle">Choose the title shown on your profile and next to your guild name in WhatsApp challenges and results.</div></div></div>
+          <div class="card" style="margin-top:14px" id="title-card">
+            <div class="panel-head"><div><div class="kicker">Rank &amp; Titles</div><h3>DISPLAY TITLE</h3><div class="subtle">Choose which title your guild shows. On WhatsApp it appears only at the end of your challenge message, never on results. A rank is earned by finishing all 20 badges of a tier (Bronze to Diamond).</div></div></div>
             <form id="guild-title-form" novalidate>
               <div id="title-options" class="title-options"><div class="hint">Loading your titles...</div></div>
-              <div class="split-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px"><button id="guild-title-save" class="btn btn-primary" type="submit">SAVE TITLE</button></div>
+              <div class="split-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px"><button id="guild-title-save" class="btn btn-primary" type="submit">SAVE TITLE CHOICE</button></div>
               <div id="guild-title-status" class="status"></div>
             </form>
           </div>
@@ -2066,7 +2065,7 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
 (function(){
-  window.__GVG_HTML_VERSION='31.0';
+  window.__GVG_HTML_VERSION='32.0';
   function show(msg){
     try{
       var d=document.getElementById('gvg-fatal');
@@ -2087,7 +2086,7 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
   });
 })();
 </script>
-<script src="./script.js?v=31.0-badges-titles"></script>
+<script src="./script.js?v=32.0-profile-badges"></script>
 
   <style>
     .app-dialog-backdrop{position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(1,3,8,.82);backdrop-filter:blur(11px);-webkit-backdrop-filter:blur(11px)}
@@ -2155,12 +2154,47 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
     .title-opt.disabled{opacity:.55;cursor:not-allowed}.title-opt.disabled em{color:#a89aa0;font-weight:600;font-size:12px}
     @media(max-width:360px){.ach-grid{grid-template-columns:1fr}}
 
+
+    /* v32 - one profile list, compact achievements */
+    .pf-list{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
+    .pf-row{padding:12px 13px;border-radius:14px;background:rgba(255,255,255,.03);border:1px solid rgba(255,61,91,.16);display:grid;gap:7px;align-content:start}
+    .pf-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
+    .pf-label{font-size:11px;font-weight:900;letter-spacing:.12em;color:#ff9aa9}
+    .pf-current{font-size:15px;font-weight:800;word-break:break-word;color:#fff}
+    .pf-note{font-size:11.5px;line-height:1.45;color:#a98a90}
+    .pf-chip{padding:3px 9px;border-radius:999px;font-size:9.5px;font-weight:900;letter-spacing:.09em;border:1px solid rgba(255,255,255,.18);color:#cbb;background:rgba(255,255,255,.05)}
+    .pf-chip.ready{color:#9be8b4;border-color:rgba(80,200,120,.4);background:rgba(80,200,120,.1)}
+    .pf-chip.locked{color:#f0d890;border-color:rgba(231,193,90,.45);background:rgba(231,193,90,.1)}
+    .pf-chip.pending{color:#9ccfff;border-color:rgba(90,160,255,.45);background:rgba(90,160,255,.1)}
+    .pf-row input[disabled]{opacity:.45;cursor:not-allowed}
+    .pf-results{margin:0;padding-left:18px;display:grid;gap:5px;text-align:left}
+    .ach-tabs{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:4px 0 10px}
+    .ach-tab{display:grid;gap:2px;justify-items:center;padding:8px 2px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.03);color:#cdbfc2;font-family:inherit;font-weight:800;font-size:9px;line-height:1.15;letter-spacing:.05em;cursor:pointer}
+    .ach-tab b{font-size:16px;letter-spacing:0}.ach-tab span{font-size:10px;color:#f0d890}.ach-tab{min-width:0;overflow:hidden}
+    .ach-tab.active{background:rgba(255,255,255,.1);color:#fff;box-shadow:0 0 0 1px currentColor inset}
+    .ach-tab.k1.active{color:#e2955a}.ach-tab.k2.active{color:#d6dde6}.ach-tab.k3.active{color:#f3d37a}.ach-tab.k4.active{color:#9ccfff}.ach-tab.k5.active{color:#6be3ff}
+    .ach-detail{display:flex;gap:12px;align-items:center;padding:11px 12px;margin:0 0 10px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1)}
+    .ach-detail img{width:78px;height:78px;flex:0 0 78px;object-fit:contain}
+    .ach-detail strong{display:block;font-size:14px;letter-spacing:.06em}
+    .ach-detail small{display:block;margin:3px 0 6px;font-size:12px;line-height:1.4;color:#c9b8bc}
+    .ach-detail .ach-bar{margin:0 0 4px}
+    .ach-detail em{font-style:normal;font-size:11px;color:#f0d890;letter-spacing:.06em;font-weight:800}
+    .ach-grid2{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+    .ach-cell{display:grid;gap:3px;justify-items:center;padding:6px 2px 7px;border-radius:12px;border:1px solid transparent;background:transparent;color:#e8dcdf;cursor:pointer}
+    .ach-cell img{width:100%;max-width:68px;aspect-ratio:1;object-fit:contain;transition:transform .15s}
+    .ach-cell span{font-size:8.6px;line-height:1.15;font-weight:800;letter-spacing:.04em;text-align:center;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.3em}
+    .ach-cell.off img{filter:grayscale(1) brightness(.55);opacity:.5}
+    .ach-cell.off span{color:#7c6f72}
+    .ach-cell.on{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.1)}
+    .ach-cell.sel{border-color:#fff0b0;box-shadow:0 0 0 1px rgba(255,240,176,.5)}
+    .ach-cell:active img{transform:scale(.94)}
+    @media(min-width:520px){.ach-grid2{grid-template-columns:repeat(5,1fr)}}
     /* v31 - ranking chips */
     .rank-no{display:inline-block;margin-right:8px;padding:2px 8px;border-radius:8px;font-size:.62em;letter-spacing:.06em;vertical-align:middle;background:linear-gradient(135deg,#f3d37a,#b78a26);color:#1b1303}
     .wr-chip{display:inline-block;padding:1px 8px;border-radius:999px;font-weight:800;background:rgba(80,200,120,.12);border:1px solid rgba(80,200,120,.35);color:#9be8b4}
     /* v1.10 — guild switch, roster, guest */
     .guild-switch{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0 0 14px}
-    .gs-btn{flex:0 1 auto;padding:11px 16px;border-radius:999px;border:1px solid rgba(255,61,91,.3);background:rgba(255,255,255,.03);color:#e9c6cc;font:800 12px/1 inherit;letter-spacing:.09em;cursor:pointer;transition:all .2s}
+    .gs-btn{flex:0 1 auto;padding:11px 16px;border-radius:999px;border:1px solid rgba(255,61,91,.3);background:rgba(255,255,255,.03);color:#e9c6cc;font-family:inherit;font-weight:800;font-size:12px;line-height:1;letter-spacing:.09em;cursor:pointer;transition:all .2s}
     .gs-btn.active{background:linear-gradient(135deg,#d41136,#8f0a22);border-color:#ff5d73;color:#fff;box-shadow:0 0 22px rgba(212,17,54,.35)}
     .gs-btn:focus-visible{outline:2px solid #ff5d73;outline-offset:2px}
     .roster-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
@@ -2168,7 +2202,7 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
     .roster-slot span{flex:0 0 22px;height:22px;border-radius:7px;display:grid;place-items:center;font-size:11px;font-weight:800;background:rgba(255,61,91,.16);color:#ff9aa9}
     .roster-slot input{border:0!important;background:transparent!important;box-shadow:none!important;padding:12px 0!important;min-width:0;width:100%}
     .guest-box{margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,.08)}
-    .guest-toggle{width:100%;display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-radius:12px;border:1px dashed rgba(238,199,91,.4);background:rgba(238,199,91,.05);color:#f0d590;font:800 12px/1.2 inherit;letter-spacing:.07em;cursor:pointer}
+    .guest-toggle{width:100%;display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-radius:12px;border:1px dashed rgba(238,199,91,.4);background:rgba(238,199,91,.05);color:#f0d590;font-family:inherit;font-weight:800;font-size:12px;line-height:1.2;letter-spacing:.07em;cursor:pointer}
     .pp-extras{margin-top:14px;display:grid;gap:12px}
     .pp-block{padding:12px 14px;border-radius:14px;background:rgba(255,255,255,.03);border:1px solid rgba(255,61,91,.16)}
     .pp-block h4{margin:0 0 9px;font-size:11px;letter-spacing:.12em;color:#ff9aa9}
