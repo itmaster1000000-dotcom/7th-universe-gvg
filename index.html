@@ -1494,6 +1494,57 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
 @media(max-width:420px){.hof2-title{font-size:28px;letter-spacing:.11em}.hof2-guild{font-size:22px}.hof2 .hof-period-grid{grid-template-columns:repeat(3,1fr)}.hof2-stats{grid-template-columns:1fr 1fr 1.3fr}}
 @media(prefers-reduced-motion:reduce){.hof2::before,.hof2-rays,.hof2-crest{animation:none!important}}
 </style>
+<style id="gvg-visual-v34">
+/* ===== v34 visual system: dark red / red / light red / black with CSS-only shine and depth ===== */
+:root{--r900:#1a0206;--r800:#33060d;--r700:#5e0a17;--r600:#9a0d26;--r500:#d41136;--r400:#ff3d5b;--r300:#ff7087;--r200:#ffa8b6;--r100:#ffd9df;--gold1:#fff2b8;--gold2:#e7c15a;--gold3:#9a7421;--text:#fff0f2;--muted:#c79aa3;--line:rgba(255,61,91,.18);--line2:rgba(255,112,135,.3)}
+html{color-scheme:dark;scrollbar-color:#c4122f #120508}
+::selection{background:#ff3d5b;color:#fff}
+::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-track{background:#0d0306}::-webkit-scrollbar-thumb{background:linear-gradient(180deg,#e0183d,#7d0a1e);border-radius:9px;border:2px solid #0d0306}
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(60% 40% at 6% -4%,rgba(212,17,54,.30),transparent 70%),radial-gradient(48% 34% at 98% 0,rgba(255,61,91,.18),transparent 70%),radial-gradient(70% 45% at 50% 108%,rgba(154,13,38,.26),transparent 70%)}
+header{background:linear-gradient(180deg,rgba(30,3,8,.94),rgba(9,1,3,.88))!important;border-bottom:1px solid var(--line2)!important;box-shadow:0 12px 40px rgba(0,0,0,.55)}
+header::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;background:linear-gradient(90deg,transparent,#ff3d5b,#ff9aa9,#ff3d5b,transparent);opacity:.75;pointer-events:none}
+.card:not(.my-hub):not(.danger-zone):not(.hof2),.admin-card{position:relative;border:1px solid var(--line2);border-radius:22px;background:linear-gradient(165deg,rgba(44,6,13,.82),rgba(13,2,5,.97) 58%),var(--panel);box-shadow:0 18px 50px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,150,165,.12),inset 0 0 44px rgba(212,17,54,.05)}
+.card:not(.my-hub):not(.danger-zone):not(.hof2)::before{content:"";position:absolute;left:22px;right:22px;top:0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,112,135,.75),transparent);pointer-events:none}
+.kicker{color:var(--r300)!important;text-shadow:0 0 14px rgba(255,61,91,.5)}
+.panel-head h3,.title{background:linear-gradient(180deg,#ffffff 8%,#ffc3cd 100%);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none;filter:drop-shadow(0 2px 10px rgba(255,61,91,.22))}
+.subtle,.hint{color:var(--muted)}
+/* buttons: glossy, bevelled, with a sheen on hover or focus */
+.btn{position:relative;overflow:hidden;isolation:isolate;border-radius:14px;letter-spacing:.09em;text-shadow:0 1px 0 rgba(0,0,0,.45);transition:transform .15s,box-shadow .2s,filter .2s}
+.btn::after{content:"";position:absolute;top:0;left:-130%;width:55%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.36),transparent);transform:skewX(-20deg);pointer-events:none}
+.btn:hover::after,.btn:focus-visible::after{animation:gvgSheen .9s ease}
+@keyframes gvgSheen{to{left:170%}}
+.btn-primary{background:linear-gradient(180deg,#ff5d75 0%,#e0183d 46%,#a50f2b 100%)!important;border:1px solid #ff8da0!important;color:#fff!important;box-shadow:0 10px 26px rgba(212,17,54,.45),inset 0 1px 0 rgba(255,255,255,.4),inset 0 -3px 0 rgba(90,4,16,.55)!important}
+.btn-primary:hover{filter:brightness(1.07);transform:translateY(-1px)}
+.btn-primary:active{transform:translateY(1px);box-shadow:0 4px 12px rgba(212,17,54,.4),inset 0 2px 0 rgba(0,0,0,.25)!important}
+.btn-red{background:linear-gradient(180deg,rgba(255,93,115,.22),rgba(154,13,38,.38))!important;border:1px solid rgba(255,112,135,.5)!important;color:#ffd9df!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.18)}
+.btn-gold{background:linear-gradient(180deg,rgba(255,168,182,.16),rgba(212,17,54,.18))!important;border:1px solid rgba(255,168,182,.4)!important;color:#ffd0d8!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.14)}
+.hof2 .btn-gold,.hof2-cta .btn{background:linear-gradient(180deg,#fff0b0,#e0b23f 55%,#9a7421)!important;color:#2a1c02!important;border:1px solid #fff0b0!important;box-shadow:0 8px 22px rgba(231,193,90,.35),inset 0 1px 0 rgba(255,255,255,.6),inset 0 -3px 0 rgba(90,60,5,.4)!important;text-shadow:none}
+/* fields */
+input:not([type=checkbox]):not([type=radio]):not([type=file]),select,textarea{border-radius:12px!important;border:1px solid rgba(255,112,135,.24)!important;background:linear-gradient(180deg,#16070b,#0b0205)!important;color:#fff;box-shadow:inset 0 2px 7px rgba(0,0,0,.55)}
+input:focus,select:focus,textarea:focus{border-color:#ff5d73!important;box-shadow:0 0 0 3px rgba(255,61,91,.24),inset 0 2px 7px rgba(0,0,0,.55)!important}
+label{color:#e3b8c0}
+/* tabs */
+.member-tabs,.admin-tabs{background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.01));border:1px solid var(--line2);box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+.member-tab,.admin-tab{color:#d9aab3;border:1px solid rgba(255,112,135,.16);background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.012));transition:all .2s}
+.member-tab.active,.admin-tab.active,.member-tab[aria-selected="true"],.admin-tab[aria-selected="true"]{color:#fff;background:linear-gradient(180deg,#ff5d75,#c4122f);border-color:#ff8da0;box-shadow:0 8px 22px rgba(212,17,54,.42),inset 0 1px 0 rgba(255,255,255,.35)}
+.member-tab[data-member-section="hall-of-fame"]{color:#f0d890;border-color:rgba(231,193,90,.38)}
+.member-tab[data-member-section="hall-of-fame"].active{color:#2a1c02;background:linear-gradient(180deg,#fff0b0,#e0b23f 60%,#9a7421);border-color:#fff0b0;box-shadow:0 8px 22px rgba(231,193,90,.35),inset 0 1px 0 rgba(255,255,255,.6)}
+.badge{border-color:rgba(255,168,182,.3);box-shadow:inset 0 1px 0 rgba(255,255,255,.1)}
+.modal{background:linear-gradient(180deg,#220a10,#0e0407)!important;border:1px solid rgba(255,112,135,.3)!important;box-shadow:0 30px 90px rgba(0,0,0,.72),0 0 0 1px rgba(255,61,91,.12)!important}
+.modal-backdrop{backdrop-filter:blur(10px)}
+.empty{border-color:rgba(255,112,135,.2);background:rgba(255,61,91,.03)}
+.footer{border-top:1px solid var(--line2);background:linear-gradient(180deg,transparent,rgba(212,17,54,.06))}
+.version-chip{box-shadow:0 0 16px rgba(255,61,91,.25)}
+/* ===== Hall of Fame: extra gold ===== */
+.hof2{box-shadow:0 0 0 1px rgba(231,193,90,.28),0 22px 70px rgba(0,0,0,.6),0 0 70px rgba(231,193,90,.1)!important}
+.hof2-hero::after{content:"";position:absolute;inset:0;pointer-events:none;background-image:radial-gradient(circle,rgba(255,240,176,.95) 0 1px,transparent 1.6px),radial-gradient(circle,rgba(231,193,90,.85) 0 1px,transparent 1.6px);background-size:86px 86px,137px 137px;background-position:12px 18px,58px 66px;opacity:.4;animation:gvgTwinkle 6s ease-in-out infinite}
+@keyframes gvgTwinkle{0%,100%{opacity:.16}50%{opacity:.55}}
+.hof2-title{filter:drop-shadow(0 3px 14px rgba(231,193,90,.45))!important}
+.hof2-crest{box-shadow:0 0 0 3px rgba(231,193,90,.3),0 0 60px rgba(231,193,90,.5),inset 0 -6px 12px rgba(0,0,0,.3)!important}
+.hof2 .hof2-showcase{box-shadow:0 20px 60px rgba(0,0,0,.6),0 0 0 1px rgba(231,193,90,.5),0 0 50px rgba(231,193,90,.14)!important}
+.hof2 .hof-period-tile.has-award{background:linear-gradient(180deg,rgba(231,193,90,.18),rgba(231,193,90,.03))!important}
+@media(prefers-reduced-motion:reduce){.btn:hover::after,.btn:focus-visible::after,.hof2-hero::after{animation:none!important}}
+</style>
 </head>
 <body>
   <div class="topline"></div>
@@ -1569,13 +1620,15 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
 
         <div id="member-section-rules" class="member-view active">
           <div class="card rules-card">
-            <div class="panel-head"><div><div class="kicker">Mandatory Fair Play</div><h3>GVG RULES</h3><div class="subtle">Rules are equal for all guilds in the 7TH UNIVERSE community.</div></div><span class="badge badge-gold">11 RULES</span></div>
-            <div class="rules-grid" id="rules-grid"></div>
+            <div class="panel-head"><div><div class="kicker">Mandatory Fair Play</div><h3>RULES &amp; INFORMATION</h3><div class="subtle">Rules are equal for all guilds in the 7TH UNIVERSE community.</div></div></div>
+            <div class="rules-tabs" id="rules-tabs" role="tablist" aria-label="Rules sections"></div>
+            <div class="rules-body" id="rules-body" aria-live="polite"></div>
           </div>
           <div class="dashboard-note"><span><b>Challenge window:</b> 10:00 AM–11:59 PM Pakistan time. At 12:00 AM no new challenge is allowed.</span><span><b>Daily cycle:</b> resets at 10:00 AM. Old challenges stay result-eligible until 9:59 AM next cycle.</span></div>
         </div>
 
         <div id="member-section-challenges" class="member-view">
+          <div id="ban-slot-challenges" class="ban-slot"></div>
           <div class="card">
             <div class="panel-head"><div><div class="kicker">Live Arena</div><h3>CHALLENGES</h3><div class="subtle">Post a new challenge from 10:00 AM until 11:59 PM. Live challenges from the current daily cycle are shown below.</div></div><span class="badge badge-blue">LIVE</span></div>
             <form id="challenge-form" novalidate>
@@ -1587,15 +1640,15 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
                   <span class="time-picker-arrow">›</span>
                 </button>
               </div><label class="full">WEAPONS</label></div>
-              <div id="weapon-grid" class="rules-grid"></div>
-              <label class="full" style="margin-top:11px">PC MODE
-                <select id="challenge-pc-allowed" required>
-                  <option value="false" selected>PC NOT ALLOW</option>
-                  <option value="true">PC ALLOW</option>
-                </select>
-              </label>
-              <div class="hint">Choose whether PC is allowed for this challenge. This choice will also appear in the WhatsApp group notice.</div>
-              <label style="margin-top:11px">ACTIVE SKILLS</label><div id="skill-grid" class="rules-grid"></div>
+              <div id="weapon-grid" class="ff-grid ff-grid-5"></div>
+              <label class="full" style="margin-top:14px">PC MODE</label>
+              <select id="challenge-pc-allowed" required style="display:none" aria-hidden="true" tabindex="-1">
+                <option value="false" selected>PC NOT ALLOW</option>
+                <option value="true">PC ALLOW</option>
+              </select>
+              <div id="pc-grid" class="ff-grid ff-grid-2"></div>
+              <div class="hint">Choose whether PC is allowed for this challenge. This choice also appears in the WhatsApp group notice.</div>
+              <label style="margin-top:14px">ACTIVE SKILLS</label><div id="skill-grid" class="ff-grid ff-grid-3"></div>
               <div class="split-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px"><button id="challenge-submit" class="btn btn-primary" type="submit">POST CHALLENGE</button></div>
               <div id="challenge-status" class="status"></div>
             </form>
@@ -1604,11 +1657,12 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
         </div>
 
         <div id="member-section-results" class="member-view">
+          <div id="ban-slot-results" class="ban-slot"></div>
           <div class="card">
             <div class="panel-head"><div><div class="kicker">Verified Records</div><h3>RESULTS</h3><div class="subtle">Either guild involved in the challenge may submit the result. Upload exactly one clear result screenshot.</div></div><span class="badge badge-gold">ADMIN REVIEW</span></div>
             <form id="result-form" novalidate>
               <div class="field-grid"><label class="full">CHALLENGE<select id="result-challenge" required><option value="">Select an active challenge</option></select></label><label>WINNER GUILD<div class="autocomplete-wrap"><input id="result-winner" type="text" maxlength="80" placeholder="Enter winner guild name" autocomplete="off" required /><div id="result-winner-suggestions" class="autocomplete-list"></div></div></label><label>LOSER GUILD<div class="autocomplete-wrap"><input id="result-loser" type="text" maxlength="80" placeholder="Enter loser guild name" autocomplete="off" required /><div id="result-loser-suggestions" class="autocomplete-list"></div></div></label><label class="full">SCORE<input id="result-score" type="text" maxlength="80" placeholder="Example: 6 - 4" required /></label><label class="full">RESULT PROOF IMAGE<input id="result-image-1" type="file" accept="image/jpeg,image/png,image/webp" required /></label></div>
-              <div class="hint">Upload one clear screenshot showing the final match result. Maximum 5 result submissions per guild per Pakistan day. After 10:00 AM the daily challenge expires.</div>
+              <div class="hint">Upload one clear screenshot showing the final match result. A guild can play a maximum of 7 matches per day (as winner or loser). After 10:00 AM the daily challenge expires.</div>
               <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px"><button id="result-submit" class="btn btn-primary" type="submit">SUBMIT RESULT</button></div><div id="result-status" class="status"></div>
             </form>
             <div class="divider"></div><div class="kicker">My Result Submissions</div><div id="my-result-list" class="result-list" style="margin-top:9px"><div class="empty">Loading your submissions...</div></div><div class="divider"></div><div class="kicker">Approved Results</div><div id="approved-result-list" class="result-list" style="margin-top:9px"><div class="empty">Loading approved results...</div></div>
@@ -1728,7 +1782,7 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
             </form>
           </div>
           <div class="card" style="margin-top:14px" id="roster-card">
-            <div class="panel-head"><div><div class="kicker">Team</div><h3>TEAM ROSTER</h3><div class="subtle">Add up to 10 team member names. After you save, the list can be changed again only after 3 days.</div></div><span id="roster-count" class="badge badge-gold">0 / 10</span></div>
+            <div class="panel-head"><div><div class="kicker">Team</div><h3>TEAM ROSTER</h3><div class="subtle">Add up to 10 team member names. After you save, the list can be changed again only after 7 days.</div></div><span id="roster-count" class="badge badge-gold">0 / 10</span></div>
             <form id="guild-roster-form" novalidate>
               <div id="roster-grid" class="roster-grid"></div>
               <div id="roster-lock-note" class="hint"></div>
@@ -1786,8 +1840,8 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
             <div id="hof-year-grid" class="hof-year-grid"><div class="empty">Loading years...</div></div>
             <div id="hof-period-heading" class="hof-period-heading">SELECT A YEAR</div>
             <div id="hof-period-grid" class="hof-period-grid"></div>
-            <div class="hof-interaction-hint">TAP ANY WEEK OR MONTH TILE TO OPEN ITS CHAMPION SHOWCASE · DRAG THE TROPHY TO ROTATE</div>
-            <div id="hof-selected-award" class="hof-selected-award"><div class="empty">Choose a year and week/month to view the champion.</div></div>
+            <div class="hof-interaction-hint">TAP ANY WEEK OR SEASON TILE TO OPEN ITS CHAMPION SHOWCASE · DRAG THE TROPHY TO ROTATE</div>
+            <div id="hof-selected-award" class="hof-selected-award"><div class="empty">Choose a year and a week or season to view the champion.</div></div>
           </div>
         </div>
 
@@ -1803,7 +1857,7 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
 
         <div id="admin-dashboard" class="hidden">
           <div class="admin-head"><div><div class="kicker">7TH UNIVERSE • ADMIN</div><h2 class="title">CONTROL CENTER</h2><div id="admin-session-label" class="desc">Authenticated admin</div></div><button id="admin-logout" class="btn btn-red btn-small" type="button">ADMIN LOGOUT</button></div>
-          <div class="admin-tabs" role="tablist" aria-label="Admin sections"><button class="admin-tab active" type="button" data-admin-section="guilds" aria-selected="true">GUILDS</button><button id="admin-name-change-tab" class="admin-tab" type="button" data-admin-section="name-changes" aria-selected="false">NAME CHANGE REQUESTS (0)</button><button class="admin-tab" type="button" data-admin-section="results" aria-selected="false">RESULTS REVIEW</button><button class="admin-tab" type="button" data-admin-section="weekly" aria-selected="false">WEEKLY MATCHES</button><button class="admin-tab" type="button" data-admin-section="ban" aria-selected="false">BAN GUILD</button><button class="admin-tab" type="button" data-admin-section="trophies" aria-selected="false">HALL OF FAME</button></div>
+          <div class="admin-tabs" role="tablist" aria-label="Admin sections"><button class="admin-tab active" type="button" data-admin-section="guilds" aria-selected="true">GUILDS</button><button id="admin-name-change-tab" class="admin-tab" type="button" data-admin-section="name-changes" aria-selected="false">NAME CHANGE REQUESTS (0)</button><button class="admin-tab" type="button" data-admin-section="results" aria-selected="false">RESULTS REVIEW</button><button class="admin-tab" type="button" data-admin-section="weekly" aria-selected="false">WEEKLY MATCHES</button><button class="admin-tab" type="button" data-admin-section="ban" aria-selected="false">BAN GUILD</button><button class="admin-tab" type="button" data-admin-section="trophies" aria-selected="false">HALL OF FAME</button><button class="admin-tab" type="button" data-admin-section="rules" aria-selected="false">RULES EDITOR</button></div>
           <div class="admin-layout">
             <div id="admin-section-guilds" class="admin-panel-view active"><section class="admin-section"><div class="admin-section-head"><div><div class="kicker">Guild Management</div><h3>GUILDS</h3><div class="subtle">New registrations are reviewed first. All guilds are searchable separately below.</div></div><span class="badge badge-gold">GUILD CONTROL</span></div><div class="admin-section-body"><div class="admin-panel review-section"><div class="panel-head"><div><div class="kicker">First Priority</div><h3>GUILD REVIEW</h3><div class="subtle">Newly registered guilds appear at the top.</div></div><span class="badge badge-gold">NEW FIRST</span></div><div class="admin-table-shell"><table class="admin-table"><thead><tr><th>Guild</th><th>Status</th><th>Menu</th></tr></thead><tbody id="pending-guild-table"><tr><td colspan="3">Loading new guilds...</td></tr></tbody></table></div></div><div class="card"><div class="panel-head"><div><div class="kicker">Directory</div><h3>ALL GUILDS</h3><div class="subtle">Only Guild Name + Status are shown in the list.</div></div><span class="badge badge-blue">SEARCH</span></div><div class="search-bar"><input id="admin-guild-search" type="search" placeholder="Search guild name, contact or email..." autocomplete="off" /><span class="search-icon">⌕</span></div><div class="admin-table-shell" style="margin-top:10px"><table class="admin-table"><thead><tr><th>Guild</th><th>Status</th><th>Menu</th></tr></thead><tbody id="all-guild-table"><tr><td colspan="3">Loading guilds...</td></tr></tbody></table></div></div></div></section></div>
 
@@ -1855,11 +1909,12 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
             </div>
 
             <div id="admin-section-ban" class="admin-panel-view"><section class="admin-section"><div class="admin-section-head"><div><div class="kicker">Enforcement</div><h3>BAN GUILD</h3><div class="subtle">Permanent or timed ban by guild name. The ban covers both leaders of the guild.</div></div><span class="badge badge-red">BAN CONTROL</span></div><div class="admin-panel"><form id="ban-form" novalidate><div class="field-grid"><label class="full">GUILD NAME<input id="ban-guild" type="text" maxlength="80" placeholder="Guild name" /></label><label class="full">BAN DURATION<select id="ban-duration"><option value="permanent">Permanent</option><option value="1h">1 Hour</option><option value="6h">6 Hours</option><option value="1d">1 Day</option><option value="3d">3 Days</option><option value="7d">7 Days</option></select></label><label class="full">REASON<input id="ban-reason" type="text" maxlength="250" value="Rule violation" /></label></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px"><button class="btn btn-red" type="submit">BAN GUILD</button></div><div id="ban-status" class="status"></div></form><div class="divider"></div><div class="kicker">Active Ban Records</div><div id="ban-list" class="challenge-list" style="margin-top:9px"><div class="empty">Loading bans...</div></div></div></section></div>
+            <div id="admin-section-rules" class="admin-panel-view" style="display:none"><section class="card"><div class="panel-head"><div><div class="kicker">Content</div><h3>RULES EDITOR</h3><div class="subtle">Change the three Rules buttons shown to every guild. Each line becomes one bullet. Start a line with NOTE: for a highlighted note. A phone number like +92 300 1234567 becomes a WhatsApp link.</div></div></div><div id="rules-editor"></div><div id="rules-editor-status" class="status"></div></section></div>
             <div id="admin-section-trophies" class="admin-panel-view">
               <section class="admin-section">
                 <div class="admin-section-head"><div><div class="kicker">Official Champion Awards</div><h3>HALL OF FAME CONTROL</h3><div class="subtle">Only Admin can award or remove official weekly/monthly trophies. Changing these records does not alter weekly ranking points.</div></div><span class="badge badge-gold">ADMIN ONLY</span></div>
                 <div class="admin-panel">
-                  <div class="panel-head"><div><div class="kicker">Season Settings</div><h3>CURRENT WEEK</h3><div class="subtle">Set the season year and current competition week (currently defaults to Week 11).</div></div></div>
+                  <div class="panel-head"><div><div class="kicker">Season Settings</div><h3>CURRENT WEEK</h3><div class="subtle">Set the season year and the current competition week. A new week tile also appears by itself as soon as you award that week's champion.</div></div></div>
                   <form id="hof-season-form"><div class="field-grid"><label>SEASON YEAR<input id="hof-season-year" type="number" min="2020" max="2100" value="2026" required /></label><label>CURRENT WEEK NUMBER<input id="hof-current-week" type="number" min="1" max="60" value="11" required /></label></div><button class="btn btn-primary" type="submit" style="margin-top:12px">SAVE SEASON SETTINGS</button><div id="hof-season-status" class="status"></div></form>
                 </div>
                 <div class="admin-panel" style="margin-top:12px">
@@ -1953,7 +2008,7 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
 
   <div id="modal-backdrop" class="modal-backdrop"><div id="modal" class="modal"></div></div>
   <div id="password-recovery-backdrop" class="modal-backdrop"><div class="modal"><div class="modal-head"><div><div class="kicker">Account Recovery</div><h3>SET NEW PASSWORD</h3></div></div><form id="password-recovery-form"><label>NEW PASSWORD<input id="recovery-password" type="password" minlength="8" autocomplete="new-password" placeholder="Minimum 8 characters" required /></label><label style="margin-top:10px">CONFIRM PASSWORD<input id="recovery-password-confirm" type="password" minlength="8" autocomplete="new-password" placeholder="Repeat new password" required /></label><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px"><button class="btn btn-primary" type="submit">UPDATE PASSWORD</button></div><div id="recovery-status" class="status"></div></form></div></div>
-  <footer class="footer"><div class="container footer-inner"><span>7TH UNIVERSE • GUILD VS GUILD</span><span>RULES ARE EQUAL FOR ALL GUILDS</span><span class="version-chip">V1.8.0 • SECURE &amp; STABLE</span></div></footer>
+  <footer class="footer"><div class="container footer-inner"><span>7TH UNIVERSE • GUILD VS GUILD</span><span>RULES ARE EQUAL FOR ALL GUILDS</span><span class="version-chip">V2.0 • SECURE &amp; FAST</span></div></footer>
 
   <script>
   /* V18.9: Standalone match-time picker. It does not depend on Supabase or the main app script. */
@@ -2065,7 +2120,7 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
 (function(){
-  window.__GVG_HTML_VERSION='32.0';
+  window.__GVG_HTML_VERSION='35.0';
   function show(msg){
     try{
       var d=document.getElementById('gvg-fatal');
@@ -2086,7 +2141,7 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
   });
 })();
 </script>
-<script src="./script.js?v=32.0-profile-badges"></script>
+<script src="./script.js?v=35.0-ban-notice"></script>
 
   <style>
     .app-dialog-backdrop{position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(1,3,8,.82);backdrop-filter:blur(11px);-webkit-backdrop-filter:blur(11px)}
@@ -2155,6 +2210,57 @@ table.weekly-guild-table th:first-child,table.weekly-guild-table td:first-child{
     @media(max-width:360px){.ach-grid{grid-template-columns:1fr}}
 
 
+
+
+
+    .hof2 .pt-month{font-style:normal;font-size:8.5px;letter-spacing:.1em;color:#a8946a;text-transform:uppercase}
+    /* v33 - rules tabs */
+    .rules-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:6px 0 14px}
+    .rules-tab{padding:12px 6px;border-radius:14px;border:1px solid rgba(255,61,91,.28);background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.015));color:#e9c6cc;font-family:inherit;font-weight:900;font-size:10.5px;letter-spacing:.07em;line-height:1.25;cursor:pointer;text-transform:uppercase;box-shadow:inset 0 1px 0 rgba(255,255,255,.07);transition:all .2s}
+    .rules-tab.active{background:linear-gradient(135deg,#e0183d,#8f0a22);border-color:#ff6f86;color:#fff;box-shadow:0 8px 24px rgba(212,17,54,.4),inset 0 1px 0 rgba(255,255,255,.25)}
+    .rules-li{display:flex;gap:11px;align-items:flex-start;padding:11px 13px;margin-bottom:8px;border-radius:13px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.07);font-size:13.5px;line-height:1.55;color:#f1e6e8}
+    .rules-li::before{content:"";flex:0 0 8px;height:8px;margin-top:7px;border-radius:2px;transform:rotate(45deg);background:linear-gradient(135deg,#ff6f86,#c4122f);box-shadow:0 0 10px rgba(255,61,91,.7)}
+    .rules-note{padding:12px 14px;margin:12px 0 8px;border-radius:13px;border:1px solid rgba(231,193,90,.35);background:rgba(231,193,90,.07);font-size:13px;line-height:1.55;color:#f0dca0}
+    .rules-note b{display:inline-block;margin-right:8px;padding:2px 8px;border-radius:6px;font-size:10px;letter-spacing:.1em;background:#e7c15a;color:#2a1c02}
+    .rules-phone{color:#9be8b4;font-weight:800;text-decoration:none;border-bottom:1px dashed rgba(155,232,180,.6)}
+    .rules-edit{display:grid;gap:8px;padding:14px;margin-bottom:12px;border-radius:14px;border:1px solid rgba(255,61,91,.2);background:rgba(255,255,255,.03)}
+    .rules-edit textarea{min-height:210px;resize:vertical;line-height:1.5}
+
+    /* v35 - ban notice */
+    .member-view.is-banned>*:not(.ban-slot){display:none!important}
+    .ban-card{display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:center;padding:20px;border-radius:22px;border:1px solid rgba(255,112,135,.55);background:radial-gradient(120% 120% at 0 0,rgba(255,61,91,.28),transparent 60%),linear-gradient(160deg,#3a0711,#12030a);box-shadow:0 20px 60px rgba(0,0,0,.6),0 0 40px rgba(212,17,54,.25),inset 0 1px 0 rgba(255,255,255,.14)}
+    .ban-icon{width:58px;height:58px;border-radius:18px;display:grid;place-items:center;font-size:28px;background:linear-gradient(180deg,#ff5d75,#a50f2b);box-shadow:0 8px 22px rgba(212,17,54,.5),inset 0 1px 0 rgba(255,255,255,.4)}
+    .ban-title{font-weight:900;font-size:19px;letter-spacing:.09em;color:#fff}
+    .ban-reason{margin-top:8px;padding:10px 12px;border-radius:12px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.08);font-size:13.5px;line-height:1.5;color:#ffe3e8;word-break:break-word}
+    .ban-reason span{display:block;margin-bottom:3px;font-size:9.5px;font-weight:900;letter-spacing:.14em;color:#ff9aa9}
+    .ban-when{margin-top:9px;font-size:11.5px;color:#d9aab3}
+    .ban-watch,.ban-perm{grid-column:1/-1;display:grid;place-items:center;padding-top:4px}
+    .ban-watch-face{width:164px;height:164px;border-radius:50%;display:grid;place-content:center;gap:3px;text-align:center;background:radial-gradient(circle at 50% 38%,#260a12,#07010a 70%);box-shadow:0 0 0 5px #3a0a14,0 0 0 8px #e7c15a,0 0 0 11px #5a3d08,0 14px 38px rgba(0,0,0,.65),0 0 40px rgba(255,61,91,.3),inset 0 0 30px rgba(255,61,91,.18)}
+    .ban-watch-face small{font-size:9px;font-weight:900;letter-spacing:.16em;color:#ffa8b6}
+    .ban-watch-face b{font-size:27px;letter-spacing:.04em;color:#fff;text-shadow:0 0 18px rgba(255,61,91,.7);font-variant-numeric:tabular-nums}
+    .ban-watch-face em{font-style:normal;min-height:1em;font-size:11px;font-weight:900;letter-spacing:.12em;color:#f0d890}
+    .ban-perm-label{font-size:12px;font-weight:900;letter-spacing:.18em;color:#ffb8c4;margin-bottom:12px}
+    .ban-appeal{min-width:190px;padding:14px 26px;border-radius:16px;border:1px solid #fff0b0;cursor:pointer;font-family:inherit;font-weight:900;font-size:13px;letter-spacing:.16em;color:#2a1c02;background:linear-gradient(180deg,#fff0b0,#e0b23f 55%,#9a7421);box-shadow:0 10px 28px rgba(231,193,90,.35),inset 0 1px 0 rgba(255,255,255,.6),inset 0 -3px 0 rgba(90,60,5,.4);transition:transform .12s,filter .2s}
+    .ban-appeal.pressed{transform:translateY(2px) scale(.97);filter:brightness(1.12)}
+    /* v33 - weapon / PC / skill picture tiles */
+    .ff-grid{display:grid;gap:10px;margin-top:8px}
+    .ff-grid-5{grid-template-columns:repeat(3,1fr)}.ff-grid-3{grid-template-columns:repeat(3,1fr)}.ff-grid-2{grid-template-columns:repeat(2,1fr)}
+    @media(min-width:640px){.ff-grid-5{grid-template-columns:repeat(5,1fr)}}
+    .ff-tile{position:relative;display:grid;gap:7px;justify-items:center;align-content:start;padding:12px 6px 10px;border-radius:18px;text-align:center;cursor:pointer;color:#e9d9dc;font-family:inherit;border:1px solid rgba(255,61,91,.22);background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.012)),radial-gradient(120% 90% at 50% 0,rgba(212,17,54,.16),transparent 70%);box-shadow:0 8px 22px rgba(0,0,0,.38),inset 0 1px 0 rgba(255,255,255,.07);transition:transform .15s,border-color .2s,box-shadow .2s}
+    .ff-tile:active{transform:scale(.97)}
+    .ff-tile input{position:absolute;opacity:0;pointer-events:none}
+    .ff-pic{position:relative;display:block;width:100%;aspect-ratio:16/10;max-width:132px}
+    .ff-grid-3 .ff-pic,.ff-grid-2 .ff-pic{aspect-ratio:1;max-width:96px}
+    .ff-art,.ff-art svg,.ff-img{position:absolute;inset:0;width:100%;height:100%}
+    .ff-art svg{filter:drop-shadow(0 6px 8px rgba(0,0,0,.55))}
+    .ff-img{object-fit:contain;filter:drop-shadow(0 6px 8px rgba(0,0,0,.55))}
+    .ff-pic.has-img .ff-art{opacity:0}
+    .ff-name{font-size:11px;font-weight:900;letter-spacing:.07em;line-height:1.2;text-transform:uppercase}
+    .ff-check{position:absolute;top:7px;right:7px;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:900;opacity:0;transform:scale(.6);transition:all .18s;background:linear-gradient(135deg,#ff5d73,#c4122f);color:#fff;box-shadow:0 0 12px rgba(255,61,91,.6)}
+    .ff-tile.selected{border-color:#ff5d73;background:linear-gradient(180deg,rgba(255,93,115,.2),rgba(255,61,91,.05)),radial-gradient(120% 90% at 50% 0,rgba(255,61,91,.28),transparent 70%);box-shadow:0 0 0 1px rgba(255,93,115,.55),0 10px 28px rgba(212,17,54,.35),inset 0 1px 0 rgba(255,255,255,.16)}
+    .ff-tile.selected .ff-check{opacity:1;transform:scale(1)}
+    .ff-tile.selected .ff-name{color:#fff}
+    .ff-tile:focus-within{outline:2px solid #ff8da0;outline-offset:2px}
     /* v32 - one profile list, compact achievements */
     .pf-list{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
     .pf-row{padding:12px 13px;border-radius:14px;background:rgba(255,255,255,.03);border:1px solid rgba(255,61,91,.16);display:grid;gap:7px;align-content:start}

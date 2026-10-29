@@ -1,4 +1,4 @@
-window.__GVG_SCRIPT_VERSION='32.0';
+window.__GVG_SCRIPT_VERSION='35.0';
 /*
   7TH UNIVERSE GVG — FINAL FRONTEND
   Uses two isolated Supabase Auth clients so the Admin browser session
@@ -10,20 +10,6 @@ const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_5ei0IhM1tQ15u5pAIIavhQ_alE9O3bl
 const TIME_ZONE = 'Asia/Karachi';
 const IMAGE_BUCKET = 'result-images';
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
-
-const RULES = [
-  'Roof / Height — <b>ALLOW NAHI</b>',
-  'Revive Karna — <b>ALLOW NAHI</b>',
-  'BO3 Matches — <b>ALLOW NAHI</b>',
-  '1 Outsider Player — <b>ALLOW NAHI</b>',
-  'Zone Packing — <b>ALLOW NAHI</b>',
-  'Level 30 Se Low Level ID — <b>ALLOW NAHI</b>',
-  'Dono Guilds Ka Agree Na Hone Par PC — <b>ALLOW NAHI</b>',
-  'Abusing Language — <b>ALLOW NAHI</b>',
-  'One Player Ka Two Guilds Se Khelna — <b>ALLOW NAHI</b>',
-  'PANNEL USER — <b>ALLOW NAHI</b>',
-  'Proof Ke Baghair Ilzam Lagana — <b>ALLOW NAHI</b>'
-];
 
 const ALLOWED_WEAPONS = ['Desert', 'M1887', 'M1887X', 'M1014', 'Woodpecker'];
 const ALLOWED_SKILLS = ['DJ Alok', 'Tatsuya', 'Koda'];
@@ -370,7 +356,7 @@ function openView(name){
 }
 
 function memberDashboardAllowed(){
-  return Boolean(state.guest) || Boolean(state.user && guildApproved());
+  return Boolean(state.guest) || Boolean(state.user && state.guild && state.guild.approval_status==='approved');
 }
 
 function setMemberAccessGate(){
@@ -391,6 +377,7 @@ function setMemberAccessGate(){
   }
 
   if(tabs) tabs.classList.toggle('hidden',!allowed);
+  renderBanNotices();
   document.querySelectorAll('[data-member-section]').forEach(btn=>btn.classList.toggle('hidden',Boolean(state.guest)&&!['guild-profiles','hall-of-fame'].includes(btn.dataset.memberSection)));
 
   document.querySelectorAll('.member-view').forEach(el=>{
@@ -418,6 +405,8 @@ function openMemberSection(name){
   ]);
   if(section==='ranking') setRankingMode(state.rankingMode || 'current-week');
   if(section==='registered-guilds') loadSectionCached('member:registered-guilds',loadRegisteredGuilds,30000);
+  if(section==='rules') loadRules();
+  if((section==='challenges'||section==='results')&&state.user&&Date.now()-(state.guildFetchedAt||0)>60000) refreshBanState();
   if(section==='guild-profiles'){
     setGuildView('all');
     loadSectionCached('member:guild-profiles',loadPublicGuildProfiles,30000);
@@ -427,15 +416,118 @@ function openMemberSection(name){
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
-function renderRules(){
-  const target=$('rules-grid'); if(!target) return;
-  target.innerHTML=RULES.map((rule,i)=>`<div class="rule-item"><div class="rule-no">${i+1}</div><div class="rule-text">${rule}</div></div>`).join('');
+
+/* ===== persistent read cache (keeps repeat visits from downloading the same data again) ===== */
+const GVG_CACHE_PREFIX='gvg-cache-v1:';
+function cacheGet(key,maxAgeMs){try{const raw=localStorage.getItem(GVG_CACHE_PREFIX+key);if(!raw)return null;const o=JSON.parse(raw);if(!o||Date.now()-o.t>maxAgeMs)return null;return o.v;}catch{return null;}}
+function cacheSet(key,value){try{localStorage.setItem(GVG_CACHE_PREFIX+key,JSON.stringify({t:Date.now(),v:value}));}catch{/* storage full or blocked: just skip caching */}}
+function cacheClear(prefix=''){try{Object.keys(localStorage).filter(k=>k.startsWith(GVG_CACHE_PREFIX+prefix)).forEach(k=>localStorage.removeItem(k));}catch{}}
+
+/* ===== Rules (three buttons, editable by the Admin) ===== */
+const RULES_DEFAULT=[
+ {key:'about',title:'ABOUT 7TH UNIVERSE',body:'- 7th Universe is a community built for Free Fire Guild vs Guild (GvG) competitive matches and tournaments.\n- Daily GvG challenges are posted through this website.\n- Weekly tournaments are decided on the points earned from the daily matches.\n- Monthly tournament registration opens 3 days before the start of each month and is paid.\nNOTE: For any complaint or suggestion, please contact the Admin.\nADMIN CONTACT: +92 309 8970483'},
+ {key:'community',title:'COMMUNITY INSTRUCTIONS',body:'- A guild can play a maximum of 7 matches per day.\n- Right after you win a match, submit your result screenshot from the Results section.\n- A win earns +3 points and a loss costs -1 point.\n- Submitting old results (from a previous day) against new challenges is strictly not allowed.\n- One challenge can be played against one guild only.'},
+ {key:'match',title:'IN-MATCH RULES',body:'- Roofing is not allowed.\n- Reviving is not allowed.\n- Two-tap is not allowed.\n- Zone packing is not allowed.\n- More than one match per day against the same guild is not allowed.\n- IDs below level 30 are not allowed.\n- BO3 matches are not allowed.\n- An outsider player (not from the guild) is not allowed.\n- PC is not allowed unless both guilds agree.\n- Abusive language is not allowed.\n- One player cannot play for two guilds.\n- Panel users are not allowed.\n- Both guilds must follow the information given in the challenge.\n- Making accusations without proof is not allowed.\nNOTE: Raise any complaint right after the match. Complaints made one day later will not be accepted.'}
+];
+function rulesBodyHtml(body){
+  return String(body||'').split(/\r?\n/).map(l=>l.trim()).filter(Boolean).map(line=>{
+    const noteMatch=/^NOTE\s*:\s*(.*)$/i.exec(line);
+    const text=noteMatch?noteMatch[1]:line.replace(/^[-•*]\s+/,'');
+    const linked=escapeHtml(text).replace(/(\+\d[\d ]{8,16}\d)/g,m=>`<a class="rules-phone" href="https://wa.me/${m.replace(/\D/g,'')}" target="_blank" rel="noopener">${m}</a>`);
+    return noteMatch?`<div class="rules-note"><b>NOTE</b>${linked}</div>`:`<div class="rules-li"><span>${linked}</span></div>`;
+  }).join('');
 }
+function renderRulesTabs(){
+  const tabs=$('rules-tabs'),body=$('rules-body'); if(!tabs||!body) return;
+  const list=state.rules?.length?state.rules:RULES_DEFAULT;
+  if(!list.some(r=>r.key===state.rulesTab)) state.rulesTab=list[0].key;
+  tabs.innerHTML=list.map(r=>`<button type="button" class="rules-tab ${r.key===state.rulesTab?'active':''}" role="tab" aria-selected="${r.key===state.rulesTab}" data-rules-tab="${escapeHtml(r.key)}">${escapeHtml(r.title)}</button>`).join('');
+  const cur=list.find(r=>r.key===state.rulesTab)||list[0];
+  body.innerHTML=rulesBodyHtml(cur.body);
+}
+async function loadRules(force=false){
+  let rules=force?null:cacheGet('rules',6*60*60*1000);
+  if(!rules){
+    try{const {data,error}=await db.rpc('get_gvg_rules');if(error)throw error;if(Array.isArray(data)&&data.length){rules=data;cacheSet('rules',rules);}}
+    catch(error){console.warn('Rules could not be loaded; showing the built-in text:',error);}
+  }
+  state.rules=rules||RULES_DEFAULT; renderRulesTabs();
+}
+function renderRules(){ renderRulesTabs(); }
+document.addEventListener('click',e=>{const t=e.target.closest?.('[data-rules-tab]');if(t){state.rulesTab=t.dataset.rulesTab;renderRulesTabs();}});
+
+/* ----- Admin: Rules editor ----- */
+async function loadAdminRules(){
+  const box=$('rules-editor'); if(!box) return;
+  let list=null;
+  try{const {data,error}=await adminDb.rpc('get_gvg_rules');if(error)throw error;list=Array.isArray(data)?data:null;}
+  catch(error){showStatus('rules-editor-status','error',`Could not load the rules: ${humanizeError(error)}`);}
+  list=list?.length?list:RULES_DEFAULT;
+  box.innerHTML=list.map(r=>`<div class="rules-edit" data-rule-key="${escapeHtml(r.key)}"><label>BUTTON NAME<input type="text" maxlength="60" data-rule-title value="${escapeHtml(r.title)}" /></label><label>TEXT (one line = one bullet)<textarea data-rule-body maxlength="6000">${escapeHtml(r.body)}</textarea></label><div><button class="btn btn-primary btn-small" type="button" data-action="save-rule" data-key="${escapeHtml(r.key)}">SAVE THIS SECTION</button></div></div>`).join('');
+}
+document.addEventListener('click',async e=>{
+  const b=e.target.closest?.('[data-action="save-rule"]'); if(!b) return;
+  const wrap=b.closest('[data-rule-key]'); if(!wrap) return;
+  clearStatus('rules-editor-status');
+  try{
+    b.disabled=true;
+    const {error}=await adminDb.rpc('admin_save_gvg_rule',{p_key:wrap.dataset.ruleKey,p_title:wrap.querySelector('[data-rule-title]').value,p_body:wrap.querySelector('[data-rule-body]').value});
+    if(error)throw error;
+    cacheClear('rules');
+    showStatus('rules-editor-status','ok','Saved. Guilds will see the new text the next time they open the Rules section.');
+  }catch(error){showStatus('rules-editor-status','error',humanizeError(error));}
+  finally{b.disabled=false;}
+});
+
+/* ===== v1.12: picture tiles for weapons, PC mode and skills =====
+   The drawings below are ORIGINAL vector illustrations. To show real game pictures instead, upload files named
+   desert / m1887 / m1887x / m1014 / woodpecker / pc / alok / tatsuya / koda  (png, webp or jpg) into assets/ff/ -
+   a picture found there automatically replaces the drawing. */
+const FF_KEYS={'Desert':'desert','M1887':'m1887','M1887X':'m1887x','M1014':'m1014','Woodpecker':'woodpecker','DJ Alok':'alok','Tatsuya':'tatsuya','Koda':'koda'};
+const FF_DEFS='<defs><linearGradient id="ffSteel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e9eef3"/><stop offset=".45" stop-color="#9aa6b2"/><stop offset="1" stop-color="#46505b"/></linearGradient><linearGradient id="ffDark" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5d6772"/><stop offset=".5" stop-color="#2b3138"/><stop offset="1" stop-color="#14171b"/></linearGradient><linearGradient id="ffWood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c98d4e"/><stop offset=".5" stop-color="#8a5526"/><stop offset="1" stop-color="#4d2c11"/></linearGradient><linearGradient id="ffGold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff0b0"/><stop offset=".5" stop-color="#e0b23f"/><stop offset="1" stop-color="#8a6212"/></linearGradient><radialGradient id="ffGlow" cx=".5" cy=".4" r=".7"><stop offset="0" stop-color="#ff5d73" stop-opacity=".55"/><stop offset="1" stop-color="#ff5d73" stop-opacity="0"/></radialGradient></defs>';
+const FF_ART={
+  desert:`<svg viewBox="0 0 160 100" aria-hidden="true"><ellipse cx="80" cy="92" rx="62" ry="5" fill="#000" opacity=".35"/><path d="M104 62 118 66 113 96 94 96 98 62Z" fill="url(#ffDark)" stroke="#0b0d10" stroke-width="1.5"/><path d="M96 62h16l1 6H97Z" fill="#7b8794" opacity=".5"/><path d="M12 34h110c6 0 10 3 10 8v14c0 4-3 7-8 7H60l-8-13H12c-3 0-5-2-5-5V39c0-3 2-5 5-5Z" fill="url(#ffSteel)" stroke="#0b0d10" stroke-width="1.6"/><path d="M14 40h108" stroke="#fff" stroke-opacity=".55" stroke-width="1.6"/><rect x="26" y="45" width="34" height="5" rx="2" fill="#2b3138" opacity=".8"/><path d="M58 63h30c5 0 7 4 4 8-3 3-6 3-10 3H66c-6 0-10-3-8-11Z" fill="none" stroke="#0b0d10" stroke-width="3"/><path d="M130 38h12v8h-12Z" fill="#2b3138"/><circle cx="21" cy="36" r="2" fill="#0b0d10"/></svg>`,
+  m1887:`<svg viewBox="0 0 160 100" aria-hidden="true"><ellipse cx="80" cy="90" rx="66" ry="5" fill="#000" opacity=".35"/><path d="M6 52c0-6 3-10 9-10l34 2v22l-30 6c-8 1-13-4-13-10Z" fill="url(#ffWood)" stroke="#2a1608" stroke-width="1.6"/><rect x="48" y="43" width="104" height="9" rx="4" fill="url(#ffSteel)" stroke="#0b0d10" stroke-width="1.4"/><rect x="48" y="55" width="86" height="7" rx="3" fill="url(#ffSteel)" stroke="#0b0d10" stroke-width="1.4"/><path d="M44 40h46l4 28H50l-6-6Z" fill="url(#ffDark)" stroke="#0b0d10" stroke-width="1.6"/><path d="M84 62c9 0 15 4 15 11s-6 10-14 10c-7 0-9-5-9-8" fill="none" stroke="url(#ffSteel)" stroke-width="3.4"/><path d="M92 54h30l6 4H96Z" fill="url(#ffWood)" stroke="#2a1608" stroke-width="1.2"/><path d="M52 46h36" stroke="#fff" stroke-opacity=".45" stroke-width="1.4"/><circle cx="150" cy="47" r="2.4" fill="#0b0d10"/></svg>`,
+  m1887x:`<svg viewBox="0 0 160 100" aria-hidden="true"><ellipse cx="80" cy="90" rx="66" ry="5" fill="#000" opacity=".35"/><path d="M6 52c0-6 3-10 9-10l34 2v22l-30 6c-8 1-13-4-13-10Z" fill="url(#ffGold)" stroke="#5a3d08" stroke-width="1.6"/><rect x="48" y="36" width="104" height="8" rx="4" fill="url(#ffSteel)" stroke="#0b0d10" stroke-width="1.4"/><rect x="48" y="46" width="104" height="8" rx="4" fill="url(#ffSteel)" stroke="#0b0d10" stroke-width="1.4"/><rect x="48" y="56" width="86" height="7" rx="3" fill="url(#ffSteel)" stroke="#0b0d10" stroke-width="1.4"/><path d="M44 34h46l4 34H50l-6-6Z" fill="url(#ffDark)" stroke="#0b0d10" stroke-width="1.6"/><path d="M84 64c9 0 15 4 15 11s-6 10-14 10c-7 0-9-5-9-8" fill="none" stroke="url(#ffGold)" stroke-width="3.4"/><path d="M92 56h30l6 4H96Z" fill="url(#ffGold)" stroke="#5a3d08" stroke-width="1.2"/><path d="M52 40h36" stroke="#fff" stroke-opacity=".5" stroke-width="1.4"/><circle cx="150" cy="40" r="2.2" fill="#0b0d10"/><circle cx="150" cy="50" r="2.2" fill="#0b0d10"/></svg>`,
+  m1014:`<svg viewBox="0 0 160 100" aria-hidden="true"><ellipse cx="80" cy="90" rx="66" ry="5" fill="#000" opacity=".35"/><path d="M4 46c0-5 3-8 8-8h30v24H14c-6 0-10-4-10-9Z" fill="url(#ffDark)" stroke="#0b0d10" stroke-width="1.6"/><rect x="40" y="40" width="46" height="16" rx="4" fill="url(#ffDark)" stroke="#0b0d10" stroke-width="1.6"/><rect x="84" y="43" width="68" height="8" rx="4" fill="url(#ffSteel)" stroke="#0b0d10" stroke-width="1.4"/><rect x="84" y="53" width="56" height="6" rx="3" fill="url(#ffDark)" stroke="#0b0d10" stroke-width="1.3"/><path d="M52 56 58 82 72 82 70 56Z" fill="url(#ffDark)" stroke="#0b0d10" stroke-width="1.5"/><path d="M92 59h30l5 5H96Z" fill="url(#ffDark)" stroke="#0b0d10" stroke-width="1.2"/><path d="M44 43h38" stroke="#fff" stroke-opacity=".35" stroke-width="1.4"/><circle cx="150" cy="47" r="2.4" fill="#0b0d10"/></svg>`,
+  woodpecker:`<svg viewBox="0 0 160 100" aria-hidden="true"><ellipse cx="80" cy="90" rx="68" ry="5" fill="#000" opacity=".35"/><path d="M4 50c0-5 3-8 8-8h28v22H14c-6 0-10-6-10-14Z" fill="url(#ffWood)" stroke="#2a1608" stroke-width="1.6"/><rect x="38" y="42" width="52" height="14" rx="3" fill="url(#ffDark)" stroke="#0b0d10" stroke-width="1.6"/><rect x="88" y="46" width="64" height="6" rx="3" fill="url(#ffSteel)" stroke="#0b0d10" stroke-width="1.3"/><path d="M90 52h34l4 6H92Z" fill="url(#ffWood)" stroke="#2a1608" stroke-width="1.2"/><rect x="52" y="26" width="42" height="12" rx="6" fill="url(#ffDark)" stroke="#0b0d10" stroke-width="1.5"/><circle cx="56" cy="32" r="5" fill="#9ccfff" opacity=".85" stroke="#0b0d10" stroke-width="1.2"/><path d="M66 38v4M82 38v4" stroke="#0b0d10" stroke-width="2"/><path d="M58 56 62 76 74 76 72 56Z" fill="url(#ffWood)" stroke="#2a1608" stroke-width="1.4"/><circle cx="154" cy="49" r="2.2" fill="#0b0d10"/></svg>`,
+  alok:`<svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="44" fill="url(#ffGlow)"/><circle cx="50" cy="50" r="38" fill="url(#ffDark)" stroke="url(#ffGold)" stroke-width="3.5"/><circle cx="50" cy="50" r="30" fill="none" stroke="#ffcf5a" stroke-opacity=".35" stroke-width="1.4" stroke-dasharray="3 4"/><path d="M33 56v-6a17 17 0 0 1 34 0v6" fill="none" stroke="url(#ffGold)" stroke-width="4.5" stroke-linecap="round"/><rect x="28" y="54" width="9" height="15" rx="4" fill="url(#ffGold)"/><rect x="63" y="54" width="9" height="15" rx="4" fill="url(#ffGold)"/><path d="M47 66V45l14-4v21" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="44" cy="66" r="3.6" fill="#fff"/><circle cx="58" cy="62" r="3.6" fill="#fff"/></svg>`,
+  tatsuya:`<svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="44" fill="url(#ffGlow)"/><circle cx="50" cy="50" r="38" fill="url(#ffDark)" stroke="#ff5d73" stroke-width="3.5"/><path d="M50 18 56 44 82 50 56 56 50 82 44 56 18 50 44 44Z" fill="url(#ffSteel)" stroke="#0b0d10" stroke-width="1.6"/><circle cx="50" cy="50" r="7" fill="#c4122f" stroke="#0b0d10" stroke-width="1.6"/><path d="M26 74 74 26" stroke="#fff" stroke-opacity=".55" stroke-width="2"/></svg>`,
+  koda:`<svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="44" fill="url(#ffGlow)"/><path d="M50 10 84 29v42L50 90 16 71V29Z" fill="url(#ffDark)" stroke="url(#ffGold)" stroke-width="3.5" stroke-linejoin="round"/><path d="M50 22 74 36v28L50 78 26 64V36Z" fill="none" stroke="#ffcf5a" stroke-opacity=".35" stroke-width="1.4"/><path d="M38 32v36M38 50l24-18M44 46l20 22" stroke="url(#ffGold)" stroke-width="6" stroke-linecap="round" fill="none"/></svg>`,
+  pc:`<svg viewBox="0 0 100 80" aria-hidden="true"><ellipse cx="50" cy="74" rx="34" ry="4" fill="#000" opacity=".35"/><rect x="12" y="6" width="76" height="46" rx="5" fill="url(#ffDark)" stroke="#0b0d10" stroke-width="2"/><rect x="17" y="11" width="66" height="36" rx="2" fill="#0e1a26"/><path d="M17 11h66v14L17 36Z" fill="#9ccfff" opacity=".16"/><path d="M40 52h20l3 10H37Z" fill="url(#ffSteel)" stroke="#0b0d10" stroke-width="1.4"/><rect x="26" y="62" width="48" height="6" rx="3" fill="url(#ffSteel)" stroke="#0b0d10" stroke-width="1.4"/></svg>`
+};
+function ffPic(key){
+  return `<span class="ff-pic"><span class="ff-art">${FF_ART[key]||''}</span><img class="ff-img" src="./assets/ff/${key}.png" alt="" loading="lazy" data-ff="${key}" data-i="0" onerror="ffImgFallback(this)" onload="this.parentNode.classList.add('has-img')" /></span>`;
+}
+window.ffImgFallback=function(img){
+  const exts=['png','webp','jpg'];const i=Number(img.dataset.i||0)+1;
+  if(i<exts.length){img.dataset.i=String(i);img.src=`./assets/ff/${img.dataset.ff}.${exts[i]}`;}else img.remove();
+};
+function ffTileInput(type,name,value,label){
+  const key=FF_KEYS[value]||'';
+  return `<label class="ff-tile"><input type="checkbox" name="${name}" value="${escapeHtml(value)}" />${ffPic(key)}<span class="ff-name">${escapeHtml(label||value)}</span><span class="ff-check" aria-hidden="true">✓</span></label>`;
+}
+function ensureFfDefs(){if(!document.getElementById('ff-defs'))document.body.insertAdjacentHTML('beforeend',`<svg id="ff-defs" width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">${FF_DEFS}</svg>`);}
 function renderWeaponSkillChoices(){
-  const wg=$('weapon-grid'), sg=$('skill-grid');
-  if(wg) wg.innerHTML=ALLOWED_WEAPONS.map((x,i)=>`<label class="rule-item" style="grid-template-columns:32px 1fr;cursor:pointer"><input type="checkbox" name="weapons" value="${escapeHtml(x)}" style="min-height:auto;width:auto;margin:0" /><span>${escapeHtml(x)}</span></label>`).join('');
-  if(sg) sg.innerHTML=ALLOWED_SKILLS.map((x)=>`<label class="rule-item" style="grid-template-columns:32px 1fr;cursor:pointer"><input type="checkbox" name="skills" value="${escapeHtml(x)}" style="min-height:auto;width:auto;margin:0" /><span>${escapeHtml(x)}</span></label>`).join('');
+  ensureFfDefs();
+  const wg=$('weapon-grid'), sg=$('skill-grid'), pg=$('pc-grid');
+  if(wg) wg.innerHTML=ALLOWED_WEAPONS.map(x=>ffTileInput('checkbox','weapons',x)).join('');
+  if(sg) sg.innerHTML=ALLOWED_SKILLS.map(x=>ffTileInput('checkbox','skills',x)).join('');
+  if(pg) pg.innerHTML=[['false','PC NOT ALLOW'],['true','PC ALLOW']].map(([v,l])=>`<button type="button" class="ff-tile ff-pc" data-pc="${v}">${ffPic('pc')}<span class="ff-name">${l}</span><span class="ff-check" aria-hidden="true">✓</span></button>`).join('');
+  syncFfTiles();
 }
+function syncFfTiles(){
+  document.querySelectorAll('#challenge-form .ff-tile input').forEach(i=>i.closest('.ff-tile')?.classList.toggle('selected',i.checked));
+  const sel=$('challenge-pc-allowed');
+  document.querySelectorAll('#pc-grid .ff-tile').forEach(t=>{const on=sel&&sel.value===t.dataset.pc;t.classList.toggle('selected',on);t.setAttribute('aria-pressed',on?'true':'false');});
+}
+document.addEventListener('change',e=>{if(e.target.closest?.('#challenge-form')) syncFfTiles();});
+document.addEventListener('click',e=>{
+  const t=e.target.closest?.('#pc-grid .ff-tile'); if(!t) return;
+  const sel=$('challenge-pc-allowed'); if(sel){sel.value=t.dataset.pc;sel.dispatchEvent(new Event('change',{bubbles:true}));}
+  syncFfTiles();
+});
+$('challenge-form')?.addEventListener('reset',()=>setTimeout(syncFfTiles,0));
 
 function isPendingRegistrationSaved(){ try{return Boolean(localStorage.getItem('7th-universe-pending-registration-v2'));}catch{return false;} }
 function savePendingRegistration(data){ try{ localStorage.setItem('7th-universe-pending-registration-v2',JSON.stringify(data)); }catch{} }
@@ -453,7 +545,57 @@ async function loadMyGuild(){
   const {data,error}=await db.rpc('get_my_gvg_guild');
   if(error){ console.error(error); state.guild=null; return; }
   state.guild=Array.isArray(data)?(data[0]||null):data;
+  state.guildFetchedAt=Date.now();
 }
+
+/* ===== Ban notice shown inside Challenges and Results (reason + live countdown, or APPEAL for a permanent ban) ===== */
+function guildBanInfo(){
+  const g=state.guild; if(!g) return null;
+  const until=g.ban_until?new Date(g.ban_until):null;
+  const active=Boolean(g.is_banned&&(!until||until>new Date()));
+  if(!active) return null;
+  return {permanent:!until,until,reason:String(g.ban_reason||'').trim()||'Rule violation'};
+}
+function banCardMarkup(info){
+  const clock=info.permanent
+    ? `<div class="ban-perm"><div class="ban-perm-label">PERMANENT BAN</div><button type="button" class="ban-appeal" data-action="ban-appeal">APPEAL</button></div>`
+    : `<div class="ban-watch" aria-label="Time left until the ban ends"><div class="ban-watch-face"><small>UNBANNED IN</small><b class="ban-clock" data-until="${info.until.toISOString()}">--:--:--</b><em class="ban-days"></em></div></div>`;
+  const when=info.permanent?'':`<div class="ban-when">Ban ends on ${escapeHtml(formatDateTime(info.until.toISOString()))} Pakistan time</div>`;
+  return `<div class="ban-card"><div class="ban-icon" aria-hidden="true">⛔</div><div class="ban-text"><div class="ban-title">YOUR GUILD IS BANNED</div><div class="ban-reason"><span>REASON</span>${escapeHtml(info.reason)}</div>${when}</div>${clock}</div>`;
+}
+let banClockTimer=null;
+function tickBanClocks(){
+  const clocks=document.querySelectorAll('.ban-clock');
+  if(!clocks.length){clearInterval(banClockTimer);banClockTimer=null;return;}
+  let expired=false;
+  clocks.forEach(el=>{
+    const ms=new Date(el.dataset.until).getTime()-Date.now();
+    if(!(ms>0)){expired=true;return;}
+    const t=Math.floor(ms/1000),d=Math.floor(t/86400),hh=Math.floor(t%86400/3600),mm=Math.floor(t%3600/60),ss=t%60;
+    el.textContent=`${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
+    const dd=el.parentNode.querySelector('.ban-days'); if(dd)dd.textContent=d>0?`${d} DAY${d>1?'S':''}`:'';
+  });
+  if(expired){clearInterval(banClockTimer);banClockTimer=null;refreshBanState();}
+}
+function renderBanNotices(){
+  const info=guildBanInfo();
+  ['challenges','results'].forEach(k=>{
+    const slot=$('ban-slot-'+k),panel=$('member-section-'+k); if(!slot||!panel) return;
+    panel.classList.toggle('is-banned',Boolean(info));
+    slot.innerHTML=info?banCardMarkup(info):'';
+  });
+  if(info&&!info.permanent){tickBanClocks();clearInterval(banClockTimer);banClockTimer=setInterval(tickBanClocks,1000);}
+}
+async function refreshBanState(){
+  try{await loadMyGuild();}catch{}
+  await renderMemberIdentity();setMemberAccessGate();renderBanNotices();
+}
+document.addEventListener('click',e=>{
+  const b=e.target.closest?.('[data-action="ban-appeal"]'); if(!b) return;
+  /* The APPEAL button is clickable but intentionally does nothing yet. */
+  b.classList.add('pressed');setTimeout(()=>b.classList.remove('pressed'),450);
+});
+
 function guildApproved(){ return Boolean(state.guild && state.guild.approval_status==='approved' && !state.guild.is_banned && (!state.guild.ban_until || new Date(state.guild.ban_until)<=new Date())); }
 
 async function completePendingRegistration(){
@@ -1169,7 +1311,7 @@ async function refreshMember({reloadGuild=true}={}){
   // Do not prefetch hidden tabs on login. The selected tab loads its own data.
   setMemberAccessGate();
 }
-async function handleLogout(){try{await db.auth.signOut();}catch{}state.guest=null;try{sessionStorage.removeItem('gvg_guest');}catch{}state.user=null;state.guild=null;openView('public');syncRegisterNav();$('login-password').value='';}
+async function handleLogout(){cacheClear('rpc:');try{await db.auth.signOut();}catch{}state.guest=null;try{sessionStorage.removeItem('gvg_guest');}catch{}state.user=null;state.guild=null;openView('public');syncRegisterNav();$('login-password').value='';}
 
 /* ------------------------- ADMIN ------------------------- */
 async function isAdmin(){
@@ -1458,7 +1600,7 @@ async function loadAdminWeeklyMatches(){
 }
 
 function openAdminSection(name){
-  const section=['guilds','name-changes','results','weekly','ban','trophies'].includes(name)?name:'guilds';
+  const section=['guilds','name-changes','results','weekly','ban','trophies','rules'].includes(name)?name:'guilds';
   document.querySelectorAll('.admin-panel-view').forEach(el=>{
     const active=el.id===`admin-section-${section}`;
     el.classList.toggle('active',active);
@@ -1475,6 +1617,7 @@ function openAdminSection(name){
   if(section==='weekly') loadSectionCached('admin:weekly',loadAdminWeeklyMatches,20000);
   if(section==='ban') loadSectionCached('admin:bans',loadBans,15000);
   if(section==='trophies') loadSectionCached('admin:trophies',loadHofAdmin,20000);
+  if(section==='rules') loadAdminRules();
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
@@ -1641,10 +1784,21 @@ const GVG_MISSIONS=[
  {n:19,name:'LOYALTY',req:t=>`Be active on ${t} different days`},
  {n:20,name:'UNIVERSE LEGEND',req:t=>`Unlock ${t} badges across missions 1 to 19`}
 ];
-function badgeFile(mission,tier){
-  const n=(mission-1)*5+tier, set=Math.floor((n-1)/20)+1, row=Math.floor(((n-1)%20)/5)+1;
+function badgeLegacyFile(n){
+  const tier=((n-1)%5)+1, set=Math.floor((n-1)/20)+1, row=Math.floor(((n-1)%20)/5)+1;
   return `./assets/badges/badge_${String(n).padStart(3,'0')}_set${set}_row${row}_${GVG_TIER_KEYS[tier-1]}.png`;
 }
+/* Small WebP badges (about 19 KB each) are used when they exist in assets/b/; otherwise the original PNG is loaded automatically. */
+function badgeFile(mission,tier){
+  const n=(mission-1)*5+tier;
+  return `./assets/b/b${String(n).padStart(3,'0')}.webp`;
+}
+document.addEventListener('error',e=>{
+  const img=e.target;
+  if(!img||img.tagName!=='IMG'||img.dataset.fb) return;
+  const m=/\/assets\/b\/b(\d{3})\.webp/.exec(img.getAttribute('src')||'');
+  if(m){img.dataset.fb='1';img.src=badgeLegacyFile(Number(m[1]));}
+},true);
 function applyBadgeData(data){
   const d=Array.isArray(data)?data[0]:data;
   state.badgeConfig=Array.isArray(d?.config)?d.config:[];
@@ -2009,7 +2163,7 @@ async function saveMyProfile(e){
       }
     }
 
-    clearSectionCache('member:guild-profiles');
+    clearSectionCache('member:guild-profiles');cacheClear('rpc:get_gvg_public_guild_profiles');cacheClear('rpc:get_gvg_badges_v2');
     try{await loadMyGuild();await renderMemberIdentity();await loadPublicGuildProfiles();markSectionLoaded('member:guild-profiles');}catch(refreshError){console.warn('Profile refresh failed:',refreshError);}
     await loadMyGuildHub();
     await refreshMyProfileForm();
@@ -2101,7 +2255,16 @@ function trophySvg(){return `<svg viewBox="0 0 220 250" role="img" aria-label="G
 </svg>`;}
 function bindTrophy3D(root=document){root.querySelectorAll('[data-trophy-3d]:not([data-trophy-bound])').forEach(el=>{el.dataset.trophyBound='1';let down=false,lastX=0,lastY=0,rx=-7,ry=-8,pointerId=null;const apply=()=>{el.style.transform=`perspective(1050px) rotateX(${rx}deg) rotateY(${ry}deg)`;};apply();el.addEventListener('pointerdown',e=>{down=true;pointerId=e.pointerId;lastX=e.clientX;lastY=e.clientY;el.classList.add('is-dragging');try{el.setPointerCapture(e.pointerId);}catch{};e.preventDefault();});el.addEventListener('pointermove',e=>{if(!down||e.pointerId!==pointerId)return;const dx=e.clientX-lastX,dy=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;/* Keep the cup broadside: never rotate to a paper-thin edge view. */ry=Math.max(-42,Math.min(42,ry+dx*.55));rx=Math.max(-27,Math.min(27,rx-dy*.45));apply();});const end=e=>{if(pointerId!==null&&e?.pointerId!==undefined&&e.pointerId!==pointerId)return;down=false;pointerId=null;el.classList.remove('is-dragging');};el.addEventListener('pointerup',end);el.addEventListener('pointercancel',end);el.addEventListener('lostpointercapture',end);});}
 
-function hallPeriodLabel(type,number){return type==='weekly'?`WEEK ${number}`:new Intl.DateTimeFormat('en',{month:'long'}).format(new Date(Date.UTC(2020,number-1,1)));}
+/* Monthly tournaments are SEASONS: September 2026 = Season 1, October 2026 = Season 2, November = Season 3,
+   December = Season 4, January 2027 = Season 5, and so on (counted without a break). */
+const GVG_SEASON_BASE_YEAR=2026, GVG_SEASON_BASE_MONTH=9;
+function hofSeasonNumber(year,month){return (Number(year)-GVG_SEASON_BASE_YEAR)*12+Number(month)-GVG_SEASON_BASE_MONTH+1;}
+function hallPeriodLabel(type,number,year){
+  if(type==='weekly')return `WEEK ${number}`;
+  const y=Number(year)||Number(state.hofYear)||new Date().getFullYear();
+  const season=hofSeasonNumber(y,number);
+  return season>=1?`SEASON ${season}`:new Intl.DateTimeFormat('en',{month:'long'}).format(new Date(Date.UTC(2020,number-1,1)));
+}
 const HOF_MONTH_NAMES=['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
 function isDefaultHofLabel(value){return /^(WEEK\s+\d+\s+CHAMPION|MONTHLY\s+CHAMPION|JANUARY\s+CHAMPION|FEBRUARY\s+CHAMPION|MARCH\s+CHAMPION|APRIL\s+CHAMPION|MAY\s+CHAMPION|JUNE\s+CHAMPION|JULY\s+CHAMPION|AUGUST\s+CHAMPION|SEPTEMBER\s+CHAMPION|OCTOBER\s+CHAMPION|NOVEMBER\s+CHAMPION|DECEMBER\s+CHAMPION)$/i.test(String(value||'').trim());}
 function syncHofAwardLabelFromPeriod(force=false){
@@ -2110,7 +2273,7 @@ function syncHofAwardLabelFromPeriod(force=false){
   const current=String(label.value||'').trim();
   if(force||label.dataset.autoGenerated==='1'||!current||isDefaultHofLabel(current)){
     const number=Number(period.value)||1;
-    label.value=type.value==='weekly'?`WEEK ${number} CHAMPION`:`${HOF_MONTH_NAMES[Math.min(12,Math.max(1,number))-1]} CHAMPION`;
+    label.value=type.value==='weekly'?`WEEK ${number} CHAMPION`:`${hallPeriodLabel('monthly',number,Number($('hof-award-year')?.value)||new Date().getFullYear())} CHAMPION`;
     label.dataset.autoGenerated='1';
   }
 }
@@ -2123,7 +2286,7 @@ function isGenericTrophyLabel(label,type,period){
 function canonicalTrophyTitle(award){
   const type=award?.award_type==='monthly'?'monthly':'weekly';
   const period=Number(award?.period_number)||1;
-  return `${hallPeriodLabel(type,period)} CHAMPION`;
+  return `${hallPeriodLabel(type,period,award?.award_year)} CHAMPION`;
 }
 function customTrophyLabel(award){
   const value=String(award?.trophy_label||'').trim();
@@ -2143,10 +2306,23 @@ function renderHofYearGrid(years){const target=$('hof-year-grid');if(!target)ret
 async function loadHallOfFameYear(){
   const target=$('hof-selected-award');if(target)target.innerHTML='<div class="empty">Loading trophy archive...</div>';
   const {data,error}=await readRpc('get_gvg_hall_of_fame',{p_award_type:state.hofMode,p_award_year:Number(state.hofYear)});if(error)throw error;state.hofAwards=data||[];updateHofStats();
-  const heading=$('hof-period-heading');if(heading)heading.textContent=state.hofMode==='weekly'?`${state.hofYear} • SELECT WEEK`:`${state.hofYear} • SELECT MONTH`;
-  const maxAwardWeek=Math.max(0,...state.hofAwards.filter(a=>a.award_type==='weekly').map(a=>Number(a.period_number)||0));const selectedYear=Number(state.hofYear);const seasonYear=Number(state.hofSettings.season_year);const maxWeek=selectedYear===seasonYear?Number(state.hofSettings.current_week||11):(selectedYear<seasonYear?Math.max(53,maxAwardWeek):Math.max(1,maxAwardWeek));
-  const count=state.hofMode==='weekly'?Math.max(1,Math.min(60,maxWeek)):12;
-  $('hof-period-grid').innerHTML=Array.from({length:count},(_,i)=>i+1).map(n=>{const found=state.hofAwards.find(a=>Number(a.period_number)===n);return `<button class="hof-period-tile ${found?'has-award':'is-empty'} ${Number(state.hofPeriod)===n?'active':''}" type="button" data-action="hof-select-period" data-period="${n}"><span class="pt-ring">${found?'🏆':'🔒'}</span><b>${escapeHtml(hallPeriodLabel(state.hofMode,n))}</b><small>${found?escapeHtml(found.guild_name||'CHAMPION'):'AWAITING'}</small></button>`;}).join('');
+  const heading=$('hof-period-heading');if(heading)heading.textContent=state.hofMode==='weekly'?`${state.hofYear} • SELECT WEEK`:`${state.hofYear} • SELECT SEASON`;
+  const maxAwardWeek=Math.max(0,...state.hofAwards.filter(a=>a.award_type==='weekly').map(a=>Number(a.period_number)||0));
+  const maxAwardMonth=Math.max(0,...state.hofAwards.filter(a=>a.award_type==='monthly').map(a=>Number(a.period_number)||0));
+  const selectedYear=Number(state.hofYear),seasonYear=Number(state.hofSettings.season_year);
+  /* A new week tile appears by itself: the grid always reaches the highest week that has a champion (or the current week setting). */
+  const maxWeek=selectedYear===seasonYear?Math.max(Number(state.hofSettings.current_week||1),maxAwardWeek):(selectedYear<seasonYear?Math.max(53,maxAwardWeek):Math.max(1,maxAwardWeek));
+  let periods;
+  if(state.hofMode==='weekly'){periods=Array.from({length:Math.max(1,Math.min(60,maxWeek))},(_,i)=>i+1);}
+  else{
+    const now=new Date(),curYear=now.getFullYear(),curMonth=now.getMonth()+1;
+    const first=selectedYear===GVG_SEASON_BASE_YEAR?GVG_SEASON_BASE_MONTH:1;
+    const last=selectedYear<curYear?12:(selectedYear===curYear?Math.max(curMonth,maxAwardMonth):Math.max(maxAwardMonth,0));
+    periods=[];for(let m=first;m<=Math.min(12,last);m+=1)periods.push(m);
+    if(!periods.length&&maxAwardMonth)periods=[maxAwardMonth];
+  }
+  const count=periods.length;
+  $('hof-period-grid').innerHTML=periods.map(n=>{const found=state.hofAwards.find(a=>Number(a.period_number)===n);return `<button class="hof-period-tile ${found?'has-award':'is-empty'} ${Number(state.hofPeriod)===n?'active':''}" type="button" data-action="hof-select-period" data-period="${n}"><span class="pt-ring">${found?'🏆':'🔒'}</span><b>${escapeHtml(hallPeriodLabel(state.hofMode,n,state.hofYear))}</b>${state.hofMode==='monthly'?`<em class="pt-month">${HOF_MONTH_NAMES[n-1]}</em>`:''}<small>${found?escapeHtml(found.guild_name||'CHAMPION'):'AWAITING'}</small></button>`;}).join('');
   if(!state.hofPeriod||state.hofPeriod>count)state.hofPeriod=1;renderHallSelectedAward();
 }
 function updateHofStats(){
@@ -2202,7 +2378,7 @@ async function openHallOfFamePeriodDetails(){
   const losses=profile?numberMetric(profile,'losses'):null;
   const winRate=profile?Number(profile.win_rate||0).toFixed(1)+'%':null;
   const date=award.awarded_at?formatDateTime(award.awarded_at):'Official award';
-  const periodTitle=hallPeriodLabel(mode,Number(award.period_number));
+  const periodTitle=hallPeriodLabel(mode,Number(award.period_number),award.award_year);
   const typeTitle=mode==='weekly'?'WEEKLY CHAMPION':'MONTHLY CHAMPION';
   const detailHtml=`<div class="hof-detail-shell"><div class="hof-detail-top"><div><div class="hof-detail-kicker">7TH UNIVERSE · CHAMPIONS LEGACY</div><h2>HALL OF FAME</h2><p>Official champion archive · permanent recognition</p></div><button class="close-btn" type="button" data-action="close-modal" aria-label="Close champion showcase">×</button></div><div class="hof-detail-ribbon"><span>✦ ${escapeHtml(typeTitle)} ✦</span><strong>${escapeHtml(String(award.award_year))} · ${escapeHtml(periodTitle)}</strong></div><div class="hof-detail-layout"><section class="hof-detail-guild-panel"><div class="hof-detail-panel-kicker">CHAMPION GUILD</div><div class="hof-detail-avatar">${avatar}</div><h3>${escapeHtml(award.guild_name||'Champion Guild')}</h3><div class="hof-detail-uid-label">GUILD UID</div><div class="hof-detail-uid">${escapeHtml(award.guild_uid||profile?.guild_uid||'NOT ADDED')}</div>${profile?`<div class="hof-detail-record"><div><small>PLAYED</small><strong>${played}</strong></div><div><small>WINS</small><strong>${wins}</strong></div><div><small>LOSSES</small><strong>${losses}</strong></div><div><small>WIN RATE</small><strong>${winRate}</strong></div></div>`:''}<div class="hof-detail-guild-tag">🏆 OFFICIAL HALL OF FAME GUILD</div></section><section class="hof-detail-trophy-panel"><div class="hof-detail-trophy-glow"></div><div class="hof-detail-trophy-ring"></div><div class="trophy-3d trophy-modal" data-trophy-3d aria-label="Touch and drag to rotate the 3D-style trophy">${trophySvg()}</div><div class="hof-detail-touch-hint"><span>↔</span> TOUCH & DRAG TO ROTATE <span>↕</span></div><div class="hof-detail-floor"></div></section><section class="hof-detail-award-panel"><div class="hof-detail-panel-kicker">OFFICIAL AWARD</div><div class="hof-detail-laurel">♛</div><h3>${escapeHtml(canonicalTrophyTitle(award))}</h3>${customTrophyLabel(award)?`<div class="hof-detail-award-custom-label">${escapeHtml(customTrophyLabel(award))}</div>`:''}<div class="hof-detail-data"><span>SEASON / YEAR</span><strong>${escapeHtml(String(award.award_year))}</strong></div><div class="hof-detail-data"><span>PERIOD</span><strong>${escapeHtml(periodTitle)}</strong></div><div class="hof-detail-data"><span>AWARDED</span><strong>${escapeHtml(date)}</strong></div>${award.notes?`<div class="hof-detail-notes"><span>ADMIN NOTE</span><p>${escapeHtml(award.notes)}</p></div>`:''}<div class="hof-detail-seal">7U <small>CHAMPIONS</small></div></section></div><div class="hof-detail-footer"><span>★ LEGACY EARNED. LEGACY REMEMBERED. ★</span><button class="btn btn-gold" type="button" data-action="close-modal">CLOSE SHOWCASE</button></div></div>`;
   openModal(detailHtml,'hof-detail-modal');bindTrophy3D($('modal'));
@@ -2210,7 +2386,7 @@ async function openHallOfFamePeriodDetails(){
 
 async function changeHallType(type){if(!['weekly','monthly'].includes(type))return;state.hofMode=type;state.hofYear=null;state.hofPeriod=1;await loadHallOfFame();}
 function renderAdminHofAwards(){const target=$('admin-hof-awards-list');if(!target)return;const rows=(state.adminHofAwards||[]).sort((a,b)=>String(b.awarded_at).localeCompare(String(a.awarded_at)));target.innerHTML=rows.length?rows.slice(0,60).map(a=>`<div class="admin-hof-award-row"><div class="admin-hof-award-main"><strong>${escapeHtml(canonicalTrophyTitle(a))} — ${escapeHtml(a.guild_name)}</strong><small>${escapeHtml(String(a.award_year))} · ${escapeHtml(hallPeriodLabel(a.award_type,Number(a.period_number)))} · UID ${escapeHtml(a.guild_uid||'not added')}${customTrophyLabel(a)?' · '+escapeHtml(customTrophyLabel(a)):''}</small></div><button class="btn btn-red btn-small" type="button" data-action="admin-remove-hof-award" data-id="${escapeHtml(a.id)}">REMOVE</button></div>`).join(''):'<div class="empty">No official trophies have been awarded yet.</div>';}
-async function loadHofAdmin(){
+async function loadHofAdmin(){cacheClear('rpc:get_gvg_h');
   try{
     const [profileRes,settingsRes,weeklyYearsRes,monthlyYearsRes]=await Promise.all([
       adminDb.rpc('get_gvg_public_guild_profiles'),adminDb.rpc('get_gvg_hof_settings'),
@@ -2225,8 +2401,8 @@ async function loadHofAdmin(){
     state.adminHofAwards=all;renderAdminHofAwards();
   }catch(error){console.error('Admin HoF load failed:',error);showStatus('admin-status','error',`Hall of Fame controls: ${humanizeError(error)}. Apply database/05 migration first.`);const list=$('admin-hof-awards-list');if(list)list.innerHTML=`<div class="empty">${escapeHtml(humanizeError(error))}</div>`;}
 }
-async function saveHofSeasonSettings(e){e.preventDefault();clearStatus('hof-season-status');try{const year=Number($('hof-season-year').value),week=Number($('hof-current-week').value);const {error}=await adminDb.rpc('admin_update_gvg_hof_settings',{p_season_year:year,p_current_week:week});if(error)throw error;state.hofSettings={season_year:year,current_week:week};showStatus('hof-season-status','ok','Current Hall of Fame season settings saved.');await loadHofAdmin();}catch(error){showStatus('hof-season-status','error',humanizeError(error));}}
-async function awardHofTrophy(e){e.preventDefault();clearStatus('hof-award-status');const type=$('hof-award-type').value,year=Number($('hof-award-year').value),period=Number($('hof-award-period').value),guildNorm=$('hof-award-guild').value,label=$('hof-award-label').value.trim(),notes=$('hof-award-notes').value.trim();if(!guildNorm||!label)return showStatus('hof-award-status','error','Choose an approved guild and enter a trophy label.');const already=state.adminHofAwards.find(a=>a.award_type===type&&Number(a.award_year)===year&&Number(a.period_number)===period);if(already&&!await appConfirm(`${hallPeriodLabel(type,period)} ${year} already has ${already.guild_name} as champion. Replace this award with the selected guild?`,{title:'Replace Hall of Fame champion',confirmText:'REPLACE AWARD',danger:true}))return;try{setBusy('hof-award-submit',true,'SAVING AWARD');const {error}=await adminDb.rpc('admin_add_gvg_hall_of_fame_award',{p_guild_name_normalized:guildNorm,p_award_type:type,p_award_year:year,p_period_number:period,p_trophy_label:label,p_notes:notes||null});if(error)throw error;showStatus('hof-award-status','ok','Official champion trophy saved to Hall of Fame and guild profile.');await loadHofAdmin();}catch(error){showStatus('hof-award-status','error',humanizeError(error));}finally{setBusy('hof-award-submit',false,'AWARD TROPHY');}}
+async function saveHofSeasonSettings(e){e.preventDefault();clearStatus('hof-season-status');try{const year=Number($('hof-season-year').value),week=Number($('hof-current-week').value);const {error}=await adminDb.rpc('admin_update_gvg_hof_settings',{p_season_year:year,p_current_week:week});if(error)throw error;state.hofSettings={season_year:year,current_week:week};cacheClear('rpc:get_gvg_h');showStatus('hof-season-status','ok','Current Hall of Fame season settings saved.');await loadHofAdmin();}catch(error){showStatus('hof-season-status','error',humanizeError(error));}}
+async function awardHofTrophy(e){e.preventDefault();clearStatus('hof-award-status');const type=$('hof-award-type').value,year=Number($('hof-award-year').value),period=Number($('hof-award-period').value),guildNorm=$('hof-award-guild').value,label=$('hof-award-label').value.trim(),notes=$('hof-award-notes').value.trim();if(!guildNorm||!label)return showStatus('hof-award-status','error','Choose an approved guild and enter a trophy label.');const already=state.adminHofAwards.find(a=>a.award_type===type&&Number(a.award_year)===year&&Number(a.period_number)===period);if(already&&!await appConfirm(`${hallPeriodLabel(type,period)} ${year} already has ${already.guild_name} as champion. Replace this award with the selected guild?`,{title:'Replace Hall of Fame champion',confirmText:'REPLACE AWARD',danger:true}))return;try{setBusy('hof-award-submit',true,'SAVING AWARD');const {error}=await adminDb.rpc('admin_add_gvg_hall_of_fame_award',{p_guild_name_normalized:guildNorm,p_award_type:type,p_award_year:year,p_period_number:period,p_trophy_label:label,p_notes:notes||null});if(error)throw error;cacheClear('rpc:get_gvg_h');cacheClear('rpc:get_gvg_badges_v2');showStatus('hof-award-status','ok','Official champion trophy saved to Hall of Fame and guild profile.');await loadHofAdmin();}catch(error){showStatus('hof-award-status','error',humanizeError(error));}finally{setBusy('hof-award-submit',false,'AWARD TROPHY');}}
 async function removeHofAward(id){const a=state.adminHofAwards.find(x=>String(x.id)===String(id));if(!a)return;if(!await appConfirm(`Remove the official Hall of Fame award?\n\n${a.trophy_label} — ${a.guild_name}\n\nMatch results and ranking points will not be deleted.`,{title:'Remove Hall of Fame award',confirmText:'REMOVE AWARD',danger:true}))return;try{const {error}=await adminDb.rpc('admin_remove_gvg_hall_of_fame_award',{p_award_id:id});if(error)throw error;showStatus('admin-status','ok','Hall of Fame trophy removed.');await loadHofAdmin();}catch(error){showStatus('admin-status','error',humanizeError(error));}}
 
 /* ------------------------- Events ------------------------- */
@@ -2306,7 +2482,7 @@ async function loadMyGuildHub(){
     $('my-hub-wins').textContent=String(d.wins??0);
     $('my-hub-losses').textContent=String(d.losses??0);
     $('my-hub-rank').textContent=d.rank?`#${d.rank}`:'—';
-    const used=Number(d.today_matches)||0, limit=Number(d.today_limit)||5;
+    const used=Number(d.today_matches)||0, limit=Number(d.today_limit)||7;
     $('my-hub-today').textContent=`${used} / ${limit}`;
     $('my-hub-today-bar').style.width=`${Math.min(100,Math.round(used/limit*100))}%`;
   }catch(error){
@@ -2402,7 +2578,16 @@ async function submitGuildTitle(e){
 }
 
 /* ===== v1.10: Guild section switch, team roster, guild code, guest access, profile extras ===== */
+const READ_CACHE_TTL={get_gvg_public_guild_profiles:5*60*1000,get_gvg_badges_v2:15*60*1000,get_gvg_hof_settings:15*60*1000,get_gvg_hall_of_fame_years:15*60*1000,get_gvg_hall_of_fame:10*60*1000,get_gvg_guild_roster:10*60*1000,get_gvg_guild_rival:10*60*1000};
 async function readRpc(name,args){
+  const ttl=READ_CACHE_TTL[name];
+  const key=ttl?`rpc:${name}:${JSON.stringify(args||{})}`:null;
+  if(key){const hit=cacheGet(key,ttl);if(hit!==null)return {data:hit,error:null};}
+  const res=await readRpcRaw(name,args);
+  if(key&&res&&!res.error&&res.data!=null)cacheSet(key,res.data);
+  return res;
+}
+async function readRpcRaw(name,args){
   if(state.guest){
     const map={
       get_gvg_public_guild_profiles:['profiles'],
@@ -2459,8 +2644,8 @@ function renderRosterForm(){
   const save=$('guild-roster-save'); if(save) save.disabled=locked;
   const note=$('roster-lock-note');
   if(note) note.textContent=locked
-    ? `Team list is locked until ${formatDateTime(r.next_change_at)} (3-day rule).`
-    : (members.length?'You can change the list now. After saving, it is locked for 3 days.':'Your first list is saved immediately. After saving, it is locked for 3 days.');
+    ? `Team list is locked until ${formatDateTime(r.next_change_at)} (7-day rule).`
+    : (members.length?'You can change the list now. After saving, it is locked for 7 days.':'Your first list is saved immediately. After saving, it is locked for 7 days.');
   const codeNote=$('guild-code-current');
   if(codeNote) codeNote.textContent=r.code?`Current guild code: ${r.code}`:'No code set yet. Guests cannot enter until you set one.';
   updateRosterCount();
@@ -2471,14 +2656,14 @@ async function submitRoster(e){
   const names=[...document.querySelectorAll('#roster-grid input')].map(i=>i.value.trim()).filter(Boolean);
   if(!names.length) return showStatus('guild-roster-status','error','Add at least 1 team member.');
   if(names.some(n=>n.length<2||n.length>24)) return showStatus('guild-roster-status','error','Each name must be 2 to 24 characters.');
-  const ok=await appConfirm('Save this team list?\n\nAfter saving you cannot change it for 3 days.',{title:'Save team list',confirmText:'SAVE TEAM LIST'});
+  const ok=await appConfirm('Save this team list?\n\nAfter saving you cannot change it for 7 days.',{title:'Save team list',confirmText:'SAVE TEAM LIST'});
   if(!ok) return;
   try{
     setBusy('guild-roster-save',true,'SAVING');
     const {error}=await db.rpc('save_my_gvg_roster',{p_members:names});
     if(error) throw error;
     await loadMyRoster();
-    showStatus('guild-roster-status','ok','Team list saved. It is locked for the next 3 days.');
+    showStatus('guild-roster-status','ok','Team list saved. It is locked for the next 7 days.');
   }catch(error){ showStatus('guild-roster-status','error',humanizeError(error)); }
   finally{ setBusy('guild-roster-save',false,'SAVE TEAM LIST'); }
 }
@@ -2570,8 +2755,9 @@ $('hof-season-form')?.addEventListener('submit',saveHofSeasonSettings);
 $('hof-award-form')?.addEventListener('submit',awardHofTrophy);
 $('hof-admin-refresh')?.addEventListener('click',loadHofAdmin);
 document.querySelectorAll('[data-hof-type]').forEach(btn=>btn.addEventListener('click',()=>changeHallType(btn.dataset.hofType)));
-$('hof-award-type')?.addEventListener('change',()=>{const type=$('hof-award-type').value;const lab=$('hof-period-number-label');const period=$('hof-award-period');if(type==='weekly'){lab.firstChild.textContent='WEEK NUMBER (1–60)';period.min='1';period.max='60';period.value=String(state.hofSettings.current_week||11);}else{lab.firstChild.textContent='MONTH NUMBER (1–12)';period.min='1';period.max='12';period.value='1';}syncHofAwardLabelFromPeriod(true);});
+$('hof-award-type')?.addEventListener('change',()=>{const type=$('hof-award-type').value;const lab=$('hof-period-number-label');const period=$('hof-award-period');if(type==='weekly'){lab.firstChild.textContent='WEEK NUMBER (1–60)';period.min='1';period.max='60';period.value=String(state.hofSettings.current_week||11);}else{lab.firstChild.textContent='MONTH NUMBER (1–12) • THE SEASON IS CALCULATED';period.min='1';period.max='12';period.value=String(new Date().getMonth()+1);}syncHofAwardLabelFromPeriod(true);});
 $('hof-award-period')?.addEventListener('input',()=>syncHofAwardLabelFromPeriod(false));
+$('hof-award-year')?.addEventListener('input',()=>syncHofAwardLabelFromPeriod(false));
 $('hof-award-label')?.addEventListener('input',()=>{ $('hof-award-label').dataset.autoGenerated='0'; });
 $('admin-login-form').addEventListener('submit',handleAdminLogin);
 $('admin-logout').addEventListener('click',async()=>{try{await adminDb.auth.signOut();}catch{}state.adminUser=null;state.adminOk=false;const target=state.adminReturnToModerator&&state.moderatorOk?'moderator':state.user?'member':'public';state.adminReturnToModerator=false;openView(target);if(target==='member')await refreshMemberAfterPrivilegedView();});
