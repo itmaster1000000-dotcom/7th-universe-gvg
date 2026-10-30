@@ -1,4 +1,4 @@
-window.__GVG_SCRIPT_VERSION='35.0';
+window.__GVG_SCRIPT_VERSION='37.0';
 /*
   7TH UNIVERSE GVG — FINAL FRONTEND
   Uses two isolated Supabase Auth clients so the Admin browser session
@@ -126,7 +126,6 @@ const state = {
   bans: [],
   registeredGuilds: [],
   registeredGuildsLoaded: false,
-  weeklyMatches: [],
   guildProfiles: [],
   hofMode: 'weekly',
   hofYear: null,
@@ -481,7 +480,7 @@ document.addEventListener('click',async e=>{
 
 /* ===== v1.12: picture tiles for weapons, PC mode and skills =====
    The drawings below are ORIGINAL vector illustrations. To show real game pictures instead, upload files named
-   desert / m1887 / m1887x / m1014 / woodpecker / pc / alok / tatsuya / koda  (png, webp or jpg) into assets/ff/ -
+   desert / m1887 / m1887x / m1014 / woodpecker / pc_allow / pc_not_allow / alok / tatsuya / koda  (png, webp or jpg) into assets/FF/ -
    a picture found there automatically replaces the drawing. */
 const FF_KEYS={'Desert':'desert','M1887':'m1887','M1887X':'m1887x','M1014':'m1014','Woodpecker':'woodpecker','DJ Alok':'alok','Tatsuya':'tatsuya','Koda':'koda'};
 const FF_DEFS='<defs><linearGradient id="ffSteel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e9eef3"/><stop offset=".45" stop-color="#9aa6b2"/><stop offset="1" stop-color="#46505b"/></linearGradient><linearGradient id="ffDark" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5d6772"/><stop offset=".5" stop-color="#2b3138"/><stop offset="1" stop-color="#14171b"/></linearGradient><linearGradient id="ffWood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c98d4e"/><stop offset=".5" stop-color="#8a5526"/><stop offset="1" stop-color="#4d2c11"/></linearGradient><linearGradient id="ffGold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff0b0"/><stop offset=".5" stop-color="#e0b23f"/><stop offset="1" stop-color="#8a6212"/></linearGradient><radialGradient id="ffGlow" cx=".5" cy=".4" r=".7"><stop offset="0" stop-color="#ff5d73" stop-opacity=".55"/><stop offset="1" stop-color="#ff5d73" stop-opacity="0"/></radialGradient></defs>';
@@ -497,11 +496,11 @@ const FF_ART={
   pc:`<svg viewBox="0 0 100 80" aria-hidden="true"><ellipse cx="50" cy="74" rx="34" ry="4" fill="#000" opacity=".35"/><rect x="12" y="6" width="76" height="46" rx="5" fill="url(#ffDark)" stroke="#0b0d10" stroke-width="2"/><rect x="17" y="11" width="66" height="36" rx="2" fill="#0e1a26"/><path d="M17 11h66v14L17 36Z" fill="#9ccfff" opacity=".16"/><path d="M40 52h20l3 10H37Z" fill="url(#ffSteel)" stroke="#0b0d10" stroke-width="1.4"/><rect x="26" y="62" width="48" height="6" rx="3" fill="url(#ffSteel)" stroke="#0b0d10" stroke-width="1.4"/></svg>`
 };
 function ffPic(key){
-  return `<span class="ff-pic"><span class="ff-art">${FF_ART[key]||''}</span><img class="ff-img" src="./assets/ff/${key}.png" alt="" loading="lazy" data-ff="${key}" data-i="0" onerror="ffImgFallback(this)" onload="this.parentNode.classList.add('has-img')" /></span>`;
+  return `<span class="ff-pic"><span class="ff-art">${FF_ART[key]||FF_ART[String(key).startsWith('pc')?'pc':'']||''}</span><img class="ff-img" src="./assets/FF/${key}.png" alt="" loading="lazy" data-ff="${key}" data-i="0" onerror="ffImgFallback(this)" onload="this.parentNode.classList.add('has-img')" /></span>`;
 }
 window.ffImgFallback=function(img){
   const exts=['png','webp','jpg'];const i=Number(img.dataset.i||0)+1;
-  if(i<exts.length){img.dataset.i=String(i);img.src=`./assets/ff/${img.dataset.ff}.${exts[i]}`;}else img.remove();
+  if(i<exts.length){img.dataset.i=String(i);img.src=`./assets/FF/${img.dataset.ff}.${exts[i]}`;}else img.remove();
 };
 function ffTileInput(type,name,value,label){
   const key=FF_KEYS[value]||'';
@@ -513,7 +512,7 @@ function renderWeaponSkillChoices(){
   const wg=$('weapon-grid'), sg=$('skill-grid'), pg=$('pc-grid');
   if(wg) wg.innerHTML=ALLOWED_WEAPONS.map(x=>ffTileInput('checkbox','weapons',x)).join('');
   if(sg) sg.innerHTML=ALLOWED_SKILLS.map(x=>ffTileInput('checkbox','skills',x)).join('');
-  if(pg) pg.innerHTML=[['false','PC NOT ALLOW'],['true','PC ALLOW']].map(([v,l])=>`<button type="button" class="ff-tile ff-pc" data-pc="${v}">${ffPic('pc')}<span class="ff-name">${l}</span><span class="ff-check" aria-hidden="true">✓</span></button>`).join('');
+  if(pg) pg.innerHTML=[['false','PC NOT ALLOW'],['true','PC ALLOW']].map(([v,l])=>`<button type="button" class="ff-tile ff-pc" data-pc="${v}">${ffPic(v==='true'?'pc_allow':'pc_not_allow')}<span class="ff-name">${l}</span><span class="ff-check" aria-hidden="true">✓</span></button>`).join('');
   syncFfTiles();
 }
 function syncFfTiles(){
@@ -1534,73 +1533,8 @@ function weeklyDayDefinitions(weekStart){
   return labels.map((label,i)=>({label,key:keys[i],date:new Date(start.getTime()+i*24*60*60*1000)}));
 }
 
-function renderWeeklyMatches(rows){
-  const dayTarget=$('weekly-day-grid');
-  const guildTarget=$('weekly-guild-table');
-  const windowTarget=$('weekly-window');
-  const totalTarget=$('weekly-total-results');
-  const activeTarget=$('weekly-active-guilds');
-  const topDayTarget=$('weekly-top-day');
-  const topDayCountTarget=$('weekly-top-day-count');
-  const refreshTarget=$('weekly-last-refresh');
-  if(!dayTarget||!guildTarget) return;
-
-  state.weeklyMatches=rows||[];
-  if(!rows.length){
-    dayTarget.innerHTML='<div class="empty">No registered guilds are available for this week.</div>';
-    guildTarget.innerHTML='<tr><td colspan="11">No registered guilds found.</td></tr>';
-    if(totalTarget) totalTarget.textContent='0';
-    if(activeTarget) activeTarget.textContent='0';
-    if(topDayTarget) topDayTarget.textContent='—';
-    if(topDayCountTarget) topDayCountTarget.textContent='No matches yet';
-    return;
-  }
-
-  const first=rows[0];
-  if(windowTarget) windowTarget.textContent=`CURRENT WEEK • ${formatWeekRange(first.week_start)}`;
-  const defs=weeklyDayDefinitions(first.week_start);
-  const dayTotals=defs.map(d=>({label:d.label,count:rows.reduce((sum,r)=>sum+Number(r[d.key]||0),0)}));
-  const totalResults=Number(first.week_end?rows.reduce((sum,r)=>sum+Number(r.total_matches||0),0):0)/2;
-  const activeGuilds=rows.filter(r=>Number(r.total_matches||0)>0).length;
-  const topDay=dayTotals.reduce((a,b)=>b.count>a.count?b:a,{label:'—',count:0});
-  if(totalTarget) totalTarget.textContent=String(Math.round(totalResults));
-  if(activeTarget) activeTarget.textContent=String(activeGuilds);
-  if(topDayTarget) topDayTarget.textContent=topDay.count?topDay.label:'—';
-  if(topDayCountTarget) topDayCountTarget.textContent=topDay.count?`${Math.round(topDay.count/2)} match results`:'No matches yet';
-  if(refreshTarget) refreshTarget.textContent=formatDateTime(new Date());
-
-  dayTarget.innerHTML=dayTotals.map((d,i)=>`<div class="weekly-day-card ${d.count&&d.label===defs[(new Date().getDay())]?.label?'today':''}"><span>${d.label}</span><strong>${escapeHtml(Math.round(d.count/2))}</strong><small>match results</small></div>`).join('');
-
-  guildTarget.innerHTML=rows.map(r=>{
-    const total=Number(r.total_matches||0);
-    const leaderCount=Number(r.leader_count||0);
-    return `<tr class="${total?'live-row':''}">
-      <td><div class="weekly-guild-row-name">${escapeHtml(r.guild_name)}</div><div class="muted" style="margin-top:3px;font-size:7px">${leaderCount} LEADER${leaderCount===1?'':'S'}</div></td>
-      <td class="weekly-count">${escapeHtml(r.sunday_matches||0)}</td><td class="weekly-count">${escapeHtml(r.monday_matches||0)}</td><td class="weekly-count">${escapeHtml(r.tuesday_matches||0)}</td><td class="weekly-count">${escapeHtml(r.wednesday_matches||0)}</td><td class="weekly-count">${escapeHtml(r.thursday_matches||0)}</td><td class="weekly-count">${escapeHtml(r.friday_matches||0)}</td><td class="weekly-count">${escapeHtml(r.saturday_matches||0)}</td>
-      <td class="weekly-count weekly-total">${escapeHtml(total)}</td><td class="weekly-count weekly-win">${escapeHtml(r.wins||0)}</td><td class="weekly-count weekly-loss">${escapeHtml(r.losses||0)}</td>
-    </tr>`;
-  }).join('');
-}
-
-async function loadAdminWeeklyMatches(){
-  const dayTarget=$('weekly-day-grid');
-  const guildTarget=$('weekly-guild-table');
-  if(!dayTarget||!guildTarget) return;
-  dayTarget.innerHTML='<div class="empty">Loading weekly day records...</div>';
-  guildTarget.innerHTML='<tr><td colspan="11">Loading weekly guild records...</td></tr>';
-  try{
-    const {data,error}=await adminDb.rpc('admin_get_weekly_match_stats');
-    if(error) throw error;
-    renderWeeklyMatches(data||[]);
-  }catch(error){
-    console.error('Weekly match analytics failed:',error);
-    dayTarget.innerHTML=`<div class="empty">${escapeHtml(humanizeError(error))}</div>`;
-    guildTarget.innerHTML=`<tr><td colspan="11">${escapeHtml(humanizeError(error))}</td></tr>`;
-  }
-}
-
 function openAdminSection(name){
-  const section=['guilds','name-changes','results','weekly','ban','trophies','rules'].includes(name)?name:'guilds';
+  const section=['guilds','name-changes','results','ban','trophies','rules'].includes(name)?name:'guilds';
   document.querySelectorAll('.admin-panel-view').forEach(el=>{
     const active=el.id===`admin-section-${section}`;
     el.classList.toggle('active',active);
@@ -1614,7 +1548,6 @@ function openAdminSection(name){
   if(section==='guilds') loadSectionCached('admin:guilds',loadAdminGuilds,15000);
   if(section==='name-changes') loadSectionCached('admin:name-changes',loadAdminGuildNameChangeRequests,15000);
   if(section==='results') loadSectionCached('admin:results',loadAdminResults,10000);
-  if(section==='weekly') loadSectionCached('admin:weekly',loadAdminWeeklyMatches,20000);
   if(section==='ban') loadSectionCached('admin:bans',loadBans,15000);
   if(section==='trophies') loadSectionCached('admin:trophies',loadHofAdmin,20000);
   if(section==='rules') loadAdminRules();
@@ -2259,10 +2192,13 @@ function bindTrophy3D(root=document){root.querySelectorAll('[data-trophy-3d]:not
    December = Season 4, January 2027 = Season 5, and so on (counted without a break). */
 const GVG_SEASON_BASE_YEAR=2026, GVG_SEASON_BASE_MONTH=9;
 function hofSeasonNumber(year,month){return (Number(year)-GVG_SEASON_BASE_YEAR)*12+Number(month)-GVG_SEASON_BASE_MONTH+1;}
+/* In 2026 nothing was played before September, so a saved number below 9 is read directly as the season number (1, 2, ...). */
+function hofSeasonOf(year,p){return (Number(year)===GVG_SEASON_BASE_YEAR&&Number(p)<GVG_SEASON_BASE_MONTH)?Number(p):hofSeasonNumber(year,p);}
+function hofSeasonMonthName(season){const m=((Number(season)+GVG_SEASON_BASE_MONTH-2)%12+12)%12+1;return HOF_MONTH_NAMES[m-1];}
 function hallPeriodLabel(type,number,year){
   if(type==='weekly')return `WEEK ${number}`;
   const y=Number(year)||Number(state.hofYear)||new Date().getFullYear();
-  const season=hofSeasonNumber(y,number);
+  const season=hofSeasonOf(y,number);
   return season>=1?`SEASON ${season}`:new Intl.DateTimeFormat('en',{month:'long'}).format(new Date(Date.UTC(2020,number-1,1)));
 }
 const HOF_MONTH_NAMES=['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
@@ -2318,11 +2254,13 @@ async function loadHallOfFameYear(){
     const now=new Date(),curYear=now.getFullYear(),curMonth=now.getMonth()+1;
     const first=selectedYear===GVG_SEASON_BASE_YEAR?GVG_SEASON_BASE_MONTH:1;
     const last=selectedYear<curYear?12:(selectedYear===curYear?Math.max(curMonth,maxAwardMonth):Math.max(maxAwardMonth,0));
-    periods=[];for(let m=first;m<=Math.min(12,last);m+=1)periods.push(m);
-    if(!periods.length&&maxAwardMonth)periods=[maxAwardMonth];
+    const bySeason=new Map();
+    state.hofAwards.filter(x=>x.award_type==='monthly').forEach(x=>{const p=Number(x.period_number);bySeason.set(hofSeasonOf(selectedYear,p),p);});
+    for(let m=first;m<=Math.min(12,last);m+=1){const sn=hofSeasonOf(selectedYear,m);if(!bySeason.has(sn))bySeason.set(sn,m);}
+    periods=[...bySeason.entries()].sort((x,y)=>x[0]-y[0]).map(e=>e[1]);
   }
   const count=periods.length;
-  $('hof-period-grid').innerHTML=periods.map(n=>{const found=state.hofAwards.find(a=>Number(a.period_number)===n);return `<button class="hof-period-tile ${found?'has-award':'is-empty'} ${Number(state.hofPeriod)===n?'active':''}" type="button" data-action="hof-select-period" data-period="${n}"><span class="pt-ring">${found?'🏆':'🔒'}</span><b>${escapeHtml(hallPeriodLabel(state.hofMode,n,state.hofYear))}</b>${state.hofMode==='monthly'?`<em class="pt-month">${HOF_MONTH_NAMES[n-1]}</em>`:''}<small>${found?escapeHtml(found.guild_name||'CHAMPION'):'AWAITING'}</small></button>`;}).join('');
+  $('hof-period-grid').innerHTML=periods.map(n=>{const found=state.hofAwards.find(a=>Number(a.period_number)===n);return `<button class="hof-period-tile ${found?'has-award':'is-empty'} ${Number(state.hofPeriod)===n?'active':''}" type="button" data-action="hof-select-period" data-period="${n}"><span class="pt-ring">${found?'🏆':'🔒'}</span><b>${escapeHtml(hallPeriodLabel(state.hofMode,n,state.hofYear))}</b>${state.hofMode==='monthly'?`<em class="pt-month">${hofSeasonMonthName(hofSeasonOf(state.hofYear,n))}</em>`:''}<small>${found?escapeHtml(found.guild_name||'CHAMPION'):'AWAITING'}</small></button>`;}).join('');
   if(!state.hofPeriod||state.hofPeriod>count)state.hofPeriod=1;renderHallSelectedAward();
 }
 function updateHofStats(){
@@ -2729,7 +2667,7 @@ async function fillGuildProfileExtras(norm){
   const members=Array.isArray(roster?.members)?roster.members:[];
   const rival=Array.isArray(rivalRes.data)?rivalRes.data[0]:rivalRes.data;
   let html='';
-  html+=`<div class="pp-block"><h4>TEAM ROSTER${members.length?` • ${members.length}`:''}</h4>${members.length?`<div class="pp-chips">${members.map(n=>`<span class="pp-chip">${escapeHtml(n)}</span>`).join('')}</div>`:'<div class="hint">The leader has not submitted a team list yet.</div>'}</div>`;
+  html+=`<div class="pp-block"><h4>TEAM ROSTER${members.length?` • ${members.length}`:''}</h4>${members.length?`<ol class="pp-roster">${members.map((n,i)=>`<li><span class="n">${i+1}</span><b>${escapeHtml(n)}</b></li>`).join('')}</ol>`:'<div class="hint">The leader has not submitted a team list yet.</div>'}</div>`;
   if(rival&&Number(rival.matches)>=2){
     html+=`<div class="pp-block"><h4>MAIN RIVAL</h4><div class="pp-rival">${guildAvatarMarkup(rival,true)}<div class="pp-rival-main"><div class="pp-rival-name">${escapeHtml(rival.guild_name||'')}</div><div class="pp-rival-meta">${Number(rival.matches)} matches played • ${Number(rival.wins)} won • ${Number(rival.losses)} lost</div></div></div></div>`;
   }else{
