@@ -1733,6 +1733,15 @@ document.addEventListener('error',e=>{
   const m=/\/assets\/b\/b(\d{3})\.webp/.exec(img.getAttribute('src')||'');
   if(m){img.dataset.fb='1';img.src=badgeLegacyFile(Number(m[1]));}
 },true);
+/* Badge picture. Platinum (tier 4) and Diamond (tier 5) that are UNLOCKED get a glow + shine wrapper (see v37.2 block).
+   alt, title and attrs must already be HTML-escaped by the caller. */
+function badgeImgMarkup(mission,tier,{alt='',title='',attrs='',loading='lazy',fx=true}={}){
+  const src=badgeFile(mission,tier);
+  const img=`<img src="${src}" alt="${alt}"${title?` title="${title}"`:''}${loading?` loading="${loading}"`:''}${attrs?` ${attrs}`:''} />`;
+  if(!fx||tier<4) return img;
+  const mask=`-webkit-mask-image:url(${src});mask-image:url(${src})`;
+  return `<i class="bfx t${tier}"><i class="bfx-glow"></i>${img}<i class="bfx-sh" style="${mask}"><i></i></i><i class="bfx-sp a"></i>${tier===5?'<i class="bfx-sp b"></i>':''}</i>`;
+}
 function applyBadgeData(data){
   const d=Array.isArray(data)?data[0]:data;
   state.badgeConfig=Array.isArray(d?.config)?d.config:[];
@@ -1751,7 +1760,7 @@ function topBadgeStripMarkup(info){
   if(!info) return '';
   const list=GVG_MISSIONS.map((m,i)=>({m,t:Number(info.t?.[i])||0})).filter(x=>x.t>0).sort((a,b)=>b.t-a.t||a.m.n-b.m.n).slice(0,4);
   if(!list.length) return '';
-  return `<div class="badge-strip">${list.map(x=>`<img src="${badgeFile(x.m.n,x.t)}" alt="${escapeHtml(x.m.name)} ${GVG_TIER_NAMES[x.t-1]}" title="${escapeHtml(x.m.name)} · ${GVG_TIER_NAMES[x.t-1]}" loading="lazy" />`).join('')}</div>`;
+  return `<div class="badge-strip">${list.map(x=>badgeImgMarkup(x.m.n,x.t,{alt:`${escapeHtml(x.m.name)} ${GVG_TIER_NAMES[x.t-1]}`,title:`${escapeHtml(x.m.name)} · ${GVG_TIER_NAMES[x.t-1]}`})).join('')}</div>`;
 }
 function fmtMissionValue(n,v){const x=Number(v)||0;return n===15?`${x.toFixed(1)}%`:String(Math.round(x*10)/10);}
 const GVG_TIER_ICONS=['🥉','🥈','🥇','💠','💎'];
@@ -1768,9 +1777,9 @@ function achInner(norm,tier,sel){
     const pct=unlocked?100:(th?Math.max(0,Math.min(100,Math.round(v/th*100))):0);
     let progress=unlocked?'UNLOCKED':`${fmtMissionValue(m.n,v)} / ${fmtMissionValue(m.n,th)}`;
     if(!unlocked&&m.n===15&&played<min) progress=`${fmtMissionValue(15,v)} · needs ${min}+ matches (${played} played)`;
-    detail=`<div class="ach-detail"><img src="${badgeFile(m.n,tier)}" alt="${escapeHtml(m.name)}" /><div><strong>${m.name} • ${GVG_TIER_NAMES[tier-1]}</strong><small>${escapeHtml(m.req(th,min))}</small><div class="ach-bar"><i style="width:${pct}%"></i></div><em>${escapeHtml(progress)}</em></div></div>`;
+    detail=`<div class="ach-detail">${badgeImgMarkup(m.n,tier,{alt:escapeHtml(m.name),loading:'',fx:unlocked})}<div><strong>${m.name} • ${GVG_TIER_NAMES[tier-1]}</strong><small>${escapeHtml(m.req(th,min))}</small><div class="ach-bar"><i style="width:${pct}%"></i></div><em>${escapeHtml(progress)}</em></div></div>`;
   }
-  const cells=GVG_MISSIONS.map((m,i)=>`<button type="button" class="ach-cell ${tierOf(i)>=tier?'on':'off'} ${sel===m.n?'sel':''}" data-ach-badge="${m.n}" aria-label="${escapeHtml(m.name)} ${GVG_TIER_NAMES[tier-1]}"><img src="${badgeFile(m.n,tier)}" alt="" loading="lazy" /><span>${m.name}</span></button>`).join('');
+  const cells=GVG_MISSIONS.map((m,i)=>`<button type="button" class="ach-cell ${tierOf(i)>=tier?'on':'off'} ${sel===m.n?'sel':''}" data-ach-badge="${m.n}" aria-label="${escapeHtml(m.name)} ${GVG_TIER_NAMES[tier-1]}">${badgeImgMarkup(m.n,tier,{fx:tierOf(i)>=tier})}<span>${m.name}</span></button>`).join('');
   return `${tabs}${detail}<div class="ach-grid2">${cells}</div>`;
 }
 function renderAchievements(profile){
@@ -2738,6 +2747,42 @@ $('password-recovery-form').addEventListener('submit',async(e)=>{
 });
 
 
+/* ===== v37.2: PLATINUM & DIAMOND BADGE SHINE + GLOW =====
+   Unlocked Platinum and Diamond badges get a coloured glow, a light streak that sweeps across the badge (clipped to the
+   badge's own shape) and small twinkling stars. The glow is plain CSS. The moving parts use the Web Animations API because
+   style.css disables CSS animations site-wide. To stay light on phones, badges only animate while they are on screen,
+   and nothing moves for visitors who prefer reduced motion (they still see the static glow). */
+(function(){
+  'use strict';
+  if(typeof IntersectionObserver==='undefined'||typeof Element==='undefined'||!Element.prototype.animate) return;
+  const still=()=>{try{return window.matchMedia('(prefers-reduced-motion: reduce)').matches;}catch{return false;}};
+  const rnd=(a,b)=>a+Math.random()*(b-a);
+  function start(el){
+    if(el._fx||still()) return;
+    const fx=[], dia=el.classList.contains('t5');
+    const glow=el.querySelector(':scope > .bfx-glow');
+    if(glow) fx.push(glow.animate([{opacity:.6,transform:'scale(.93)'},{opacity:1,transform:'scale(1.07)'}],{duration:dia?2200:2800,delay:rnd(0,1200),direction:'alternate',iterations:Infinity,easing:'ease-in-out'}));
+    const streak=el.querySelector(':scope > .bfx-sh > i');
+    if(streak) fx.push(streak.animate([{transform:'translateX(-170%) skewX(-18deg)'},{transform:'translateX(320%) skewX(-18deg)'}],{duration:dia?1100:1400,delay:rnd(0,2800),endDelay:dia?2600:3600,iterations:Infinity,easing:'ease-in-out'}));
+    el.querySelectorAll(':scope > .bfx-sp').forEach((s,i)=>{
+      fx.push(s.animate([{opacity:0,transform:'scale(.2) rotate(0deg)'},{opacity:1,transform:'scale(1) rotate(45deg)',offset:.35},{opacity:0,transform:'scale(.2) rotate(90deg)'}],{duration:1500,delay:rnd(0,3200)+i*900,endDelay:rnd(1800,3200),iterations:Infinity,easing:'ease-in-out'}));
+    });
+    el._fx=fx;
+  }
+  function stop(el){ if(el._fx){el._fx.forEach(a=>{try{a.cancel();}catch{}});el._fx=null;} }
+  const io=new IntersectionObserver(entries=>{
+    entries.forEach(e=>{
+      const el=e.target;
+      if(!el.isConnected){stop(el);io.unobserve(el);return;}
+      if(e.isIntersecting) start(el); else stop(el);
+    });
+  },{rootMargin:'60px'});
+  const watch=root=>{ if(root.nodeType!==1) return; if(root.matches?.('.bfx')) io.observe(root); root.querySelectorAll?.('.bfx').forEach(x=>io.observe(x)); };
+  new MutationObserver(list=>list.forEach(m=>m.addedNodes.forEach(watch))).observe(document.documentElement,{childList:true,subtree:true});
+  watch(document.documentElement);
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden) document.querySelectorAll('.bfx').forEach(el=>{ if(!el._fx&&!still()){const r=el.getBoundingClientRect(); if(r.bottom>0&&r.top<innerHeight)start(el);} }); });
+})();
+
 /* ===== v37.1: BADGE UNLOCK ANNOUNCEMENTS =====
    When any guild unlocks a new badge, a golden announcement card appears at the TOP of the screen for logged-in
    leaders (and guest viewers). It is position:fixed, so it is always visible wherever the page is scrolled.
@@ -2852,7 +2897,7 @@ $('password-recovery-form').addEventListener('submit',async(e)=>{
     }
     const e=card.ev,m=GVG_MISSIONS[e.mission-1],tn=GVG_TIER_NAMES[e.tier-1];
     const req=e.th?m.req(e.th,e.min):'';
-    return `<div class="bu-card" role="status"><i class="bu-shine" aria-hidden="true"></i><div class="bu-medal"><img src="${badgeFile(e.mission,e.tier)}" alt="${escapeHtml(m.name)} ${tn}" width="52" height="52" decoding="async" /></div><div class="bu-body"><div class="bu-eyebrow">BADGE UNLOCKED${e.mine?'<span class="bu-you">YOUR GUILD</span>':''}</div><div class="bu-title"><b class="bu-guild">${escapeHtml(e.name)}</b> has unlocked the <b class="bu-tier t${e.tier}">${tn}</b> badge</div><div class="bu-mission">${escapeHtml(m.name)}${req?`<span> · ${escapeHtml(req)}</span>`:''}</div><div class="bu-meta">${e.missions}/20 missions completed · ${e.score}/100 badges</div></div><button type="button" class="bu-x" aria-label="Dismiss announcement">×</button></div>`;
+    return `<div class="bu-card" role="status"><i class="bu-shine" aria-hidden="true"></i><div class="bu-medal">${badgeImgMarkup(e.mission,e.tier,{alt:`${escapeHtml(m.name)} ${tn}`,loading:'',attrs:'width="52" height="52" decoding="async"'})}</div><div class="bu-body"><div class="bu-eyebrow">BADGE UNLOCKED${e.mine?'<span class="bu-you">YOUR GUILD</span>':''}</div><div class="bu-title"><b class="bu-guild">${escapeHtml(e.name)}</b> has unlocked the <b class="bu-tier t${e.tier}">${tn}</b> badge</div><div class="bu-mission">${escapeHtml(m.name)}${req?`<span> · ${escapeHtml(req)}</span>`:''}</div><div class="bu-meta">${e.missions}/20 missions completed · ${e.score}/100 badges</div></div><button type="button" class="bu-x" aria-label="Dismiss announcement">×</button></div>`;
   }
   function applyPause(){
     const rec=cur; if(!rec)return;

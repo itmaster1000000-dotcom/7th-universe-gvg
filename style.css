@@ -1789,3 +1789,31 @@ label{color:#e3b8c0}
   .bu-medal{flex-basis:54px;width:54px;height:54px}.bu-medal img{width:45px;height:45px}
   .bu-title{font-size:12.5px}.bu-mission{font-size:10.5px}.bu-meta{font-size:10px}
 }
+
+/* ============================================================
+   11. Platinum & Diamond badge glow / shine (motion is started from script.js, see "v37.2")
+   Wrapper elements are <i> on purpose: ".ach-cell span" styles would otherwise break them.
+   ============================================================ */
+.bfx{position:relative;display:block;isolation:isolate;font-style:normal}
+.bfx>img{position:relative;z-index:1;display:block}
+.bfx-glow{position:absolute;inset:-20%;z-index:0;border-radius:50%;pointer-events:none;opacity:.9}
+.bfx.t4 .bfx-glow{background:radial-gradient(circle,rgba(205,238,255,.78) 0%,rgba(134,219,255,.42) 40%,rgba(134,219,255,0) 70%)}
+.bfx.t5 .bfx-glow{background:radial-gradient(circle,rgba(114,243,255,.72) 0%,rgba(120,190,255,.38) 38%,rgba(167,139,250,.24) 56%,rgba(167,139,250,0) 72%)}
+.bfx-sh{position:absolute;inset:0;z-index:2;overflow:hidden;pointer-events:none;
+  -webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;-webkit-mask-size:contain;mask-size:contain}
+.bfx-sh>i{position:absolute;top:-12%;bottom:-12%;left:0;width:46%;transform:translateX(-170%) skewX(-18deg);
+  background:linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,.95) 50%,rgba(255,255,255,0))}
+.bfx.t5 .bfx-sh>i{background:linear-gradient(90deg,rgba(220,252,255,0),rgba(235,255,255,.98) 50%,rgba(220,252,255,0))}
+.bfx-sp{position:absolute;z-index:3;width:11px;height:11px;pointer-events:none;opacity:0;background:#fff;
+  clip-path:polygon(50% 0,61% 39%,100% 50%,61% 61%,50% 100%,39% 61%,0 50%,39% 39%)}
+.bfx.t5 .bfx-sp{background:#d9fbff}
+.bfx-sp.a{top:2%;right:0}.bfx-sp.b{bottom:12%;left:-2%;width:9px;height:9px}
+/* sizes in each place a badge appears */
+.ach-cell .bfx{width:100%;max-width:68px}
+.ach-cell>span{position:relative;z-index:1}
+.ach-detail .bfx{flex:0 0 78px;width:78px;height:78px}
+.ach-detail .bfx-sp{width:14px;height:14px}.ach-detail .bfx-sp.b{width:11px;height:11px}
+.badge-strip .bfx{width:30px;height:30px;flex:0 0 30px}
+.badge-strip .bfx-sp{width:8px;height:8px}.badge-strip .bfx-sp.b{width:6px;height:6px}
+.bu-medal .bfx{width:52px;height:52px}
+@media(max-width:420px){.bu-medal .bfx{width:45px;height:45px}}
