@@ -1750,3 +1750,42 @@ label{color:#e3b8c0}
 .pp-roster li{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,112,135,.16)}
 .pp-roster .n{flex:0 0 26px;height:26px;border-radius:8px;display:grid;place-items:center;font-size:12px;font-weight:900;color:#fff;background:linear-gradient(180deg,#ff5d75,#a50f2b);box-shadow:inset 0 1px 0 rgba(255,255,255,.35)}
 .pp-roster b{font-size:14px;letter-spacing:.03em;word-break:break-word}
+
+/* ============================================================
+   10. Badge unlock announcement (golden card, fixed at the top, glides slowly to the left).
+   Motion is driven from script.js (Web Animations API) because this stylesheet disables CSS animations site-wide.
+   ============================================================ */
+.bu-layer{position:fixed;left:0;right:0;z-index:99990;display:flex;justify-content:center;padding:6px 8px 24px;pointer-events:none;overflow:hidden;overflow-x:clip;overflow-y:visible}
+.bu-card{--bu-g1:var(--gold1,#fff2b8);--bu-g2:var(--gold2,#e7c15a);--bu-g3:var(--gold3,#9a7421);
+  position:relative;pointer-events:auto;box-sizing:border-box;width:min(560px,100%);display:flex;align-items:center;gap:12px;
+  padding:11px 40px 11px 11px;border-radius:16px;border:2px solid transparent;color:#fff6dc;overflow:hidden;
+  background:linear-gradient(135deg,rgba(30,17,8,.985),rgba(9,4,6,.985)) padding-box,
+             linear-gradient(120deg,var(--bu-g1),var(--bu-g2) 32%,var(--bu-g3) 58%,var(--bu-g2) 80%,var(--bu-g1)) border-box;
+  box-shadow:0 0 0 1px rgba(231,193,90,.28),0 12px 34px rgba(0,0,0,.62),0 0 28px rgba(231,193,90,.42);
+  will-change:transform}
+.bu-shine{position:absolute;top:0;bottom:0;left:0;width:100%;pointer-events:none;transform:translateX(-130%);
+  background:linear-gradient(105deg,transparent 36%,rgba(255,240,180,.24) 50%,transparent 64%)}
+.bu-medal{flex:0 0 62px;width:62px;height:62px;border-radius:50%;display:grid;place-items:center;
+  background:radial-gradient(circle at 50% 38%,rgba(255,226,138,.30),rgba(0,0,0,.25) 72%);
+  box-shadow:0 0 0 2px rgba(231,193,90,.75),0 0 18px rgba(255,214,102,.5)}
+.bu-medal img{width:52px;height:52px;object-fit:contain}
+.bu-medal-sum{font-size:30px}
+.bu-body{min-width:0;flex:1}
+.bu-eyebrow{display:flex;flex-wrap:wrap;align-items:center;gap:7px;font-size:9.5px;font-weight:900;letter-spacing:.22em;color:var(--bu-g2)}
+.bu-you{padding:2px 7px;border-radius:999px;font-size:8.5px;letter-spacing:.14em;color:#2a1a02;background:linear-gradient(180deg,var(--bu-g1),var(--bu-g2))}
+.bu-title{margin-top:4px;font-size:13.5px;line-height:1.38;font-weight:700;color:#fff;word-break:break-word}
+.bu-guild{color:var(--bu-g1);font-weight:900}
+.bu-tier{font-weight:900;letter-spacing:.06em}
+.bu-tier.t1{color:var(--t1,#cd8b4f)}.bu-tier.t2{color:var(--t2,#d3dce6)}.bu-tier.t3{color:var(--t3,#f3c64e)}
+.bu-tier.t4{color:var(--t4,#86dbff)}.bu-tier.t5{color:var(--t5,#72f3ff);text-shadow:0 0 10px rgba(114,243,255,.5)}
+.bu-mission{margin-top:4px;font-size:11px;font-weight:900;letter-spacing:.07em;color:#ffe9a8;line-height:1.4}
+.bu-mission span{font-weight:600;letter-spacing:.02em;color:#e9d9ad}
+.bu-meta{margin-top:5px;padding-top:5px;border-top:1px solid rgba(231,193,90,.25);font-size:10.5px;font-weight:700;letter-spacing:.04em;color:#d9c48a}
+.bu-x{position:absolute;top:7px;right:7px;width:26px;height:26px;display:grid;place-items:center;border-radius:50%;border:1px solid rgba(231,193,90,.4);
+  background:rgba(0,0,0,.4);color:#ffe9a8;font-size:17px;line-height:1;padding:0;cursor:pointer}
+.bu-x:hover,.bu-x:focus-visible{background:rgba(231,193,90,.2);outline:none}
+@media(max-width:420px){
+  .bu-card{gap:10px;padding:10px 36px 10px 10px}
+  .bu-medal{flex-basis:54px;width:54px;height:54px}.bu-medal img{width:45px;height:45px}
+  .bu-title{font-size:12.5px}.bu-mission{font-size:10.5px}.bu-meta{font-size:10px}
+}

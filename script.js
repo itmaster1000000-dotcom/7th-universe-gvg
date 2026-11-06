@@ -1303,6 +1303,7 @@ async function enterMember({skipGuildReload=false}={}){
   await refreshMember({reloadGuild:!skipGuildReload});
   if(memberDashboardAllowed()) openMemberSection('rules');
   else setMemberAccessGate();
+  window.gvgBadgeKick?.();
 }
 async function refreshMember({reloadGuild=true}={}){
   if(reloadGuild) await loadMyGuild();
@@ -2644,6 +2645,7 @@ function enterGuest(){
   setMemberAccessGate();
   syncRegisterNav();
   openMemberSection('guild-profiles');
+  window.gvgBadgeKick?.();
 }
 async function restoreGuest(){
   let saved=null; try{saved=JSON.parse(sessionStorage.getItem('gvg_guest')||'null');}catch{}
@@ -2735,6 +2737,213 @@ $('password-recovery-form').addEventListener('submit',async(e)=>{
   }catch(error){showStatus('recovery-status','error',humanizeError(error));}
 });
 
+
+/* ===== v37.1: BADGE UNLOCK ANNOUNCEMENTS =====
+   When any guild unlocks a new badge, a golden announcement card appears at the TOP of the screen for logged-in
+   leaders (and guest viewers). It is position:fixed, so it is always visible wherever the page is scrolled.
+   It slides in from the right, rests for a few seconds so it can be read, then glides slowly off to the left.
+   - Each badge unlock is shown ONCE per viewer (tracked in localStorage). Same badge never repeats.
+   - The first visit only records the current state silently, so nobody gets flooded with old badges.
+   - Cards wait while the tab is hidden, so an announcement can never pass by unseen.
+   - No extra database load: it re-uses the cached get_gvg_badges_v2 data that Guild Profiles already uses. */
+(function(){
+  'use strict';
+  const POLL_MS=3*60*1000;      // re-check interval (the RPC itself is cached for 15 min, so this is cheap)
+  const MAX_CARDS=5;            // more than this in one burst are merged into one summary card
+  const GAP_MS=800;             // pause between two cards
+  const STATIC_MS=9000;         // on-screen time when the visitor prefers reduced motion
+  const TRAVEL_MS=18000;        // total on-screen time: slide in, rest, then glide slowly to the left
+  /* NOTE: style.css has a site-wide rule (*{animation:none!important}), so this card is animated with the Web Animations API
+     (JavaScript) instead of CSS keyframes. That keeps the rest of the site's performance settings untouched. */
+  const STORE_PREFIX='gvg-bu-seen-v1:';
+  const ZERO='0'.repeat(20);
+
+  const queue=[];               // events waiting to be shown
+  const queued=new Map();       // "viewer|guild|mission" -> event already in the queue
+  const memSeen={};             // fallback when localStorage is blocked
+  let cur=null, locked=false, busy=false, lastCheck=0, burst=0, hovering=false;
+
+  const reduced=()=>{try{return window.matchMedia('(prefers-reduced-motion: reduce)').matches;}catch{return false;}};
+
+  function viewerNorm(){
+    if(state.guest) return normalizeGuild(state.guest.guild_name_normalized||state.guest.guild_name);
+    if(state.user&&state.guild&&state.guild.approval_status==='approved') return normalizeGuild(state.guild.guild_name_normalized||state.guild.guild_name);
+    return '';
+  }
+  function loadSeen(v){
+    try{const raw=localStorage.getItem(STORE_PREFIX+v);if(raw){const o=JSON.parse(raw);if(o&&o.s&&typeof o.s==='object')return o;}}catch{}
+    return memSeen[v]||null;
+  }
+  function saveSeen(v,o){memSeen[v]=o;try{localStorage.setItem(STORE_PREFIX+v,JSON.stringify(o));}catch{}}
+  function digitsOf(arr){let s='';for(let i=0;i<20;i++)s+=String(Math.max(0,Math.min(5,Number(arr?.[i])||0)));return s;}
+  function commit(v,events){
+    const o=loadSeen(v)||{ts:Date.now(),s:{}};
+    events.forEach(e=>{
+      const cur=(o.s[e.norm]||ZERO).split('');
+      cur[e.mission-1]=String(Math.max(Number(cur[e.mission-1])||0,e.tier));
+      o.s[e.norm]=cur.join('');
+    });
+    o.ts=Date.now();saveSeen(v,o);
+  }
+  function guildDisplayName(norm,fallback){
+    if(state.guild&&normalizeGuild(state.guild.guild_name_normalized||state.guild.guild_name)===norm&&state.guild.guild_name)return state.guild.guild_name;
+    if(state.guest&&normalizeGuild(state.guest.guild_name_normalized||state.guest.guild_name)===norm&&state.guest.guild_name)return state.guest.guild_name;
+    const hit=(state.guildProfiles||[]).find(p=>normalizeGuild(p.guild_name_normalized||p.guild_name)===norm)
+      ||(state.registeredGuilds||[]).find(p=>normalizeGuild(p.guild_name_normalized||p.guild_name)===norm);
+    return hit?.guild_name||String(fallback||norm).toUpperCase();
+  }
+  const sortEvents=()=>queue.sort((a,b)=>(b.mine-a.mine)||(b.tier-a.tier)||(a.mission-b.mission)||String(a.name).localeCompare(String(b.name)));
+
+  /* ---- 1. find new unlocks ---- */
+  async function check(){
+    const v=viewerNorm();
+    if(!v){reset();return;}
+    if(busy)return;
+    busy=true;
+    try{
+      const res=await readRpc('get_gvg_badges_v2');
+      if(!res||res.error||v!==viewerNorm())return;
+      const d=Array.isArray(res.data)?res.data[0]:res.data;
+      const guilds=Array.isArray(d?.guilds)?d.guilds:[];
+      const config=Array.isArray(d?.config)?d.config:[];
+      if(!guilds.length)return;
+      const seen=loadSeen(v);
+      if(!seen){ // first visit on this device: remember today's state, announce nothing old
+        const base={ts:Date.now(),s:{}};
+        guilds.forEach(g=>{const n=normalizeGuild(g.n);if(n)base.s[n]=digitsOf(g.t);});
+        saveSeen(v,base);
+        return;
+      }
+      guilds.forEach(g=>{
+        const norm=normalizeGuild(g.n);if(!norm)return;
+        const old=seen.s[norm]||ZERO;
+        const missions=Array.from({length:20},(_,i)=>Number(g.t?.[i])||0).filter(t=>t>0).length;
+        const sumTiers=Array.from({length:20},(_,i)=>Number(g.t?.[i])||0).reduce((a,b)=>a+b,0);
+        const score=(g.score!=null&&Number.isFinite(Number(g.score)))?Number(g.score):sumTiers;
+        for(let i=0;i<20;i++){
+          const nt=Math.max(0,Math.min(5,Number(g.t?.[i])||0)),ot=Number(old[i])||0;
+          if(nt<=ot)continue;
+          const row=config.find(r=>Number(r.m)===i+1&&Number(r.t)===nt);
+          const ev={v,norm,name:guildDisplayName(norm,g.n),mission:i+1,tier:nt,missions,score,th:Number(row?.th)||0,min:Number(row?.min)||0,mine:norm===v?1:0};
+          const key=`${v}|${norm}|${i+1}`,ex=queued.get(key);
+          if(ex){if(nt>ex.tier)Object.assign(ex,ev);}
+          else{queued.set(key,ev);queue.push(ev);}
+        }
+      });
+      sortEvents();
+    }catch(error){console.warn('Badge announcements could not check for new unlocks:',error);}
+    finally{busy=false;lastCheck=Date.now();pump();}
+  }
+  function reset(){
+    queue.length=0;queued.clear();burst=0;
+    if(cur)finish(cur,true);
+  }
+
+  /* ---- 2. show cards one by one ---- */
+  function topOffset(){
+    const h=document.querySelector('header');
+    const b=h?h.getBoundingClientRect().bottom:0;
+    return Math.max(0,Math.round(b))+4;
+  }
+  function cardHtml(card){
+    if(card.kind==='summary'){
+      const n=card.events.length;
+      return `<div class="bu-card bu-summary" role="status"><i class="bu-shine" aria-hidden="true"></i><div class="bu-medal bu-medal-sum" aria-hidden="true">🏆</div><div class="bu-body"><div class="bu-eyebrow">UNIVERSE UPDATE</div><div class="bu-title"><b class="bu-guild">${n} more badge${n>1?'s were':' was'}</b> unlocked across the Universe</div><div class="bu-meta">Open Guild Profiles to review every guild's achievements.</div></div><button type="button" class="bu-x" aria-label="Dismiss announcement">×</button></div>`;
+    }
+    const e=card.ev,m=GVG_MISSIONS[e.mission-1],tn=GVG_TIER_NAMES[e.tier-1];
+    const req=e.th?m.req(e.th,e.min):'';
+    return `<div class="bu-card" role="status"><i class="bu-shine" aria-hidden="true"></i><div class="bu-medal"><img src="${badgeFile(e.mission,e.tier)}" alt="${escapeHtml(m.name)} ${tn}" width="52" height="52" decoding="async" /></div><div class="bu-body"><div class="bu-eyebrow">BADGE UNLOCKED${e.mine?'<span class="bu-you">YOUR GUILD</span>':''}</div><div class="bu-title"><b class="bu-guild">${escapeHtml(e.name)}</b> has unlocked the <b class="bu-tier t${e.tier}">${tn}</b> badge</div><div class="bu-mission">${escapeHtml(m.name)}${req?`<span> · ${escapeHtml(req)}</span>`:''}</div><div class="bu-meta">${e.missions}/20 missions completed · ${e.score}/100 badges</div></div><button type="button" class="bu-x" aria-label="Dismiss announcement">×</button></div>`;
+  }
+  function applyPause(){
+    const rec=cur; if(!rec)return;
+    const hold=hovering||document.hidden;
+    if(rec.anim){
+      if(hold){if(rec.anim.playState==='running')rec.anim.pause();}
+      else if(rec.anim.playState==='paused')rec.anim.play();
+    }else{ // static mode (reduced motion): the on-screen timer only runs while the card is really visible
+      if(hold){clearTimeout(rec.timer);rec.timer=null;}
+      else if(!rec.timer)rec.timer=setTimeout(()=>finish(rec),4000);
+    }
+  }
+  function pump(){
+    if(cur||locked)return;
+    while(queue.length&&!queue[0].preview&&queue[0].v!==viewerNorm()){const x=queue.shift();queued.delete(`${x.v}|${x.norm}|${x.mission}`);}
+    if(!queue.length){burst=0;return;}
+    if(document.hidden)return; // resumes on visibilitychange, so a card is never missed in a background tab
+    let card;
+    if(burst>=MAX_CARDS&&queue.length>1&&!queue[0].preview){
+      const rest=queue.splice(0);
+      card={kind:'summary',v:rest[0].v,events:rest};
+    }else{
+      card={kind:'unlock',ev:queue.shift()};card.v=card.ev.v;
+    }
+    burst+=1;
+    const list=card.kind==='summary'?card.events:[card.ev];
+    list.forEach(x=>queued.delete(`${x.v}|${x.norm}|${x.mission}`));
+    if(!list[0].preview)commit(card.v,list); // mark as seen the moment it is shown: never repeats
+    present(card);
+  }
+  function present(card){
+    const layer=document.createElement('div');
+    layer.className='bu-layer';
+    layer.style.top=topOffset()+'px';
+    layer.innerHTML=cardHtml(card);
+    document.body.appendChild(layer);
+    const el=layer.firstElementChild;
+    const rec={layer,el,done:false,timer:null,anim:null};
+    cur=rec;
+    el.addEventListener('pointerenter',()=>{hovering=true;applyPause();});
+    el.addEventListener('pointerleave',()=>{hovering=false;applyPause();});
+    el.addEventListener('pointercancel',()=>{hovering=false;applyPause();});
+    el.querySelector('.bu-x')?.addEventListener('click',()=>finish(rec));
+    if(!reduced()&&typeof el.animate==='function'){
+      // 0-8%: slide in from the right | 8-50%: rest so it can be read | 50-100%: glide slowly off to the left
+      rec.anim=el.animate([
+        {transform:'translateX(calc(50vw + 60%))',offset:0,easing:'cubic-bezier(.16,.84,.3,1)'},
+        {transform:'translateX(0)',offset:.08,easing:'linear'},
+        {transform:'translateX(0)',offset:.5,easing:'cubic-bezier(.38,0,.78,.92)'},
+        {transform:'translateX(calc(-50vw - 60%))',offset:1}
+      ],{duration:TRAVEL_MS,fill:'both'});
+      rec.anim.onfinish=()=>finish(rec);
+      el.querySelector('.bu-shine')?.animate([{transform:'translateX(-130%)'},{transform:'translateX(130%)'}],{duration:1500,delay:1500,easing:'ease-in-out',fill:'both'});
+    }else{
+      el.classList.add('bu-static');
+      rec.timer=setTimeout(()=>finish(rec),STATIC_MS);
+    }
+    applyPause();
+  }
+  function finish(rec,silent){
+    if(!rec||rec.done)return;
+    rec.done=true;clearTimeout(rec.timer);try{rec.anim?.cancel();}catch{}
+    rec.layer.remove();
+    if(cur===rec)cur=null;
+    hovering=false;
+    if(silent)return;
+    locked=true;
+    setTimeout(()=>{locked=false;pump();},GAP_MS);
+  }
+
+  /* ---- 3. triggers ---- */
+  function kick(force){
+    if(!force&&Date.now()-lastCheck<20000)return;
+    check();
+  }
+  window.gvgBadgeKick=()=>kick(true);
+  setInterval(()=>{if(!document.hidden)kick(false);},POLL_MS);
+  document.addEventListener('visibilitychange',()=>{
+    applyPause();
+    if(!document.hidden){pump();if(Date.now()-lastCheck>POLL_MS/2)kick(false);}
+  });
+
+  /* Preview helper (type in the browser console): gvgPreviewBadgeUnlock(3)  -> shows a sample card, tier 1-5.
+     It never saves anything, so it can be used any time to see how the announcement looks. */
+  window.gvgPreviewBadgeUnlock=function(tier){
+    const t=Math.max(1,Math.min(5,Number(tier)||3));
+    queue.push({preview:true,v:'preview',norm:'preview',name:(state.guild?.guild_name||state.guest?.guild_name||'7TH UNIVERSE'),mission:1,tier:t,missions:6,score:14,th:50,min:0,mine:1});
+    pump();
+    return 'Preview queued.';
+  };
+})();
 
 (async function boot(){
   renderRules();renderWeaponSkillChoices();
