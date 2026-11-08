@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#030303" />
+  <meta name="theme-color" content="#050204" />
   <meta name="color-scheme" content="dark" />
   <meta name="description" content="7TH UNIVERSE Guild VS Guild — Challenges, verified results and weekly rankings." />
   <link rel="canonical" href="https://7th-universe-gvg.itmaster-1000000.workers.dev/" />
@@ -23,8 +23,8 @@
   <title>7TH UNIVERSE • GUILD VS GUILD</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800;900&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./style.css?v=37.0-badge-fx" />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800;900&family=Cinzel:wght@600;700;800&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./style.css?v=38.0-royal" />
 </head>
 <body>
   <div class="topline"></div>
@@ -65,10 +65,21 @@
           <div class="login-brand"><img src="7th-universe-gvg-logo.jpg" alt="7TH UNIVERSE logo" /><div><strong>CREATE ACCOUNT</strong><span>7TH UNIVERSE GVG LEADER</span></div></div>
           <div class="login-head"><div class="kicker">New Leader</div><h1 class="title">REGISTER</h1><p>One account registers one leader. A guild can have a maximum of two leaders with different contact numbers.</p></div>
           <form id="register-form" novalidate style="margin-top:17px">
-            <div class="field-grid"><label>GUILD NAME<input id="register-guild" type="text" maxlength="30" placeholder="Letters and numbers only, e.g. ELITE FORCE" autocomplete="off" required /></label><label>CONTACT NUMBER<input id="register-contact" type="tel" maxlength="30" placeholder="03XXXXXXXXX" required /></label><label class="full">ACCOUNT EMAIL<input id="register-email" type="email" autocomplete="email" placeholder="leader@example.com" required /></label><label class="full">PASSWORD<input id="register-password" type="password" autocomplete="new-password" minlength="8" placeholder="Minimum 8 characters" required /><label class="full">CONFIRM PASSWORD<input id="register-password-confirm" type="password" autocomplete="new-password" minlength="8" placeholder="Re-enter password" required /></label></div>
+            <div class="field-grid"><label>GUILD NAME<input id="register-guild" type="text" maxlength="30" placeholder="Letters and numbers only, e.g. ELITE FORCE" autocomplete="off" required /></label><label>CONTACT NUMBER<input id="register-contact" type="tel" maxlength="30" placeholder="03XXXXXXXXX" required /></label><label class="full">ACCOUNT EMAIL<input id="register-email" type="email" autocomplete="email" placeholder="leader@example.com" required /></label><label class="full">PASSWORD<input id="register-password" type="password" autocomplete="new-password" minlength="8" placeholder="Minimum 8 characters" required /></label><label class="full">CONFIRM PASSWORD<input id="register-password-confirm" type="password" autocomplete="new-password" minlength="8" placeholder="Re-enter password" required /></label></div>
             <div class="center-actions"><button class="btn btn-primary" type="submit">CREATE ACCOUNT</button><button id="back-login" class="btn btn-ghost" type="button">BACK TO LOGIN</button></div>
             <div id="register-status" class="status"></div>
-            <div class="hint" style="text-align:center;margin-top:11px">If email confirmation is required, confirm the email first, then login. Your pending guild registration will be completed automatically after login.</div>
+            <div class="hint hint-center">A verification code will be emailed to you. Your guild is submitted for admin approval only after you enter the correct code.</div>
+          </form>
+          <form id="verify-form" class="verify-form hidden" novalidate>
+            <div class="verify-icon" aria-hidden="true">&#9993;</div>
+            <div class="kicker">Email Verification</div>
+            <h2 class="verify-title">ENTER YOUR CODE</h2>
+            <p class="verify-text">We sent a verification code to <b id="verify-email">your email</b>. Enter it below to finish your registration.</p>
+            <label>VERIFICATION CODE<input id="verify-code" class="verify-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="&bull; &bull; &bull; &bull; &bull; &bull;" required /></label>
+            <div class="center-actions"><button id="verify-submit" class="btn btn-primary" type="submit">VERIFY &amp; REGISTER</button></div>
+            <div class="verify-links"><button id="verify-resend" class="link-btn" type="button">RESEND CODE</button><button id="verify-change" class="link-btn" type="button">CHANGE EMAIL</button></div>
+            <div id="verify-status" class="status"></div>
+            <div class="hint hint-center">Check your inbox and spam folder. The code expires after 1 hour. If the code is wrong, your guild is not registered.</div>
           </form>
         </div>
       </div>
@@ -109,9 +120,20 @@
 
         <div id="member-section-challenges" class="member-view">
           <div id="ban-slot-challenges" class="ban-slot"></div>
-          <div class="card">
-            <div class="panel-head"><div><div class="kicker">Live Arena</div><h3>CHALLENGES</h3><div class="subtle">Post a new challenge from 10:00 AM until 11:59 PM. Live challenges from the current daily cycle are shown below.</div></div><span class="badge badge-blue">LIVE</span></div>
-            <form id="challenge-form" novalidate>
+          <div class="guild-switch view-switch" id="challenge-switch" role="tablist" aria-label="Challenge views">
+            <button type="button" class="gs-btn active" data-challenge-view="live" role="tab" aria-selected="true">&#9876; LIVE CHALLENGES</button>
+            <button type="button" class="gs-btn" data-challenge-view="mine" role="tab" aria-selected="false">&#128203; MY CHALLENGE</button>
+          </div>
+          <div id="challenge-view-live">
+            <div class="card">
+              <div class="panel-head"><div><div class="kicker">Live Arena</div><h3>LIVE CHALLENGES</h3><div class="subtle">Open guild challenges of the current daily cycle. Tap the WhatsApp button on a challenge to chat privately with that guild leader.</div></div><span id="live-challenge-count" class="badge badge-blue">LIVE</span></div>
+              <div id="live-challenge-list" class="challenge-list"><div class="empty">Loading live challenges...</div></div>
+            </div>
+          </div>
+          <div id="challenge-view-mine" class="hidden">
+            <div class="card">
+              <div class="panel-head"><div><div class="kicker">Post a Challenge</div><h3>MY CHALLENGE</h3><div class="subtle">Post a new challenge from 10:00 AM until 11:59 PM. Other guilds contact you directly on WhatsApp.</div></div><span class="badge badge-gold">10 AM &ndash; 12 AM</span></div>
+              <form id="challenge-form" novalidate>
               <div class="field-grid"><div class="full">
                 <label for="challenge-time-picker">MATCH TIME</label>
                 <input id="challenge-time" type="hidden" required />
@@ -132,20 +154,35 @@
               <div class="split-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px"><button id="challenge-submit" class="btn btn-primary" type="submit">POST CHALLENGE</button></div>
               <div id="challenge-status" class="status"></div>
             </form>
-            <div class="divider"></div><div class="kicker">Live Challenges</div><div id="live-challenge-list" class="challenge-list" style="margin-top:9px"><div class="empty">Loading live challenges...</div></div>
+              <div class="divider"></div><div class="kicker">My Challenges Today</div><div id="my-challenge-list" class="challenge-list"><div class="empty">Loading your challenges...</div></div>
+            </div>
           </div>
         </div>
 
         <div id="member-section-results" class="member-view">
           <div id="ban-slot-results" class="ban-slot"></div>
-          <div class="card">
-            <div class="panel-head"><div><div class="kicker">Verified Records</div><h3>RESULTS</h3><div class="subtle">Either guild involved in the challenge may submit the result. Upload exactly one clear result screenshot.</div></div><span class="badge badge-gold">ADMIN REVIEW</span></div>
-            <form id="result-form" novalidate>
+          <div class="guild-switch view-switch" id="result-switch" role="tablist" aria-label="Result views">
+            <button type="button" class="gs-btn active" data-result-view="live" role="tab" aria-selected="true">&#128202; LIVE RESULTS</button>
+            <button type="button" class="gs-btn" data-result-view="mine" role="tab" aria-selected="false">&#128221; MY RESULTS</button>
+          </div>
+          <div id="result-view-live">
+            <div class="card">
+              <div class="panel-head"><div><div class="kicker">This Week</div><h3>LIVE RESULTS</h3><div id="live-results-week" class="subtle">Admin-approved results of the current week. The week runs from Sunday 10:00 AM to the next Sunday 10:00 AM (Pakistan time).</div></div><span id="live-results-count" class="badge badge-gold">0 MATCHES</span></div>
+              <div id="result-day-tabs" class="day-tabs" role="tablist" aria-label="Choose a day of this week"><button type="button" class="day-tab" data-result-day="0" role="tab" aria-label="Sunday"><span>SUN</span><em>0</em></button><button type="button" class="day-tab" data-result-day="1" role="tab" aria-label="Monday"><span>MON</span><em>0</em></button><button type="button" class="day-tab" data-result-day="2" role="tab" aria-label="Tuesday"><span>TUE</span><em>0</em></button><button type="button" class="day-tab" data-result-day="3" role="tab" aria-label="Wednesday"><span>WED</span><em>0</em></button><button type="button" class="day-tab" data-result-day="4" role="tab" aria-label="Thursday"><span>THU</span><em>0</em></button><button type="button" class="day-tab" data-result-day="5" role="tab" aria-label="Friday"><span>FRI</span><em>0</em></button><button type="button" class="day-tab" data-result-day="6" role="tab" aria-label="Saturday"><span>SAT</span><em>0</em></button></div>
+              <div id="result-day-title" class="day-title"></div>
+              <div id="approved-result-list" class="result-list"><div class="empty">Loading live results...</div></div>
+            </div>
+          </div>
+          <div id="result-view-mine" class="hidden">
+            <div class="card">
+              <div class="panel-head"><div><div class="kicker">Verified Records</div><h3>MY RESULTS</h3><div class="subtle">Either guild involved in the challenge may submit the result. Upload exactly one clear result screenshot.</div></div><span class="badge badge-gold">ADMIN REVIEW</span></div>
+              <form id="result-form" novalidate>
               <div class="field-grid"><label class="full">CHALLENGE<select id="result-challenge" required><option value="">Select an active challenge</option></select></label><label>WINNER GUILD<div class="autocomplete-wrap"><input id="result-winner" type="text" maxlength="80" placeholder="Enter winner guild name" autocomplete="off" required /><div id="result-winner-suggestions" class="autocomplete-list"></div></div></label><label>LOSER GUILD<div class="autocomplete-wrap"><input id="result-loser" type="text" maxlength="80" placeholder="Enter loser guild name" autocomplete="off" required /><div id="result-loser-suggestions" class="autocomplete-list"></div></div></label><label class="full">SCORE<input id="result-score" type="text" maxlength="80" placeholder="Example: 6 - 4" required /></label><label class="full">RESULT PROOF IMAGE<input id="result-image-1" type="file" accept="image/jpeg,image/png,image/webp" required /></label></div>
               <div class="hint">Upload one clear screenshot showing the final match result. A guild can play a maximum of 7 matches per day (as winner or loser). After 10:00 AM the daily challenge expires.</div>
               <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px"><button id="result-submit" class="btn btn-primary" type="submit">SUBMIT RESULT</button></div><div id="result-status" class="status"></div>
             </form>
-            <div class="divider"></div><div class="kicker">My Result Submissions</div><div id="my-result-list" class="result-list" style="margin-top:9px"><div class="empty">Loading your submissions...</div></div><div class="divider"></div><div class="kicker">Approved Results</div><div id="approved-result-list" class="result-list" style="margin-top:9px"><div class="empty">Loading approved results...</div></div>
+              <div class="divider"></div><div class="kicker">My Result Submissions</div><div id="my-result-list" class="result-list"><div class="empty">Loading your submissions...</div></div>
+            </div>
           </div>
         </div>
 
@@ -339,7 +376,7 @@
           <div class="admin-head"><div><div class="kicker">7TH UNIVERSE • ADMIN</div><h2 class="title">CONTROL CENTER</h2><div id="admin-session-label" class="desc">Authenticated admin</div></div><button id="admin-logout" class="btn btn-red btn-small" type="button">ADMIN LOGOUT</button></div>
           <div class="admin-tabs" role="tablist" aria-label="Admin sections"><button class="admin-tab active" type="button" data-admin-section="guilds" aria-selected="true">GUILDS</button><button id="admin-name-change-tab" class="admin-tab" type="button" data-admin-section="name-changes" aria-selected="false">NAME CHANGE REQUESTS (0)</button><button class="admin-tab" type="button" data-admin-section="results" aria-selected="false">RESULTS REVIEW</button><button class="admin-tab" type="button" data-admin-section="ban" aria-selected="false">BAN GUILD</button><button class="admin-tab" type="button" data-admin-section="trophies" aria-selected="false">HALL OF FAME</button><button class="admin-tab" type="button" data-admin-section="rules" aria-selected="false">RULES EDITOR</button></div>
           <div class="admin-layout">
-            <div id="admin-section-guilds" class="admin-panel-view active"><section class="admin-section"><div class="admin-section-head"><div><div class="kicker">Guild Management</div><h3>GUILDS</h3><div class="subtle">New registrations are reviewed first. All guilds are searchable separately below.</div></div><span class="badge badge-gold">GUILD CONTROL</span></div><div class="admin-section-body"><div class="admin-panel review-section"><div class="panel-head"><div><div class="kicker">First Priority</div><h3>GUILD REVIEW</h3><div class="subtle">Newly registered guilds appear at the top.</div></div><span class="badge badge-gold">NEW FIRST</span></div><div class="admin-table-shell"><table class="admin-table"><thead><tr><th>Guild</th><th>Status</th><th>Menu</th></tr></thead><tbody id="pending-guild-table"><tr><td colspan="3">Loading new guilds...</td></tr></tbody></table></div></div><div class="card"><div class="panel-head"><div><div class="kicker">Directory</div><h3>ALL GUILDS</h3><div class="subtle">Only Guild Name + Status are shown in the list.</div></div><span class="badge badge-blue">SEARCH</span></div><div class="search-bar"><input id="admin-guild-search" type="search" placeholder="Search guild name, contact or email..." autocomplete="off" /><span class="search-icon">⌕</span></div><div class="admin-table-shell" style="margin-top:10px"><table class="admin-table"><thead><tr><th>Guild</th><th>Status</th><th>Menu</th></tr></thead><tbody id="all-guild-table"><tr><td colspan="3">Loading guilds...</td></tr></tbody></table></div></div></div></section></div>
+            <div id="admin-section-guilds" class="admin-panel-view active"><section class="admin-section"><div class="admin-section-head"><div><div class="kicker">Guild Management</div><h3>GUILDS</h3><div class="subtle">New registrations are reviewed first. All guilds are searchable separately below.</div></div><span class="badge badge-gold">GUILD CONTROL</span></div><div class="admin-section-body"><div class="admin-panel review-section"><div class="panel-head"><div><div class="kicker">First Priority</div><h3>GUILD REVIEW</h3><div class="subtle">Newly registered guilds appear at the top.</div></div><span class="badge badge-gold">NEW FIRST</span></div><div class="admin-table-shell"><table class="admin-table"><thead><tr><th>Guild</th><th>Status</th></tr></thead><tbody id="pending-guild-table"><tr><td colspan="3">Loading new guilds...</td></tr></tbody></table></div></div><div class="card"><div class="panel-head"><div><div class="kicker">Directory</div><h3>ALL GUILDS</h3><div class="subtle">Only Guild Name + Status are shown in the list.</div></div><span class="badge badge-blue">SEARCH</span></div><div class="search-bar"><input id="admin-guild-search" type="search" placeholder="Search guild name, contact or email..." autocomplete="off" /><span class="search-icon">⌕</span></div><div class="admin-table-shell" style="margin-top:10px"><table class="admin-table"><thead><tr><th>Guild</th><th>Status</th></tr></thead><tbody id="all-guild-table"><tr><td colspan="3">Loading guilds...</td></tr></tbody></table></div></div></div></section></div>
 
             <div id="admin-section-name-changes" class="admin-panel-view"><section class="admin-section"><div class="admin-section-head"><div><div class="kicker">Guild Identity Review</div><h3>GUILD NAME CHANGE REQUESTS</h3><div class="subtle">Review each requested name. The public name and related records change only after approval.</div></div><span class="badge badge-gold">ADMIN ONLY</span></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"><button id="admin-name-change-refresh" class="btn btn-ghost btn-small" type="button">REFRESH REQUESTS</button><span class="hint">When the WhatsApp webhook is configured, requests and approved name changes are also posted to the configured GVG group.</span></div><div id="admin-name-change-status" class="status"></div><div id="admin-name-change-list" class="challenge-list"><div class="empty">Loading name-change requests...</div></div></section></div>
 
@@ -557,7 +594,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
 (function(){
-  window.__GVG_HTML_VERSION='37.0';
+  window.__GVG_HTML_VERSION='38.0';
   function show(msg){
     try{
       var d=document.getElementById('gvg-fatal');
@@ -583,7 +620,7 @@
   });
 })();
 </script>
-<script src="./script.js?v=37.0-badge-fx"></script>
+<script src="./script.js?v=38.0-royal"></script>
   <div id="app-dialog-backdrop" class="app-dialog-backdrop" aria-hidden="true"><div id="app-dialog" class="app-dialog" role="dialog" aria-modal="true" aria-labelledby="app-dialog-title"></div></div>
 
 </body>

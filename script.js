@@ -1,4 +1,4 @@
-window.__GVG_SCRIPT_VERSION='37.0';
+window.__GVG_SCRIPT_VERSION='38.0';
 /*
   7TH UNIVERSE GVG — FINAL FRONTEND
   Uses two isolated Supabase Auth clients so the Admin browser session
@@ -120,6 +120,10 @@ const state = {
   rankingMode: 'current-week',
   rankingCache: {},
   challenges: [],
+  challengeView: 'live',
+  resultView: 'live',
+  resultDay: -1,
+  weekResults: [],
   guildOptions: [],
   results: [],
   guilds: [],
@@ -216,6 +220,29 @@ function normalizeGuild(value) { return String(value || '').trim().replace(/\s+/
 function normalizeContact(value) { let n = String(value || '').replace(/\D/g, ''); if (n.startsWith('00')) n = n.slice(2); if (n.startsWith('0')) n = `92${n.slice(1)}`; return n; }
 function formatContact(value) { const n = normalizeContact(value); if (!n) return ''; return n.startsWith('92') && n.length === 12 ? `+92 ${n.slice(2,5)} ${n.slice(5,8)} ${n.slice(8)}` : `+${n}`; }
 function formatTime(value) { if (!value) return '--:--'; const [hRaw,mRaw='00'] = String(value).split(':'); const h = Number(hRaw); if (!Number.isFinite(h)) return '--:--'; return `${h % 12 || 12}:${String(mRaw).padStart(2,'0')} ${h >= 12 ? 'PM' : 'AM'}`; }
+
+/* ===== v38: WhatsApp links + Pakistan-time (PKT) week helpers ===== */
+const WA_ICON='<svg class="wa-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>';
+const DAY_NAMES=['SUNDAY','MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY'];
+function waLink(contact,text){
+  let n=normalizeContact(contact);
+  if(/^3\d{9}$/.test(n)) n=`92${n}`; // 3001234567 -> 923001234567
+  if(!/^\d{10,15}$/.test(n)) return '';
+  return `https://wa.me/${n}${text?`?text=${encodeURIComponent(text)}`:''}`;
+}
+/* A GVG day runs 10:00 AM -> 10:00 AM Pakistan time and the week starts Sunday 10:00 AM (same rule as the database). 0 = Sunday ... 6 = Saturday. */
+function gvgDayIndex(value){
+  const t=typeof value==='number'?value:Date.parse(value);
+  if(!Number.isFinite(t)) return -1;
+  return new Date(t+5*3600e3-10*3600e3).getUTCDay();
+}
+function gvgWeekStartMs(now=Date.now()){
+  const d=new Date(now+5*3600e3-10*3600e3);
+  return Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate()-d.getUTCDay(),5,0,0,0);
+}
+function formatClock(value){
+  try{return new Intl.DateTimeFormat('en-PK',{timeZone:TIME_ZONE,hour:'numeric',minute:'2-digit'}).format(new Date(value)).toUpperCase();}catch{return '';}
+}
 function formatDateTime(value) { try { return new Intl.DateTimeFormat('en-PK',{dateStyle:'medium',timeStyle:'short',timeZone:TIME_ZONE}).format(new Date(value)); } catch { return String(value || ''); } }
 function formatWeekRange(startValue){
   try{
@@ -232,6 +259,8 @@ function humanizeError(error){
   let msg=String(error?.message || error?.error_description || error || 'Unknown error').trim().replace(/^(Error:\s*)/i,'');
   msg=msg.replace(/^[A-Z][A-Z0-9_]{2,}:\s*/,'');
   if(/captcha/i.test(msg)) return 'Security check failed. Wait a few seconds and try again. If it keeps failing, refresh the page and turn off any ad-blocker for this site.';
+  if(/email not confirmed/i.test(msg)) return 'Your email is not verified yet. Enter the code we emailed you.';
+  if(/EMAIL_NOT_VERIFIED/i.test(String(error?.message||error||''))) return 'Verify your email with the code first, then register your guild.';
   if(/rate limit|too many requests|only request this after|over_.*rate_limit/i.test(msg)) return 'Too many attempts. Please wait a minute and try again.';
   return msg;
 }
@@ -384,6 +413,9 @@ function setMemberAccessGate(){
   });
 }
 
+function scrollActiveTabIntoView(selector){
+  try{document.querySelector(selector)?.scrollIntoView({inline:'center',block:'nearest',behavior:'smooth'});}catch{}
+}
 function openMemberSection(name){
   const allowed=['rules','challenges','results','ranking','guild-profiles','hall-of-fame'];
   const section=state.guest?(['guild-profiles','hall-of-fame'].includes(name)?name:'guild-profiles'):(allowed.includes(name)?name:'rules');
@@ -395,7 +427,9 @@ function openMemberSection(name){
 
   document.querySelectorAll('.member-view').forEach(el=>el.classList.toggle('active',el.id===`member-section-${section}`));
   document.querySelectorAll('[data-member-section]').forEach(btn=>btn.classList.toggle('active',btn.dataset.memberSection===section));
-  if(section==='challenges') loadSectionCached('member:challenges',loadLiveChallenges,15000);
+  scrollActiveTabIntoView('.member-tab.active');
+  if(section==='challenges'){setChallengeView('live');loadSectionCached('member:challenges',loadLiveChallenges,15000);}
+  if(section==='results') setResultView('live');
   if(section==='results') Promise.all([
     loadSectionCached('member:challenges',loadLiveChallenges,15000),
     loadSectionCached('member:guild-options',loadGuildOptions,30000),
@@ -633,6 +667,114 @@ async function completePendingRegistration(){
   }
 }
 
+/* ===== v38: mandatory email verification code at registration ===== */
+const EMAIL_CODE_REQUIRED=true; // keep true: a guild can be registered only after the emailed code is entered
+let verifyCtx=null;
+let resendTimer=null;
+
+async function registerGuildForCurrentUser(guild,contact){
+  const {data:reg,error:regError}=await db.rpc('register_gvg_guild',{p_guild_name:guild,p_contact:contact});
+  if(regError) throw regError;
+  clearPendingRegistration();
+  state.guild=Array.isArray(reg)?(reg[0]||null):reg;
+  await loadMyGuild();
+  clearSectionCache('member:');
+  openView('member');
+  await refreshMember({reloadGuild:false});
+  syncRegisterNav();
+}
+function showRegisterStep(step){
+  const verify=step==='verify';
+  $('register-form')?.classList.toggle('hidden',verify);
+  $('verify-form')?.classList.toggle('hidden',!verify);
+  document.querySelector('#register-view .login-head')?.classList.toggle('hidden',verify);
+  document.querySelector('#register-view .login-brand')?.classList.toggle('hidden',verify);
+}
+function startResendCooldown(seconds=60){
+  clearInterval(resendTimer);
+  const btn=$('verify-resend');
+  let left=seconds;
+  const tick=()=>{
+    if(!btn) return;
+    if(left<=0){clearInterval(resendTimer);btn.disabled=false;btn.textContent='RESEND CODE';return;}
+    btn.disabled=true;btn.textContent=`RESEND CODE (${left}s)`;left-=1;
+  };
+  tick();
+  resendTimer=setInterval(tick,1000);
+}
+function startEmailVerification({email,guild='',contact=''},{resent=false}={}){
+  verifyCtx={email,guild,contact};
+  const label=$('verify-email'); if(label) label.textContent=email;
+  const input=$('verify-code'); if(input) input.value='';
+  clearStatus('verify-status');
+  openView('register');
+  showRegisterStep('verify');
+  startResendCooldown(60);
+  showStatus('verify-status','info',resent?'A new code has been sent. Enter it below.':'Code sent. Enter it below to finish your registration.');
+  input?.focus();
+}
+function leaveEmailVerification(){
+  clearInterval(resendTimer);
+  verifyCtx=null;
+  showRegisterStep('form');
+}
+async function handleVerifySubmit(e){
+  e.preventDefault();
+  clearStatus('verify-status');
+  const ctx=verifyCtx;
+  if(!ctx){showRegisterStep('form');return;}
+  const token=String($('verify-code')?.value||'').replace(/\D/g,'');
+  if(token.length<6){showStatus('verify-status','error','Enter the full numeric code from your email.');return;}
+  let user=null;
+  try{
+    setBusy('verify-submit',true,'VERIFY & REGISTER');
+    const {data,error}=await db.auth.verifyOtp({email:ctx.email,token,type:'signup'});
+    if(error) throw error;
+    user=data?.user||data?.session?.user||null;
+    if(!user) throw new Error('Verification finished but no session was returned. Please login with your email and password.');
+  }catch(error){
+    const msg=String(error?.message||error||'');
+    showStatus('verify-status','error',/expired|invalid|token|otp/i.test(msg)?'That code is wrong or has expired. Check the newest email, or tap RESEND CODE.':humanizeError(error));
+    setBusy('verify-submit',false,'VERIFY & REGISTER');
+    return;
+  }
+  // The email is verified from here on. Only now is the guild registration submitted.
+  try{
+    state.user=user;
+    clearSectionCache('member:');
+    await loadMyGuild();
+    const pending=readPendingRegistration();
+    const samePending=pending&&String(pending.email||'').trim().toLowerCase()===ctx.email;
+    const guild=ctx.guild||(samePending?pending.guild:'');
+    const contact=ctx.contact||(samePending?pending.contact:'');
+    leaveEmailVerification();
+    if(!state.guild&&guild&&contact){
+      await registerGuildForCurrentUser(guild,contact);
+      showStatus('guild-auth-status','ok','Email verified. Your guild is now pending admin approval.');
+    }else{
+      await enterMember({skipGuildReload:true});
+    }
+  }catch(error){
+    showRegisterStep('form');
+    showStatus('register-status','error','Your email is verified, but the guild could not be registered: '+humanizeError(error));
+  }finally{
+    setBusy('verify-submit',false,'VERIFY & REGISTER');
+  }
+}
+async function handleVerifyResend(){
+  const ctx=verifyCtx;
+  if(!ctx) return;
+  clearStatus('verify-status');
+  try{
+    const {error}=await db.auth.resend({type:'signup',email:ctx.email,options:{captchaToken:await getCaptchaToken('resend')}});
+    if(error) throw error;
+    startResendCooldown(60);
+    showStatus('verify-status','ok','A new code has been sent. Use the newest email only.');
+  }catch(error){
+    showStatus('verify-status','error',humanizeError(error));
+  }
+}
+
 async function handleLogin(e){
   e.preventDefault();
   clearStatus('login-status');
@@ -657,7 +799,14 @@ async function handleLogin(e){
     await completePendingRegistration();
     await enterMember({skipGuildReload:true});
   }catch(error){
-    showStatus('login-status','error',humanizeError(error));
+    if(/email not confirmed|email_not_confirmed/i.test(String(error?.message||error?.code||error||''))){
+      const pending=readPendingRegistration();
+      const same=pending&&String(pending.email||'').trim().toLowerCase()===email;
+      try{await db.auth.resend({type:'signup',email,options:{captchaToken:await getCaptchaToken('resend')}});}catch(resendError){console.warn('Could not resend the code:',resendError);}
+      startEmailVerification({email,guild:same?pending.guild:'',contact:same?pending.contact:''},{resent:true});
+    }else{
+      showStatus('login-status','error',humanizeError(error));
+    }
   }finally{
     setBusy('login-form',false,'LOGIN TO GVG');
   }
@@ -693,22 +842,7 @@ async function handleRegister(e){
     return;
   }
 
-  const registerWithCurrentUser = async () => {
-    const {data:reg,error:regError}=await db.rpc('register_gvg_guild',{
-      p_guild_name:guild,
-      p_contact:contact
-    });
-
-    if(regError) throw regError;
-
-    clearPendingRegistration();
-    state.guild=Array.isArray(reg)?(reg[0]||null):reg;
-    await loadMyGuild();
-    clearSectionCache('member:');
-    openView('member');
-    await refreshMember({reloadGuild:false});
-    syncRegisterNav();
-  };
+  const registerWithCurrentUser = () => registerGuildForCurrentUser(guild,contact);
 
   try{
     setBusy('register-form',true,'CREATE ACCOUNT');
@@ -795,15 +929,20 @@ async function handleRegister(e){
     savePendingRegistration({guild,contact,email});
 
     if(data.session){
+      // Supabase returned a session straight away, which means "Confirm email" is switched off on the server.
+      if(EMAIL_CODE_REQUIRED){
+        try{await db.auth.signOut();}catch{}
+        state.user=null;
+        state.guild=null;
+        showStatus('register-status','error','Email verification is not switched on yet. Please contact the 7TH UNIVERSE admin.');
+        return;
+      }
       state.user=data.user;
       await registerWithCurrentUser();
       showStatus('guild-auth-status','ok','Guild registered successfully. Your guild is now pending admin approval.');
     }else{
-      showStatus(
-        'register-status',
-        'info',
-        'Account created. Please confirm the email, then login. Your guild registration details are saved and will be submitted automatically after login.'
-      );
+      // The verification code has been emailed. The guild is registered only after the correct code is entered.
+      startEmailVerification({email,guild,contact});
     }
   }catch(error){
     const message=String(error?.message||error||'').trim();
@@ -928,14 +1067,21 @@ async function loadRegisteredGuilds(){
 
 async function loadLiveChallenges(){
   try{
-    const {data,error}=await db.rpc('get_gvg_live_challenges');
-    if(error) throw error;
-    state.challenges=data||[];
+    let res=await db.rpc('get_gvg_live_challenges_v2');
+    // Older database without the v2 function: fall back so the site keeps working until the SQL file is run.
+    if(res.error&&/could not find the function|does not exist|PGRST202|42883/i.test(String(res.error.message||res.error.code||res.error))){
+      res=await db.rpc('get_gvg_live_challenges');
+    }
+    if(res.error) throw res.error;
+    state.challenges=res.data||[];
     renderChallenges();
     fillResultChallenges();
   }catch(error){
     console.error(error);
-    $('live-challenge-list').innerHTML='<div class="empty">Could not load live challenges.</div>';
+    const msg='<div class="empty">Could not load live challenges.</div>';
+    const a=$('live-challenge-list'),b=$('my-challenge-list');
+    if(a) a.innerHTML=msg;
+    if(b) b.innerHTML=msg;
   }
 }
 
@@ -946,38 +1092,70 @@ function challengeStatusLabel(status){
   return 'OPEN';
 }
 
+function isMyGuildName(name){
+  return Boolean(state.guild?.guild_name)&&normalizeGuild(name)===normalizeGuild(state.guild.guild_name);
+}
+function challengeWhatsAppText(c){
+  const me=state.guild?.guild_name||'my guild';
+  const weapons=(c.weapons||[]).join(', ')||'any';
+  const pc=typeof c.pc_allowed==='boolean'?(c.pc_allowed?'PC allowed':'PC not allowed'):'';
+  const skills=(c.active_skills||[]).length?(c.active_skills||[]).join(', '):'no active skills';
+  return `Hello! I am the leader of ${me} (7TH UNIVERSE GVG). We accept your challenge ${c.challenge_code||''} at ${formatTime(c.match_time)}.\nWeapons: ${weapons}${pc?`\n${pc}`:''}\nActive skills: ${skills}\nPlease confirm the match.`;
+}
+function challengeCardHtml(c){
+  const status=String(c.status||'open'),open=status==='open',mine=isMyGuildName(c.guild_name);
+  const weapons=c.weapons||[],skills=c.active_skills||[];
+  const hasPc=typeof c.pc_allowed==='boolean';
+  const wa=(!mine&&open)?waLink(c.contact_number,challengeWhatsAppText(c)):'';
+  const opponent=c.opponent_guild_name?escapeHtml(c.opponent_guild_name):'OPEN SLOT';
+  const badgeCls=status==='open'?'badge-blue':status==='result_pending'?'badge-gold':'badge-green';
+  let actions='';
+  if(wa) actions+=`<a class="wa-btn" href="${wa}" target="_blank" rel="noopener noreferrer" aria-label="Chat with ${escapeHtml(c.guild_name)} on WhatsApp">${WA_ICON}<span class="wa-txt"><b>CHAT ON WHATSAPP</b><small>${escapeHtml(formatContact(c.contact_number))}</small></span></a>`;
+  else if(open&&!mine&&c.contact_number) actions+=`<span class="ch-contact">${escapeHtml(formatContact(c.contact_number))}</span>`;
+  if(mine) actions+=`<span class="ch-note">YOUR CHALLENGE &bull; GUILDS CONTACT YOU ON WHATSAPP</span>`;
+  if(open) actions+=`<button class="btn btn-ghost btn-small" type="button" data-action="result-from-challenge" data-id="${escapeHtml(c.id)}">SUBMIT RESULT</button>`;
+  else actions+=`<span class="ch-note">${status==='result_pending'?'RESULT UNDER ADMIN REVIEW':'RESULT COMPLETED'}</span>`;
+  return `<article class="challenge-card" data-state="${escapeHtml(status)}"${mine?' data-mine="1"':''}>
+    <header class="ch-top"><span class="ch-code">${escapeHtml(c.challenge_code||'CHALLENGE')}</span><span class="badge ${badgeCls}">${escapeHtml(challengeStatusLabel(status))}</span></header>
+    <div class="ch-versus">
+      <div class="ch-side"><small>CHALLENGER</small><strong>${escapeHtml(c.guild_name)}</strong></div>
+      <div class="ch-vs">VS</div>
+      <div class="ch-side ch-side-b${c.opponent_guild_name?'':' is-open'}"><small>OPPONENT</small><strong>${opponent}</strong></div>
+    </div>
+    <dl class="ch-rules">
+      <div class="ch-rule"><dt>MATCH TIME</dt><dd class="ch-time">${escapeHtml(formatTime(c.match_time))}</dd></div>
+      ${hasPc?`<div class="ch-rule"><dt>PC MODE</dt><dd><span class="pc-chip ${c.pc_allowed?'is-allowed':'is-blocked'}">${c.pc_allowed?'PC ALLOWED':'PC NOT ALLOWED'}</span></dd></div>`:''}
+      <div class="ch-rule ch-rule-wide"><dt>WEAPONS ALLOWED</dt><dd class="pill-wrap">${weapons.length?weapons.map(x=>`<span class="pill">${escapeHtml(x)}</span>`).join(''):'<span class="pill pill-muted">ANY</span>'}</dd></div>
+      <div class="ch-rule ch-rule-wide"><dt>ACTIVE SKILLS</dt><dd class="pill-wrap">${skills.length?skills.map(x=>`<span class="pill pill-skill">${escapeHtml(x)}</span>`).join(''):'<span class="pill pill-muted">NO ACTIVE SKILLS</span>'}</dd></div>
+    </dl>
+    <footer class="ch-actions">${actions}</footer>
+  </article>`;
+}
 function renderChallenges(){
-  const target=$('live-challenge-list');
-  if(!target) return;
-
-  target.innerHTML=state.challenges.length
-    ? state.challenges.map(c=>{
-        const status=String(c.status||'open');
-        const canSubmit=status==='open';
-
-        return `<div class="challenge-card" data-state="${escapeHtml(status)}">
-          <div class="meta-row">
-            <div>
-              <div class="kicker">${escapeHtml(c.challenge_code||'CHALLENGE')}</div>
-              <div class="name">${escapeHtml(c.guild_name)}</div>
-            </div>
-            <span class="badge ${status==='open'?'badge-blue':status==='result_pending'?'badge-gold':'badge-green'}">${escapeHtml(challengeStatusLabel(status))}</span>
-          </div>
-          <div class="challenge-time">MATCH ${escapeHtml(formatTime(c.match_time))}</div>
-          <div class="pill-wrap">
-            ${(c.weapons||[]).map(x=>`<span class="pill">${escapeHtml(x)}</span>`).join('')}
-            ${(c.active_skills||[]).map(x=>`<span class="pill">${escapeHtml(x)}</span>`).join('')}
-          </div>
-          <div class="contact-line">
-            <a class="contact-link" href="tel:${escapeHtml(normalizeContact(c.contact_number))}">${escapeHtml(formatContact(c.contact_number))}</a>
-            ${canSubmit
-              ? `<button class="btn btn-primary btn-small" type="button" data-action="result-from-challenge" data-id="${escapeHtml(c.id)}">SUBMIT RESULT</button>`
-              : `<span class="muted" style="font-size:8px">${status==='result_pending'?'RESULT UNDER ADMIN REVIEW.':'RESULT COMPLETED.'}</span>`
-            }
-          </div>
-        </div>`;
-      }).join('')
-    : '<div class="empty">No current-cycle challenges right now.</div>';
+  const live=$('live-challenge-list'),mineBox=$('my-challenge-list');
+  const rank={open:0,result_pending:1,completed:2};
+  const all=[...state.challenges].sort((a,b)=>(rank[a.status]??3)-(rank[b.status]??3));
+  const openCount=all.filter(c=>String(c.status||'open')==='open').length;
+  const badge=$('live-challenge-count'); if(badge) badge.textContent=openCount?`${openCount} OPEN`:'NO OPEN';
+  if(live) live.innerHTML=all.length?all.map(challengeCardHtml).join(''):'<div class="empty">No challenges are live right now. Post one from MY CHALLENGE.</div>';
+  if(mineBox){
+    const mine=all.filter(c=>isMyGuildName(c.guild_name));
+    mineBox.innerHTML=mine.length?mine.map(challengeCardHtml).join(''):'<div class="empty">You have not posted a challenge in the current daily cycle.</div>';
+  }
+}
+function setChallengeView(view){
+  const mine=view==='mine';
+  state.challengeView=mine?'mine':'live';
+  $('challenge-view-live')?.classList.toggle('hidden',mine);
+  $('challenge-view-mine')?.classList.toggle('hidden',!mine);
+  document.querySelectorAll('[data-challenge-view]').forEach(b=>{const on=b.dataset.challengeView===state.challengeView;b.classList.toggle('active',on);b.setAttribute('aria-selected',on?'true':'false');});
+}
+function setResultView(view){
+  const mine=view==='mine';
+  state.resultView=mine?'mine':'live';
+  $('result-view-live')?.classList.toggle('hidden',mine);
+  $('result-view-mine')?.classList.toggle('hidden',!mine);
+  document.querySelectorAll('[data-result-view]').forEach(b=>{const on=b.dataset.resultView===state.resultView;b.classList.toggle('active',on);b.setAttribute('aria-selected',on?'true':'false');});
 }
 
 let guildSearchSerial = 0;
@@ -1115,13 +1293,16 @@ function fillResultGuilds(){
 function selectChallengeForResult(id){
   const c=state.challenges.find(x=>x.id===id);
   if(!c)return;
-  $('result-challenge').value=id;
+  openMemberSection('results');
+  setResultView('mine');
+  const sel=$('result-challenge');
+  if(sel)sel.value=id;
   const challenger=String(c.guild_name||'').trim();
   const winnerInput=$('result-winner');
   const loserInput=$('result-loser');
   if(winnerInput)winnerInput.value=challenger;
   if(loserInput)loserInput.value='';
-  $('result-form').scrollIntoView({behavior:'smooth',block:'center'});
+  setTimeout(()=>$('result-form')?.scrollIntoView({behavior:'smooth',block:'center'}),120);
 }
 
 async function uploadResultImages(files){
@@ -1195,7 +1376,54 @@ async function loadMyResultSubmissions(){
 }
 
 async function loadApprovedResults(){
-  try{const {data,error}=await db.rpc('get_gvg_approved_results');if(error)throw error;state.results=data||[];const target=$('approved-result-list');target.innerHTML=state.results.length?state.results.map(r=>`<div class="result-slot"><div class="result-teams"><div class="team win"><strong>${escapeHtml(r.winner_guild)}</strong><small>WIN</small></div><div class="vs">VS</div><div class="team loss"><strong>${escapeHtml(r.loser_guild)}</strong><small>DEFEAT</small></div></div><div class="score-line">SCORE • ${escapeHtml(r.score)}</div></div>`).join(''):'<div class="empty">No approved results yet.</div>';}catch(error){console.error(error);$('approved-result-list').innerHTML='<div class="empty">Could not load approved results.</div>';}
+  const target=$('approved-result-list');
+  try{
+    let res=await db.rpc('get_gvg_week_results');
+    let rows;
+    if(res.error&&/could not find the function|does not exist|PGRST202|42883/i.test(String(res.error.message||res.error.code||res.error))){
+      // Older database: use the general approved list and keep only this week on the device.
+      res=await db.rpc('get_gvg_approved_results');
+      if(res.error) throw res.error;
+      const weekStart=gvgWeekStartMs();
+      rows=(res.data||[]).filter(r=>Date.parse(r.created_at)>=weekStart).map(r=>({...r,day_idx:gvgDayIndex(r.created_at)}));
+    }else{
+      if(res.error) throw res.error;
+      rows=(res.data||[]).map(r=>({...r,day_idx:Number.isInteger(r.day_idx)?r.day_idx:gvgDayIndex(r.created_at)}));
+    }
+    state.weekResults=rows;
+    state.results=rows;
+    if(state.resultDay<0||state.resultDay>6) state.resultDay=gvgDayIndex(Date.now());
+    renderLiveResults();
+  }catch(error){
+    console.error(error);
+    if(target) target.innerHTML='<div class="empty">Could not load live results.</div>';
+  }
+}
+function setResultDay(index){
+  state.resultDay=Math.max(0,Math.min(6,Number(index)||0));
+  renderLiveResults();
+}
+function renderLiveResults(){
+  const target=$('approved-result-list');
+  if(!target) return;
+  const rows=state.weekResults||[],today=gvgDayIndex(Date.now());
+  const counts=Array(7).fill(0);
+  rows.forEach(r=>{if(r.day_idx>=0)counts[r.day_idx]+=1;});
+  document.querySelectorAll('[data-result-day]').forEach(btn=>{
+    const i=Number(btn.dataset.resultDay);
+    btn.classList.toggle('active',i===state.resultDay);
+    btn.classList.toggle('today',i===today);
+    btn.classList.toggle('future',i>today);
+    btn.setAttribute('aria-selected',i===state.resultDay?'true':'false');
+    const em=btn.querySelector('em'); if(em) em.textContent=String(counts[i]);
+  });
+  const total=$('live-results-count'); if(total) total.textContent=`${rows.length} MATCH${rows.length===1?'':'ES'}`;
+  const dayRows=rows.filter(r=>r.day_idx===state.resultDay);
+  const title=$('result-day-title');
+  if(title) title.innerHTML=`<b>${DAY_NAMES[state.resultDay]||''}</b><span>${dayRows.length} MATCH${dayRows.length===1?'':'ES'}${state.resultDay===today?' &bull; TODAY':''}</span>`;
+  target.innerHTML=dayRows.length
+    ? dayRows.map(r=>`<div class="result-slot"><div class="result-teams"><div class="team win"><strong>${escapeHtml(r.winner_guild)}</strong><small>WIN</small></div><div class="vs">VS</div><div class="team loss"><strong>${escapeHtml(r.loser_guild)}</strong><small>DEFEAT</small></div></div><div class="score-line">SCORE &bull; ${escapeHtml(r.score)}${r.created_at?` &bull; ${escapeHtml(formatClock(r.created_at))}`:''}</div></div>`).join('')
+    : `<div class="empty">${state.resultDay>today?'This day has not started yet.':'No approved results for this day yet.'}</div>`;
 }
 
 async function rpcWithTimeout(name, rpcCall, timeoutMs=8000){
@@ -1375,7 +1603,7 @@ function guildStatusLabel(g){ if(g.is_banned || (g.ban_until&&new Date(g.ban_unt
 function guildStatusClass(g){ if(g.is_banned || (g.ban_until&&new Date(g.ban_until)>new Date()))return 'status-banned'; if(g.approval_status==='approved')return 'status-approved'; if(g.approval_status==='pending')return 'status-pending'; return 'status-rejected'; }
 function filteredGuilds(){const q=($('admin-guild-search').value||'').trim().toLowerCase();if(!q)return state.guilds;return state.guilds.filter(g=>[g.guild_name,g.contact,g.approval_status,g.email_list].some(v=>String(v||'').toLowerCase().includes(q)));}
 function guildMenu(g){return `<div class="menu-wrap"><button class="dots-btn" type="button" data-menu-button="${escapeHtml(g.id)}">⋮</button><div class="dots-menu" id="menu-${escapeHtml(g.id)}"><button type="button" data-action="guild-info" data-id="${escapeHtml(g.id)}">GUILD INFO</button><button type="button" data-action="guild-edit" data-id="${escapeHtml(g.id)}">EDIT</button><button class="danger" type="button" data-action="guild-remove" data-id="${escapeHtml(g.id)}">REMOVE GUILD</button></div></div>`;}
-function renderGuildTable(targetId,rows){const target=$(targetId);if(!target)return;target.innerHTML=rows.length?rows.map(g=>`<tr><td><div class="guild-row"><div class="guild-main"><strong>${escapeHtml(g.guild_name)}</strong><span>${escapeHtml(g.leader_count)} leader(s)</span></div>${guildMenu(g)}</div></td><td><span class="status-pill ${guildStatusClass(g)}">${escapeHtml(guildStatusLabel(g))}</span></td><td><span class="muted" style="font-size:8px">⋮ MENU</span></td></tr>`).join(''):'<tr><td colspan="3">No matching guilds.</td></tr>';}
+function renderGuildTable(targetId,rows){const target=$(targetId);if(!target)return;target.innerHTML=rows.length?rows.map(g=>`<tr><td><div class="guild-row"><div class="guild-main"><strong>${escapeHtml(g.guild_name)}</strong><span>${escapeHtml(g.leader_count)} leader(s)</span></div>${guildMenu(g)}</div></td><td><span class="status-pill ${guildStatusClass(g)}">${escapeHtml(guildStatusLabel(g))}</span></td></tr>`).join(''):'<tr><td colspan="2">No matching guilds.</td></tr>';}
 async function loadAdminGuilds(){
   try{const {data,error}=await adminDb.rpc('admin_get_guild_directory');if(error)throw error;state.guilds=data||[];const pending=state.guilds.filter(g=>String(g.approval_status)==='pending');renderGuildTable('pending-guild-table',pending);renderGuildTable('all-guild-table',filteredGuilds());}catch(error){showStatus('admin-status','error',humanizeError(error));}
 }
@@ -1512,7 +1740,7 @@ function preferredResultProofUrls(imageUrls){
 }
 
 async function loadAdminResults(){
-  try{const {data,error}=await adminDb.rpc('admin_get_results');if(error)throw error;const rows=data||[];state.results=rows;const target=$('admin-result-table');target.innerHTML=rows.length?rows.map(r=>{const imgs=preferredResultProofUrls(r.image_urls);const gallery=imgs.length?`<details class="proof-details"><summary>OPEN RESULT PROOF</summary><div class="proof-gallery">${imgs.map((u,i)=>`<a href="${escapeHtml(u)}" target="_blank" rel="noopener"><span class="proof-tag">RESULT PROOF</span><img data-proof-src="${escapeHtml(u)}" loading="lazy" decoding="async" alt="${escapeHtml(r.winner_guild)} vs ${escapeHtml(r.loser_guild)} result proof" /></a>`).join('')}</div></details>`:'<span class="muted">No proof</span>';return `<tr><td><strong>${escapeHtml(r.winner_guild)}</strong><div class="muted" style="margin-top:3px">DEFEAT</div><strong>${escapeHtml(r.loser_guild)}</strong></td><td>${escapeHtml(r.score)}</td><td><strong style="font-size:9px">${escapeHtml(formatDateTime(r.created_at))}</strong><div class="muted" style="margin-top:4px;font-size:7px">PAKISTAN TIME</div></td><td>${gallery}<div style="margin-top:6px"><span class="status-pill ${r.status==='approved'?'status-approved':r.status==='pending'?'status-pending':'status-rejected'}">${escapeHtml(r.status)}</span></div></td><td>${r.status==='pending'?`<div style="display:flex;gap:5px;flex-wrap:wrap"><button class="btn btn-green btn-small" type="button" data-action="approve-result" data-id="${escapeHtml(r.id)}">APPROVE</button><button class="btn btn-red btn-small" type="button" data-action="reject-result" data-id="${escapeHtml(r.id)}">REJECT</button></div>`:'—'}</td></tr>`;}).join(''):'<tr><td colspan="4">No result submissions.</td></tr>';}catch(error){showStatus('admin-status','error',humanizeError(error));}
+  try{const {data,error}=await adminDb.rpc('admin_get_results');if(error)throw error;const rows=data||[];state.results=rows;const target=$('admin-result-table');target.innerHTML=rows.length?rows.map(r=>{const imgs=preferredResultProofUrls(r.image_urls);const gallery=imgs.length?`<details class="proof-details"><summary>OPEN RESULT PROOF</summary><div class="proof-gallery">${imgs.map((u,i)=>`<a href="${escapeHtml(u)}" target="_blank" rel="noopener"><span class="proof-tag">RESULT PROOF</span><img data-proof-src="${escapeHtml(u)}" loading="lazy" decoding="async" alt="${escapeHtml(r.winner_guild)} vs ${escapeHtml(r.loser_guild)} result proof" /></a>`).join('')}</div></details>`:'<span class="muted">No proof</span>';return `<tr><td><strong>${escapeHtml(r.winner_guild)}</strong><div class="muted" style="margin-top:3px">DEFEAT</div><strong>${escapeHtml(r.loser_guild)}</strong></td><td>${escapeHtml(r.score)}</td><td><strong class="cell-time">${escapeHtml(formatDateTime(r.created_at))}</strong><div class="muted cell-note">PAKISTAN TIME</div></td><td>${gallery}<div style="margin-top:6px"><span class="status-pill ${r.status==='approved'?'status-approved':r.status==='pending'?'status-pending':'status-rejected'}">${escapeHtml(r.status)}</span></div></td><td>${r.status==='pending'?`<div style="display:flex;gap:5px;flex-wrap:wrap"><button class="btn btn-green btn-small" type="button" data-action="approve-result" data-id="${escapeHtml(r.id)}">APPROVE</button><button class="btn btn-red btn-small" type="button" data-action="reject-result" data-id="${escapeHtml(r.id)}">REJECT</button></div>`:'—'}</td></tr>`;}).join(''):'<tr><td colspan="4">No result submissions.</td></tr>';}catch(error){showStatus('admin-status','error',humanizeError(error));}
 }
 async function approveResult(id){try{const {error}=await adminDb.rpc('admin_approve_result',{p_result_id:id});if(error)throw error;invalidateResultViewCaches();showStatus('admin-status','ok','Result approved. The database point-award function completed; rankings will reload on the next member view. WhatsApp delivery is handled by the webhook bridge.');clearSectionCache('admin:');await Promise.all([loadAdminResults(),loadAdminGuilds()]);markSectionLoaded('admin:results');markSectionLoaded('admin:guilds');}catch(error){showStatus('admin-status','error',humanizeError(error));}}
 async function rejectResult(id){
@@ -1523,7 +1751,7 @@ async function rejectResult(id){
 
 async function handleBan(e){e.preventDefault();clearStatus('ban-status');const guild=$('ban-guild').value.trim(),duration=$('ban-duration').value,reason=$('ban-reason').value.trim()||'Rule violation';if(!guild)return showStatus('ban-status','error','Enter the guild name to ban.');let until=null;const now=new Date();if(duration==='1h')until=new Date(now.getTime()+60*60*1000);if(duration==='6h')until=new Date(now.getTime()+6*60*60*1000);if(duration==='1d')until=new Date(now.getTime()+24*60*60*1000);if(duration==='3d')until=new Date(now.getTime()+3*24*60*60*1000);if(duration==='7d')until=new Date(now.getTime()+7*24*60*60*1000);try{const {error}=await adminDb.rpc('admin_ban_guild_identity',{p_guild_name:guild,p_contact:null,p_ban_until:until?until.toISOString():null,p_reason:reason});if(error)throw error;showStatus('ban-status','ok',until?`Guild banned until ${formatDateTime(until)}.`:'Guild permanently banned.');e.target.reset();$('ban-reason').value='Rule violation';await Promise.all([loadAdminGuilds(),loadBans()]);}catch(error){showStatus('ban-status','error',humanizeError(error));}}
 async function loadBans(){
-  try{const {data,error}=await adminDb.rpc('admin_get_active_bans');if(error)throw error;state.bans=data||[];const target=$('ban-list');target.innerHTML=state.bans.length?state.bans.map(b=>`<div class="challenge-card"><div class="meta-row"><div><div class="name">${escapeHtml(b.guild_name||'Identity ban')}</div><div class="subtle">${escapeHtml(formatContact(b.contact||''))}</div></div><span class="badge badge-red">${b.ban_until?escapeHtml(formatDateTime(b.ban_until)):'PERMANENT'}</span></div><div class="contact-line"><span class="muted" style="font-size:8px">${escapeHtml(b.reason||'Rule violation')}</span><button class="btn btn-green btn-small" type="button" data-action="unban-identity" data-guild="${escapeHtml(b.guild_name||'')}" data-contact="${escapeHtml(b.contact||'')}">UNBAN</button></div></div>`).join(''):'<div class="empty">No active bans.</div>';}catch(error){console.error(error);}
+  try{const {data,error}=await adminDb.rpc('admin_get_active_bans');if(error)throw error;state.bans=data||[];const target=$('ban-list');target.innerHTML=state.bans.length?state.bans.map(b=>`<div class="challenge-card"><div class="meta-row"><div><div class="name">${escapeHtml(b.guild_name||'Identity ban')}</div><div class="subtle">${escapeHtml(formatContact(b.contact||''))}</div></div><span class="badge badge-red">${b.ban_until?escapeHtml(formatDateTime(b.ban_until)):'PERMANENT'}</span></div><div class="contact-line"><span class="muted cell-note">${escapeHtml(b.reason||'Rule violation')}</span><button class="btn btn-green btn-small" type="button" data-action="unban-identity" data-guild="${escapeHtml(b.guild_name||'')}" data-contact="${escapeHtml(b.contact||'')}">UNBAN</button></div></div>`).join(''):'<div class="empty">No active bans.</div>';}catch(error){console.error(error);}
 }
 async function unbanIdentity(guild,contact){try{const {error}=await adminDb.rpc('admin_unban_guild_identity',{p_guild_name:guild||null,p_contact:contact||null});if(error)throw error;showStatus('admin-status','ok','Guild unbanned.');await Promise.all([loadAdminGuilds(),loadBans()]);}catch(error){showStatus('admin-status','error',humanizeError(error));}}
 
@@ -1655,7 +1883,7 @@ async function loadModeratorResults(){
       const gallery=imgs.length?`<details class="proof-details"><summary>OPEN RESULT PROOF</summary><div class="proof-gallery">${imgs.map((u,i)=>`<a href="${escapeHtml(u)}" target="_blank" rel="noopener"><span class="proof-tag">RESULT PROOF</span><img data-proof-src="${escapeHtml(u)}" loading="lazy" decoding="async" alt="${escapeHtml(r.winner_guild)} vs ${escapeHtml(r.loser_guild)} result proof" /></a>`).join('')}</div></details>`:'<span class="muted">No proof</span>';
       const status=String(r.status||'unknown').toLowerCase();
       const actions=status==='pending'?`<div class="moderator-actions"><button class="btn btn-green btn-small moderator-action-btn" type="button" data-action="mod-approve-result" data-id="${escapeHtml(r.id)}">APPROVE</button><button class="btn btn-red btn-small moderator-action-btn" type="button" data-action="mod-reject-result" data-id="${escapeHtml(r.id)}">REJECT</button></div>`:'—';
-      return `<tr><td><strong>${escapeHtml(r.winner_guild)}</strong><div class="muted" style="margin:3px 0">DEFEAT</div><strong>${escapeHtml(r.loser_guild)}</strong></td><td>${escapeHtml(r.score)}</td><td><strong style="font-size:9px">${escapeHtml(formatDateTime(r.created_at))}</strong><div class="muted" style="margin-top:4px;font-size:7px">PAKISTAN TIME</div></td><td>${gallery}<div style="margin-top:6px"><span class="status-pill ${status==='approved'?'status-approved':status==='pending'?'status-pending':'status-rejected'}">${escapeHtml(status)}</span></div>${r.rejection_reason?`<div class="muted" style="margin-top:5px">${escapeHtml(r.rejection_reason)}</div>`:''}</td><td>${actions}</td></tr>`;
+      return `<tr><td><strong>${escapeHtml(r.winner_guild)}</strong><div class="muted" style="margin:3px 0">DEFEAT</div><strong>${escapeHtml(r.loser_guild)}</strong></td><td>${escapeHtml(r.score)}</td><td><strong class="cell-time">${escapeHtml(formatDateTime(r.created_at))}</strong><div class="muted cell-note">PAKISTAN TIME</div></td><td>${gallery}<div style="margin-top:6px"><span class="status-pill ${status==='approved'?'status-approved':status==='pending'?'status-pending':'status-rejected'}">${escapeHtml(status)}</span></div>${r.rejection_reason?`<div class="muted" style="margin-top:5px">${escapeHtml(r.rejection_reason)}</div>`:''}</td><td>${actions}</td></tr>`;
     }).join(''):'<tr><td colspan="5">No result submissions.</td></tr>';
   }catch(error){console.error(error);target.innerHTML=`<tr><td colspan="5">${escapeHtml(humanizeError(error))}</td></tr>`;showStatus('moderator-results-status','error',humanizeError(error));}
 }
@@ -1798,7 +2026,7 @@ document.addEventListener('click',event=>{
   if(cell){const w=cell.closest('.ach-wrap'); if(w){const cur=Number(cell.dataset.achBadge); w.innerHTML=achInner(w.dataset.guild,Number(w.dataset.tier),cur);} }
 });
 function numberMetric(p,key){return Number(p?.[key]||0);}
-function guildAvatarMarkup(p,small=false){return p?.guild_logo_url?`<div class="guild-profile-avatar" ${small?'style="width:56px;height:56px;flex-basis:56px"':''}><img src="${escapeHtml(p.guild_logo_url)}" alt="${escapeHtml(p.guild_name)} logo" loading="lazy" /></div>`:`<div class="guild-profile-avatar" ${small?'style="width:56px;height:56px;flex-basis:56px"':''}><span style="font-size:27px">🛡️</span></div>`;}
+function guildAvatarMarkup(p,small=false){return p?.guild_logo_url?`<div class="guild-profile-avatar" ${small?'style="width:56px;height:56px;flex-basis:56px"':''}><img src="${escapeHtml(p.guild_logo_url)}" alt="${escapeHtml(p.guild_name)} logo" loading="lazy" /></div>`:`<div class="guild-profile-avatar" ${small?'style="width:56px;height:56px;flex-basis:56px"':''}><span class="avatar-fallback">🛡️</span></div>`;}
 
 /* Guild ranking list: guilds with 5+ approved matches are RANKED by win rate (highest first), so a lucky 1-0 guild cannot sit above a proven one.
    Guilds with fewer matches follow (still by win rate), and guilds with no matches come last. */
@@ -2159,13 +2387,13 @@ async function reviewGuildNameChangeRequest(id,approve){
   }catch(error){showStatus('admin-name-change-status','error',humanizeError(error));}
 }
 
-function trophySvg(){return `<svg viewBox="0 0 220 250" role="img" aria-label="Gold and emerald 3D GVG championship trophy" focusable="false"><defs>
+function trophySvg(){return `<svg viewBox="0 0 220 250" role="img" aria-label="Gold and ruby 3D GVG championship trophy" focusable="false"><defs>
 <linearGradient id="gvg-cup-front" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff7c8"/><stop offset=".16" stop-color="#f7d36b"/><stop offset=".34" stop-color="#9e6719"/><stop offset=".52" stop-color="#fff0a0"/><stop offset=".72" stop-color="#cc8b21"/><stop offset="1" stop-color="#fff0a0"/></linearGradient>
 <linearGradient id="gvg-cup-side" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#57340a"/><stop offset=".34" stop-color="#b87919"/><stop offset=".62" stop-color="#70430d"/><stop offset="1" stop-color="#2d220b"/></linearGradient>
 <linearGradient id="gvg-cup-rim" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#fffbd5"/><stop offset=".32" stop-color="#e4b64c"/><stop offset=".65" stop-color="#80500f"/><stop offset="1" stop-color="#ffeaa0"/></linearGradient>
-<linearGradient id="gvg-cup-green" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#efffbc"/><stop offset=".24" stop-color="#63ff9a"/><stop offset=".56" stop-color="#10a95a"/><stop offset="1" stop-color="#034c2b"/></linearGradient>
+<linearGradient id="gvg-cup-green" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffd6dd"/><stop offset=".24" stop-color="#ff4d6a"/><stop offset=".56" stop-color="#c8102e"/><stop offset="1" stop-color="#4a0510"/></linearGradient>
 <linearGradient id="gvg-cup-base" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#332008"/><stop offset=".18" stop-color="#f0c75c"/><stop offset=".45" stop-color="#8a5a13"/><stop offset=".72" stop-color="#ffe6a0"/><stop offset="1" stop-color="#503008"/></linearGradient>
-<radialGradient id="gvg-cup-glow"><stop stop-color="#63ff96" stop-opacity=".38"/><stop offset="1" stop-color="#0a6f37" stop-opacity="0"/></radialGradient>
+<radialGradient id="gvg-cup-glow"><stop stop-color="#ffd27a" stop-opacity=".42"/><stop offset="1" stop-color="#c8102e" stop-opacity="0"/></radialGradient>
 <filter id="gvg-cup-shadow" x="-40%" y="-35%" width="180%" height="190%"><feGaussianBlur stdDeviation="5"/></filter>
 </defs>
 <ellipse cx="110" cy="225" rx="74" ry="13" fill="#000" opacity=".65" filter="url(#gvg-cup-shadow)"/><ellipse cx="110" cy="220" rx="68" ry="15" fill="url(#gvg-cup-glow)"/>
@@ -2180,7 +2408,7 @@ function trophySvg(){return `<svg viewBox="0 0 220 250" role="img" aria-label="G
 <path d="M72 49L87 55L87 91L101 108L82 94Q77 89 75 77Z" fill="#fff6ce" opacity=".55"/>
 <path d="M148 49L135 55L132 91L119 108L138 94Q143 89 145 77Z" fill="#6d410c" opacity=".50"/>
 <path d="M110 58L131 80L110 103L89 80Z" fill="url(#gvg-cup-green)" stroke="#f7d66e" stroke-width="3" stroke-linejoin="round"/>
-<path d="M110 64L122 80L110 93Z" fill="#e8ffc0" opacity=".82"/><path d="M110 64L98 80L110 93Z" fill="#09834a" opacity=".9"/>
+<path d="M110 64L122 80L110 93Z" fill="#ffe3e8" opacity=".85"/><path d="M110 64L98 80L110 93Z" fill="#7d0d20" opacity=".92"/>
 <path d="M58 38L162 38L165 46L55 46Z" fill="url(#gvg-cup-rim)" stroke="#68410e" stroke-width="2"/>
 <path d="M49 39Q110 31 171 39" fill="none" stroke="#fff6c1" stroke-width="3" stroke-linecap="round"/>
 <!-- Stem and beveled plinth. -->
@@ -2194,7 +2422,7 @@ function trophySvg(){return `<svg viewBox="0 0 220 250" role="img" aria-label="G
 <path d="M47 204L173 204L182 215L38 215Z" fill="url(#gvg-cup-rim)" stroke="#70470f" stroke-width="3"/>
 <path d="M40 214L180 214L174 225L46 225Z" fill="url(#gvg-cup-base)" stroke="#3d290a" stroke-width="3"/>
 <path d="M70 52L76 79M82 45L86 57M143 50L137 76" stroke="#fffbd7" stroke-width="3" stroke-linecap="round" opacity=".76"/>
-<path d="M52 233H168" stroke="#40f28a" stroke-width="2.5" stroke-linecap="round" opacity=".85"/>
+<path d="M52 233H168" stroke="#ff4d6a" stroke-width="2.5" stroke-linecap="round" opacity=".85"/>
 </svg>`;}
 function bindTrophy3D(root=document){root.querySelectorAll('[data-trophy-3d]:not([data-trophy-bound])').forEach(el=>{el.dataset.trophyBound='1';let down=false,lastX=0,lastY=0,rx=-7,ry=-8,pointerId=null;const apply=()=>{el.style.transform=`perspective(1050px) rotateX(${rx}deg) rotateY(${ry}deg)`;};apply();el.addEventListener('pointerdown',e=>{down=true;pointerId=e.pointerId;lastX=e.clientX;lastY=e.clientY;el.classList.add('is-dragging');try{el.setPointerCapture(e.pointerId);}catch{};e.preventDefault();});el.addEventListener('pointermove',e=>{if(!down||e.pointerId!==pointerId)return;const dx=e.clientX-lastX,dy=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;/* Keep the cup broadside: never rotate to a paper-thin edge view. */ry=Math.max(-42,Math.min(42,ry+dx*.55));rx=Math.max(-27,Math.min(27,rx-dy*.45));apply();});const end=e=>{if(pointerId!==null&&e?.pointerId!==undefined&&e.pointerId!==pointerId)return;down=false;pointerId=null;el.classList.remove('is-dragging');};el.addEventListener('pointerup',end);el.addEventListener('pointercancel',end);el.addEventListener('lostpointercapture',end);});}
 
@@ -2248,7 +2476,7 @@ async function loadHallOfFame(){
     renderHofYearGrid(years);await loadHallOfFameYear();
   }catch(error){console.error('Hall of Fame load failed:',error);$('hof-year-grid').innerHTML=`<div class="empty">Could not load Hall of Fame. Run the supplied Supabase migration first. ${escapeHtml(humanizeError(error))}</div>`;}
 }
-function renderHofYearGrid(years){const target=$('hof-year-grid');if(!target)return;target.innerHTML=(years||[]).length?years.map(y=>`<button class="hof-year-tile ${Number(y)===Number(state.hofYear)?'active':''}" type="button" data-action="hof-select-year" data-year="${Number(y)}">${Number(y)}<small style="display:block;margin-top:5px;font-size:8px">${state.hofMode==='weekly'?'WEEKLY SEASON':'MONTHLY ARCHIVE'}</small></button>`).join(''):'<div class="empty">No years available.</div>';}
+function renderHofYearGrid(years){const target=$('hof-year-grid');if(!target)return;target.innerHTML=(years||[]).length?years.map(y=>`<button class="hof-year-tile ${Number(y)===Number(state.hofYear)?'active':''}" type="button" data-action="hof-select-year" data-year="${Number(y)}">${Number(y)}<small>${state.hofMode==='weekly'?'WEEKLY SEASON':'MONTHLY ARCHIVE'}</small></button>`).join(''):'<div class="empty">No years available.</div>';}
 async function loadHallOfFameYear(){
   const target=$('hof-selected-award');if(target)target.innerHTML='<div class="empty">Loading trophy archive...</div>';
   const {data,error}=await readRpc('get_gvg_hall_of_fame',{p_award_type:state.hofMode,p_award_year:Number(state.hofYear)});if(error)throw error;state.hofAwards=data||[];updateHofStats();
@@ -2381,9 +2609,12 @@ $('moderator-logout').addEventListener('click',handleModeratorLogout);
 $('moderator-guild-search').addEventListener('input',renderModeratorGuilds);
 document.querySelectorAll('[data-moderator-section]').forEach(btn=>btn.addEventListener('click',()=>openModeratorSection(btn.dataset.moderatorSection)));
 
-$('nav-register').addEventListener('click',()=>openView('register'));
+$('nav-register').addEventListener('click',()=>{openView('register');showRegisterStep(verifyCtx?'verify':'form');});
 $('nav-logout').addEventListener('click',handleLogout);
-$('back-login').addEventListener('click',()=>openView('public'));
+$('back-login').addEventListener('click',()=>{leaveEmailVerification();openView('public');});
+$('verify-form')?.addEventListener('submit',handleVerifySubmit);
+$('verify-resend')?.addEventListener('click',handleVerifyResend);
+$('verify-change')?.addEventListener('click',leaveEmailVerification);
 $('admin-back').addEventListener('click',()=>openView(state.adminReturnToModerator&&state.moderatorOk?'moderator':state.user?'member':'public'));
 $('login-form').addEventListener('submit',handleLogin);
 $('register-form').addEventListener('submit',handleRegister);
@@ -2688,6 +2919,9 @@ async function fillGuildProfileExtras(norm){
 }
 document.addEventListener('click',event=>{
   const b=event.target.closest?.('[data-guild-view]'); if(b){event.preventDefault();setGuildView(b.dataset.guildView);}
+  const cv=event.target.closest?.('[data-challenge-view]'); if(cv){event.preventDefault();setChallengeView(cv.dataset.challengeView);}
+  const rv=event.target.closest?.('[data-result-view]'); if(rv){event.preventDefault();setResultView(rv.dataset.resultView);}
+  const rd=event.target.closest?.('[data-result-day]'); if(rd){event.preventDefault();setResultDay(rd.dataset.resultDay);}
   const t=event.target.closest?.('#guest-toggle'); if(t){const f=$('guest-form');const open=f.classList.toggle('hidden')===false;t.setAttribute('aria-expanded',open?'true':'false');}
 });
 
