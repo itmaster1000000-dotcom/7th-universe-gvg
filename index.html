@@ -24,17 +24,30 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800;900&family=Cinzel:wght@600;700;800&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./style.css?v=38.0-royal" />
+  <link rel="stylesheet" href="./style.css?v=39.0-arena" />
 </head>
 <body>
   <div class="topline"></div>
   <header>
     <div class="nav">
-      <div class="nav-left"><button id="nav-moderator" class="btn btn-red btn-small" type="button">MODERATOR</button></div>
+      <div class="nav-left"><button id="nav-menu" class="menu-btn hidden" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="side-drawer"><span class="mb-bar"></span><span class="mb-bar"></span><span class="mb-bar"></span></button><button id="nav-moderator" class="btn btn-red btn-small" type="button">MODERATOR</button></div>
       <div class="nav-center"><img class="brand-logo" src="7th-universe-gvg-logo.jpg" alt="7TH UNIVERSE" /><div><div class="brand-title">7TH UNIVERSE</div><div class="brand-sub">GUILD VS GUILD • FAIR PLAY ARENA</div></div></div>
       <div class="nav-right"><button id="nav-register" class="btn btn-primary btn-small" type="button">REGISTER NEW ACCOUNT</button><button id="nav-logout" class="btn btn-red btn-small hidden" type="button">LOGOUT</button></div>
     </div>
   </header>
+  <div id="drawer-backdrop" class="drawer-backdrop" hidden></div>
+  <aside id="side-drawer" class="side-drawer" aria-hidden="true" aria-label="Main menu">
+    <div class="drawer-head">
+      <img class="drawer-logo" src="7th-universe-gvg-logo.jpg" alt="" />
+      <div class="drawer-brand"><b>7TH UNIVERSE</b><small id="drawer-guild">GVG MENU</small></div>
+      <button id="drawer-close" class="close-btn" type="button" aria-label="Close menu">&times;</button>
+    </div>
+    <nav class="drawer-nav" aria-label="Sections"><button class="drawer-item active" type="button" data-member-section="dashboard"><span class="di-ico"><svg class="di-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg></span><span class="di-txt">DASHBOARD</span><span class="di-arrow" aria-hidden="true">&#8250;</span></button><button class="drawer-item" type="button" data-member-section="challenges"><span class="di-ico"><svg class="di-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5"/><path d="M13 19l6-6"/><path d="M16 16l4 4"/><path d="M19 21l2-2"/><path d="M14.5 6.5 18 3h3v3l-3.5 3.5"/><path d="M5 14l4 4"/><path d="M7 17l-3 3"/><path d="M3 19l2 2"/></svg></span><span class="di-txt">CHALLENGES</span><span class="di-arrow" aria-hidden="true">&#8250;</span></button><button class="drawer-item" type="button" data-member-section="results"><span class="di-ico"><svg class="di-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 14l2 2 4-4"/></svg></span><span class="di-txt">RESULTS</span><span class="di-arrow" aria-hidden="true">&#8250;</span></button><button class="drawer-item" type="button" data-member-section="ranking"><span class="di-ico"><svg class="di-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18"/><rect x="4" y="12" width="4" height="9"/><rect x="10" y="5" width="4" height="16"/><rect x="16" y="9" width="4" height="12"/></svg></span><span class="di-txt">RANKING</span><span class="di-arrow" aria-hidden="true">&#8250;</span></button><button class="drawer-item" type="button" data-member-section="guild-profiles"><span class="di-ico"><svg class="di-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg></span><span class="di-txt">ALL GUILDS</span><span class="di-arrow" aria-hidden="true">&#8250;</span></button><button class="drawer-item" type="button" data-member-section="hall-of-fame"><span class="di-ico"><svg class="di-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3"/><path d="M7 5H4v2a3 3 0 0 0 3 3"/></svg></span><span class="di-txt">HALL OF FAME</span><span class="di-arrow" aria-hidden="true">&#8250;</span></button><button class="drawer-item" type="button" data-member-section="rules"><span class="di-ico"><svg class="di-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v15a2 2 0 0 0-2-2H2z"/><path d="M22 5a2 2 0 0 0-2-2h-6a2 2 0 0 0-2 2v15a2 2 0 0 1 2-2h8z"/></svg></span><span class="di-txt">RULES &amp; GUIDELINES</span><span class="di-arrow" aria-hidden="true">&#8250;</span></button><button class="drawer-item" type="button" data-member-section="settings"><span class="di-ico"><svg class="di-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h10"/><path d="M18 6h2"/><circle cx="16" cy="6" r="2"/><path d="M4 12h2"/><path d="M10 12h10"/><circle cx="8" cy="12" r="2"/><path d="M4 18h12"/><circle cx="18" cy="18" r="2"/></svg></span><span class="di-txt">SETTINGS</span><span class="di-arrow" aria-hidden="true">&#8250;</span></button><button class="drawer-item" type="button" data-member-section="about"><span class="di-ico"><svg class="di-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/></svg></span><span class="di-txt">ABOUT</span><span class="di-arrow" aria-hidden="true">&#8250;</span></button></nav>
+    <div class="drawer-foot">
+      <button id="sound-toggle" class="btn btn-ghost btn-small" type="button" aria-pressed="true">&#128266; SOUND ON</button>
+      <button id="drawer-logout" class="btn btn-red btn-small" type="button">LOGOUT</button>
+    </div>
+  </aside>
 
   <main>
     <section id="public-landing">
@@ -87,8 +100,8 @@
 
     <section id="member-dashboard" class="section">
       <div class="container">
-        <div class="section-head">
-          <div><div class="kicker">Member Arena</div><h2 class="title">7TH UNIVERSE GVG</h2><div id="member-identity" class="desc">Loading guild account...</div></div>
+        <div class="section-head page-bar">
+          <div><div class="kicker">Member Arena</div><h2 id="member-section-title" class="title">DASHBOARD</h2><div id="member-identity" class="desc">Loading guild account...</div></div>
           <span id="member-status-badge" class="badge badge-pending">CHECKING ACCOUNT</span>
         </div>
 
@@ -101,17 +114,41 @@
           <div class="access-gate-status" id="member-access-gate-status">Your account is not currently approved for the private GVG dashboard.</div>
         </div>
 
-        <div class="member-tabs" role="tablist" aria-label="GVG member sections">
-          <button class="member-tab active" type="button" data-member-section="rules">RULES</button>
-          <button class="member-tab" type="button" data-member-section="challenges">CHALLENGES</button>
-          <button class="member-tab" type="button" data-member-section="results">RESULTS</button>
-          <button class="member-tab" type="button" data-member-section="ranking">RANKING</button>
-          <button class="member-tab" type="button" data-member-section="guild-profiles">GUILD PROFILES</button><button class="member-tab" type="button" data-member-section="hall-of-fame">HALL OF FAME</button>
+        
+
+        <div id="member-section-dashboard" class="member-view active">
+          <div class="card my-hub dash-hero" id="my-guild-hub">
+            <div class="dash-hero-top">
+              <div class="hub-logo" id="my-hub-logo"><span>&#9876;</span></div>
+              <div class="hub-id-text">
+                <div class="kicker">Guild Dashboard</div>
+                <div class="hub-name" id="my-hub-name">&mdash;</div>
+                <div id="my-hub-title" class="hub-title"></div>
+                <div class="hub-meta" id="my-hub-meta">&mdash;</div>
+                <span id="my-hub-status" class="badge badge-pending">LOADING</span>
+              </div>
+            </div>
+            <div class="hub-stats">
+              <div class="hub-stat"><span>WEEK POINTS</span><b id="my-hub-points">0</b></div>
+              <div class="hub-stat"><span>WEEK RANK</span><b id="my-hub-rank">&mdash;</b></div>
+              <div class="hub-stat"><span>WINS</span><b id="my-hub-wins">0</b></div>
+              <div class="hub-stat"><span>LOSSES</span><b id="my-hub-losses">0</b></div>
+            </div>
+            <div class="hub-today"><div class="hub-today-row"><span>TODAY&rsquo;S MATCHES</span><b id="my-hub-today">0 / 5</b></div><div class="hub-bar"><i id="my-hub-today-bar"></i></div></div>
+            <div id="my-hub-error" class="status"></div>
+          </div>
+          <div class="dash-grid">
+            <div class="card" id="dash-record-card"><div class="panel-head"><div><div class="kicker">Performance</div><h3>MATCH RECORD</h3></div></div><div id="dash-record"><div class="empty">Loading your record...</div></div></div>
+            <div class="card" id="dash-titles-card"><div class="panel-head"><div><div class="kicker">Honours</div><h3>CHAMPION TITLES</h3></div></div><div id="dash-titles"><div class="empty">Loading your titles...</div></div></div>
+            <div class="card dash-wide" id="dash-badges-card"><div class="panel-head"><div><div class="kicker">Achievements</div><h3>MY BADGES</h3></div></div><div id="dash-badges"><div class="empty">Loading your badges...</div></div></div>
+            <div class="card" id="dash-roster-card"><div class="panel-head"><div><div class="kicker">Squad</div><h3>TEAM ROSTER</h3></div><span id="dash-roster-count" class="badge badge-gold">0</span></div><div id="dash-roster"><div class="empty">Loading your team...</div></div></div>
+            <div class="card" id="dash-rival-card"><div class="panel-head"><div><div class="kicker">Head to head</div><h3>MAIN RIVAL</h3></div></div><div id="dash-rival"><div class="empty">Loading your rival...</div></div></div>
+          </div>
         </div>
 
-        <div id="member-section-rules" class="member-view active">
+        <div id="member-section-rules" class="member-view">
           <div class="card rules-card">
-            <div class="panel-head"><div><div class="kicker">Mandatory Fair Play</div><h3>RULES &amp; INFORMATION</h3><div class="subtle">Rules are equal for all guilds in the 7TH UNIVERSE community.</div></div></div>
+            <div class="panel-head"><div><div class="kicker">Mandatory Fair Play</div><h3>RULES &amp; GUIDELINES</h3><div class="subtle">Community rules, in-game rules and how to use the website. They are equal for all guilds.</div></div></div>
             <div class="rules-tabs" id="rules-tabs" role="tablist" aria-label="Rules sections"></div>
             <div class="rules-body" id="rules-body" aria-live="polite"></div>
           </div>
@@ -238,93 +275,6 @@
         </div>
 
         <div id="member-section-guild-profiles" class="member-view">
-          <div class="guild-switch" id="guild-switch" role="tablist" aria-label="Guild section views">
-            <button type="button" class="gs-btn active" data-guild-view="all" role="tab" aria-selected="true">&#9876; ALL GUILDS</button>
-            <button type="button" class="gs-btn" id="gs-mine" data-guild-view="mine" role="tab" aria-selected="false">&#128100; MY PROFILE</button>
-          </div>
-          <div id="guild-view-mine" class="hidden">
-          <div class="card my-hub" id="my-guild-hub">
-            <div class="panel-head"><div><div class="kicker">Guild Control Center</div><h3>MY GUILD</h3><div class="subtle">Your guild identity, this week&rsquo;s performance and account tools.</div></div><span id="my-hub-status" class="badge badge-pending">LOADING</span></div>
-            <div class="hub-identity">
-              <div class="hub-logo" id="my-hub-logo"><span>&#9876;</span></div>
-              <div class="hub-id-text"><div class="hub-name" id="my-hub-name">&mdash;</div><div id="my-hub-title" class="hub-title"></div><div class="hub-meta" id="my-hub-meta">&mdash;</div></div>
-            </div>
-            <div class="hub-stats">
-              <div class="hub-stat"><span>WEEK POINTS</span><b id="my-hub-points">0</b></div>
-              <div class="hub-stat"><span>WEEK RANK</span><b id="my-hub-rank">&mdash;</b></div>
-              <div class="hub-stat"><span>WINS</span><b id="my-hub-wins">0</b></div>
-              <div class="hub-stat"><span>LOSSES</span><b id="my-hub-losses">0</b></div>
-            </div>
-            <div class="hub-today"><div class="hub-today-row"><span>TODAY&rsquo;S MATCHES</span><b id="my-hub-today">0 / 5</b></div><div class="hub-bar"><i id="my-hub-today-bar"></i></div></div>
-            <div id="my-hub-error" class="status"></div>
-          </div>
-          <div class="card" id="my-profile-card" style="margin-top:14px">
-            <div class="panel-head"><div><div class="kicker">Guild Identity</div><h3>PROFILE DETAILS</h3><div class="subtle">Fill in only what you want to change. Empty fields stay as they are, and locked fields are skipped.</div></div></div>
-            <form id="my-profile-form" novalidate>
-              <div class="pf-list">
-                <div class="pf-row" id="pf-row-name">
-                  <div class="pf-head"><span class="pf-label">GUILD NAME</span><span class="pf-chip" id="pf-chip-name">...</span></div>
-                  <div class="pf-current" id="pf-current-name">&mdash;</div>
-                  <input id="pf-name" type="text" maxlength="30" placeholder="New guild name (needs Admin approval)" autocomplete="off" />
-                  <div class="pf-note" id="pf-note-name"></div>
-                </div>
-                <div class="pf-row" id="pf-row-contact">
-                  <div class="pf-head"><span class="pf-label">CONTACT NUMBER</span><span class="pf-chip ready" id="pf-chip-contact">READY</span></div>
-                  <div class="pf-current" id="pf-current-contact">&mdash;</div>
-                  <input id="pf-contact" type="tel" inputmode="tel" maxlength="20" placeholder="New phone number" autocomplete="off" />
-                  <div class="pf-note">Your own number (each leader has one). Up to 2 changes per day.</div>
-                </div>
-                <div class="pf-row" id="pf-row-uid">
-                  <div class="pf-head"><span class="pf-label">GUILD UID</span><span class="pf-chip ready" id="pf-chip-uid">READY</span></div>
-                  <div class="pf-current" id="pf-current-uid">&mdash;</div>
-                  <input id="pf-uid" type="text" inputmode="numeric" maxlength="20" placeholder="New in-game Guild UID" autocomplete="off" />
-                </div>
-                <div class="pf-row" id="pf-row-logo">
-                  <div class="pf-head"><span class="pf-label">GUILD LOGO</span><span class="pf-chip" id="pf-chip-logo">...</span></div>
-                  <div class="pf-current" id="pf-current-logo">PNG / JPG / WEBP, max 2 MB</div>
-                  <input id="pf-logo" type="file" accept="image/png,image/jpeg,image/webp" />
-                  <div class="pf-note" id="pf-note-logo"></div>
-                </div>
-              </div>
-              <div class="split-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"><button id="my-profile-save" class="btn btn-primary" type="submit">SAVE CHANGES</button></div>
-              <div id="my-profile-status" class="status"></div>
-            </form>
-          </div>
-          <div class="card" style="margin-top:14px" id="title-card">
-            <div class="panel-head"><div><div class="kicker">Rank &amp; Titles</div><h3>DISPLAY TITLE</h3><div class="subtle">Choose which title your guild shows. On WhatsApp it appears only at the end of your challenge message, never on results. A rank is earned by finishing all 20 badges of a tier (Bronze to Diamond).</div></div></div>
-            <form id="guild-title-form" novalidate>
-              <div id="title-options" class="title-options"><div class="hint">Loading your titles...</div></div>
-              <div class="split-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px"><button id="guild-title-save" class="btn btn-primary" type="submit">SAVE TITLE CHOICE</button></div>
-              <div id="guild-title-status" class="status"></div>
-            </form>
-          </div>
-          <div class="card" style="margin-top:14px" id="roster-card">
-            <div class="panel-head"><div><div class="kicker">Team</div><h3>TEAM ROSTER</h3><div class="subtle">Add up to 10 team member names. After you save, the list can be changed again only after 7 days.</div></div><span id="roster-count" class="badge badge-gold">0 / 10</span></div>
-            <form id="guild-roster-form" novalidate>
-              <div id="roster-grid" class="roster-grid"></div>
-              <div id="roster-lock-note" class="hint"></div>
-              <div class="split-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px"><button id="guild-roster-save" class="btn btn-primary" type="submit">SAVE TEAM LIST</button></div>
-              <div id="guild-roster-status" class="status"></div>
-            </form>
-          </div>
-          <div class="card" style="margin-top:14px" id="guild-code-card">
-            <div class="panel-head"><div><div class="kicker">Guest Access</div><h3>GUILD CODE</h3><div class="subtle">A 4-digit code. Anyone who knows your guild name and this code can view guild profiles and the Hall of Fame (read only, no editing). You can change it any time.</div></div></div>
-            <form id="guild-code-form" novalidate>
-              <div class="field-grid"><label class="full">4-DIGIT GUILD CODE<input id="guild-code-input" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="e.g. 4821" autocomplete="off" /></label></div>
-              <div id="guild-code-current" class="hint">No code set yet.</div>
-              <div class="split-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px"><button id="guild-code-save" class="btn btn-primary" type="submit">SAVE GUILD CODE</button></div>
-              <div id="guild-code-status" class="status"></div>
-            </form>
-          </div>
-          <div class="card danger-zone" style="margin-top:14px">
-            <div class="panel-head"><div><div class="kicker">Danger zone</div><h3>DELETE MY ACCOUNT</h3><div class="subtle">Your login and phone number are erased and your access ends immediately. Points, results and Hall of Fame records stay. To come back you must register again and get Admin approval.</div></div></div>
-            <form id="guild-delete-form" novalidate>
-              <div class="field-grid"><label class="full">TYPE DELETE TO CONFIRM<input id="guild-delete-confirm" type="text" maxlength="10" placeholder="DELETE" autocomplete="off" /></label></div>
-              <div class="split-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px"><button id="guild-delete-submit" class="btn btn-red" type="submit">DELETE MY ACCOUNT</button></div>
-              <div id="guild-delete-status" class="status"></div>
-            </form>
-          </div>
-          </div>
           <div id="guild-view-all">
           <div class="card" style="margin-top:14px">
             <div class="panel-head"><div><div class="kicker">Community Profiles</div><h3>ALL GUILD PROFILES</h3><div class="subtle">Tap any guild to view its record, trophies and unlocked achievements.</div></div><span id="public-profile-count" class="badge badge-green">LOADING</span></div>
@@ -361,6 +311,119 @@
             <div id="hof-selected-award" class="hof-selected-award"><div class="empty">Choose a year and a week or season to view the champion.</div></div>
           </div>
         </div>
+
+        <div id="member-section-settings" class="member-view">
+          <div class="settings-stack">
+          <div class="card" id="my-profile-card">
+            <div class="panel-head"><div><div class="kicker">Guild Identity</div><h3>PROFILE DETAILS</h3><div class="subtle">Fill in only what you want to change. Empty fields stay as they are, and locked fields are skipped.</div></div></div>
+            <form id="my-profile-form" novalidate>
+              <div class="pf-list">
+                <div class="pf-row" id="pf-row-name">
+                  <div class="pf-head"><span class="pf-label">GUILD NAME</span><span class="pf-chip" id="pf-chip-name">...</span></div>
+                  <div class="pf-current" id="pf-current-name">&mdash;</div>
+                  <input id="pf-name" type="text" maxlength="30" placeholder="New guild name (needs Admin approval)" autocomplete="off" />
+                  <div class="pf-note" id="pf-note-name"></div>
+                </div>
+                <div class="pf-row" id="pf-row-contact">
+                  <div class="pf-head"><span class="pf-label">CONTACT NUMBER</span><span class="pf-chip ready" id="pf-chip-contact">READY</span></div>
+                  <div class="pf-current" id="pf-current-contact">&mdash;</div>
+                  <input id="pf-contact" type="tel" inputmode="tel" maxlength="20" placeholder="New phone number" autocomplete="off" />
+                  <div class="pf-note">Your own number (each leader has one). Up to 2 changes per day.</div>
+                </div>
+                <div class="pf-row" id="pf-row-uid">
+                  <div class="pf-head"><span class="pf-label">GUILD UID</span><span class="pf-chip ready" id="pf-chip-uid">READY</span></div>
+                  <div class="pf-current" id="pf-current-uid">&mdash;</div>
+                  <input id="pf-uid" type="text" inputmode="numeric" maxlength="20" placeholder="New in-game Guild UID" autocomplete="off" />
+                </div>
+                <div class="pf-row" id="pf-row-logo">
+                  <div class="pf-head"><span class="pf-label">GUILD LOGO</span><span class="pf-chip" id="pf-chip-logo">...</span></div>
+                  <div class="pf-current" id="pf-current-logo">PNG / JPG / WEBP, max 2 MB</div>
+                  <input id="pf-logo" type="file" accept="image/png,image/jpeg,image/webp" />
+                  <div class="pf-note" id="pf-note-logo"></div>
+                </div>
+              </div>
+              <div class="split-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"><button id="my-profile-save" class="btn btn-primary" type="submit">SAVE CHANGES</button></div>
+              <div id="my-profile-status" class="status"></div>
+            </form>
+          </div>
+          <div class="card" id="password-card">
+            <div class="panel-head"><div><div class="kicker">Security</div><h3>CHANGE PASSWORD</h3><div class="subtle">Use at least 8 characters. You stay logged in on this device after the change.</div></div></div>
+            <form id="password-form" novalidate>
+              <div class="field-grid">
+                <label class="full">CURRENT PASSWORD<input id="pw-current" type="password" autocomplete="current-password" placeholder="Your current password" /></label>
+                <label>NEW PASSWORD<input id="pw-new" type="password" autocomplete="new-password" minlength="8" placeholder="Minimum 8 characters" /></label>
+                <label>CONFIRM NEW PASSWORD<input id="pw-confirm" type="password" autocomplete="new-password" minlength="8" placeholder="Re-enter new password" /></label>
+              </div>
+              <div class="split-actions"><button id="pw-save" class="btn btn-primary" type="submit">UPDATE PASSWORD</button></div>
+              <div id="pw-status" class="status"></div>
+            </form>
+          </div>
+          <div class="card" id="roster-card">
+            <div class="panel-head"><div><div class="kicker">Team</div><h3>TEAM ROSTER</h3><div class="subtle">Add up to 10 team member names. After you save, the list can be changed again only after 7 days.</div></div><span id="roster-count" class="badge badge-gold">0 / 10</span></div>
+            <form id="guild-roster-form" novalidate>
+              <div id="roster-grid" class="roster-grid"></div>
+              <div id="roster-lock-note" class="hint"></div>
+              <div class="split-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px"><button id="guild-roster-save" class="btn btn-primary" type="submit">SAVE TEAM LIST</button></div>
+              <div id="guild-roster-status" class="status"></div>
+            </form>
+          </div>
+          <div class="card" id="title-card">
+            <div class="panel-head"><div><div class="kicker">Rank &amp; Titles</div><h3>DISPLAY TITLE</h3><div class="subtle">Choose which title your guild shows. On WhatsApp it appears only at the end of your challenge message, never on results. A rank is earned by finishing all 20 badges of a tier (Bronze to Diamond).</div></div></div>
+            <form id="guild-title-form" novalidate>
+              <div id="title-options" class="title-options"><div class="hint">Loading your titles...</div></div>
+              <div class="split-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px"><button id="guild-title-save" class="btn btn-primary" type="submit">SAVE TITLE CHOICE</button></div>
+              <div id="guild-title-status" class="status"></div>
+            </form>
+          </div>
+          <div class="card" id="guild-code-card">
+            <div class="panel-head"><div><div class="kicker">Guest Access</div><h3>GUILD CODE</h3><div class="subtle">A 4-digit code. Anyone who knows your guild name and this code can view guild profiles and the Hall of Fame (read only, no editing). You can change it any time.</div></div></div>
+            <form id="guild-code-form" novalidate>
+              <div class="field-grid"><label class="full">4-DIGIT GUILD CODE<input id="guild-code-input" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="e.g. 4821" autocomplete="off" /></label></div>
+              <div id="guild-code-current" class="hint">No code set yet.</div>
+              <div class="split-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px"><button id="guild-code-save" class="btn btn-primary" type="submit">SAVE GUILD CODE</button></div>
+              <div id="guild-code-status" class="status"></div>
+            </form>
+          </div>
+          <div class="card danger-zone">
+            <div class="panel-head"><div><div class="kicker">Danger zone</div><h3>DELETE MY ACCOUNT</h3><div class="subtle">Your login and phone number are erased and your access ends immediately. Points, results and Hall of Fame records stay. To come back you must register again and get Admin approval.</div></div></div>
+            <form id="guild-delete-form" novalidate>
+              <div class="field-grid"><label class="full">TYPE DELETE TO CONFIRM<input id="guild-delete-confirm" type="text" maxlength="10" placeholder="DELETE" autocomplete="off" /></label></div>
+              <div class="split-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px"><button id="guild-delete-submit" class="btn btn-red" type="submit">DELETE MY ACCOUNT</button></div>
+              <div id="guild-delete-status" class="status"></div>
+            </form>
+          </div>
+          </div>
+        </div>
+
+        <div id="member-section-about" class="member-view">
+          <div class="card about-card">
+            <div class="about-hero">
+              <img class="about-logo" src="7th-universe-gvg-logo.jpg" alt="7TH UNIVERSE GVG" />
+              <div class="kicker">Our Community</div>
+              <h3>7TH UNIVERSE GVG</h3>
+              <div class="about-tag">FREE FIRE &bull; GUILD VS GUILD</div>
+            </div>
+            <div class="about-body">
+              <p><b>7TH UNIVERSE GVG</b> is a Free Fire Guild vs Guild community where guilds challenge each other, play fair matches and climb the leaderboard.</p>
+              <p>We organise <b>weekly tournaments</b> and <b>monthly tournaments</b>. Everything we do is just for fun, fair play and healthy competition between guilds.</p>
+              <p>The community was founded on <b>29 June 2026</b>.</p>
+            </div>
+            <div class="about-facts">
+              <div><span>FOUNDED</span><b>29 JUNE 2026</b></div>
+              <div><span>FORMAT</span><b>GUILD VS GUILD</b></div>
+              <div><span>TOURNAMENTS</span><b>WEEKLY &amp; MONTHLY</b></div>
+            </div>
+            <div class="about-social">
+              <div class="kicker">Contact &amp; Follow</div>
+              <div class="social-row">
+                <a class="social-btn social-wa" href="https://wa.me/923098970483" target="_blank" rel="noopener noreferrer" aria-label="Chat with 7TH UNIVERSE admin on WhatsApp"><svg class="soc-ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg><span><b>WHATSAPP</b><small>+92 309 8970483</small></span></a>
+                <a class="social-btn social-tt" href="https://www.tiktok.com/@7th_universe_gvg" target="_blank" rel="noopener noreferrer" aria-label="Open 7TH UNIVERSE GVG on TikTok"><svg class="soc-ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg><span><b>TIKTOK</b><small>@7th_universe_gvg</small></span></a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        
 
       </div>
     </section>
@@ -594,7 +657,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
 (function(){
-  window.__GVG_HTML_VERSION='38.0';
+  window.__GVG_HTML_VERSION='39.0';
   function show(msg){
     try{
       var d=document.getElementById('gvg-fatal');
@@ -620,7 +683,7 @@
   });
 })();
 </script>
-<script src="./script.js?v=38.0-royal"></script>
+<script src="./script.js?v=39.0-arena"></script>
   <div id="app-dialog-backdrop" class="app-dialog-backdrop" aria-hidden="true"><div id="app-dialog" class="app-dialog" role="dialog" aria-modal="true" aria-labelledby="app-dialog-title"></div></div>
 
 </body>

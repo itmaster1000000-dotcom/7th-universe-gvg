@@ -1,4 +1,4 @@
-window.__GVG_SCRIPT_VERSION='38.0';
+window.__GVG_SCRIPT_VERSION='39.0';
 /*
   7TH UNIVERSE GVG — FINAL FRONTEND
   Uses two isolated Supabase Auth clients so the Admin browser session
@@ -374,12 +374,15 @@ function challengePostingOpen(){ const p=currentPakistanParts(); const mins=p.ho
 function cycleStartForChallenge(challengeCreatedAt){ const d=new Date(new Intl.DateTimeFormat('en-US',{timeZone:TIME_ZONE,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(challengeCreatedAt))); if(Number.isNaN(d.getTime())) return null; const p=new Intl.DateTimeFormat('en-US',{timeZone:TIME_ZONE,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).formatToParts(new Date(challengeCreatedAt)); const o={}; for(const x of p)o[x.type]=x.value; const local=new Date(Date.UTC(Number(o.year),Number(o.month)-1,Number(o.day),Number(o.hour)%24,Number(o.minute))); if(Number(o.hour)<10)local.setUTCDate(local.getUTCDate()-1); return local.toISOString().slice(0,10); }
 
 function openView(name){
+  state.view=name;
   $('public-landing').style.display = name==='public' || name==='register' ? 'grid' : 'none';
   $('public-view').classList.toggle('hidden',name!=='public');
   $('register-view').classList.toggle('hidden',name!=='register');
   $('member-dashboard').style.display = name==='member' ? 'block' : 'none';
   $('admin-page').style.display = name==='admin' ? 'block' : 'none';
   $('moderator-page').style.display = name==='moderator' ? 'block' : 'none';
+  closeDrawer({silent:true});
+  syncMenuButton();
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
@@ -389,7 +392,6 @@ function memberDashboardAllowed(){
 
 function setMemberAccessGate(){
   const gate=$('member-access-gate');
-  const tabs=document.querySelector('.member-tabs');
   const allowed=memberDashboardAllowed();
 
   if(gate){
@@ -404,9 +406,9 @@ function setMemberAccessGate(){
     }
   }
 
-  if(tabs) tabs.classList.toggle('hidden',!allowed);
+  syncMenuButton();
   renderBanNotices();
-  document.querySelectorAll('[data-member-section]').forEach(btn=>btn.classList.toggle('hidden',Boolean(state.guest)&&!['guild-profiles','hall-of-fame'].includes(btn.dataset.memberSection)));
+  document.querySelectorAll('[data-member-section]').forEach(btn=>btn.classList.toggle('hidden',Boolean(state.guest)&&!GUEST_SECTIONS.includes(btn.dataset.memberSection)));
 
   document.querySelectorAll('.member-view').forEach(el=>{
     if(!allowed) el.classList.remove('active');
@@ -417,8 +419,8 @@ function scrollActiveTabIntoView(selector){
   try{document.querySelector(selector)?.scrollIntoView({inline:'center',block:'nearest',behavior:'smooth'});}catch{}
 }
 function openMemberSection(name){
-  const allowed=['rules','challenges','results','ranking','guild-profiles','hall-of-fame'];
-  const section=state.guest?(['guild-profiles','hall-of-fame'].includes(name)?name:'guild-profiles'):(allowed.includes(name)?name:'rules');
+  const allowed=Object.keys(MEMBER_SECTIONS);
+  const section=state.guest?(GUEST_SECTIONS.includes(name)?name:'guild-profiles'):(allowed.includes(name)?name:'dashboard');
 
   if(!memberDashboardAllowed()){
     setMemberAccessGate();
@@ -427,7 +429,10 @@ function openMemberSection(name){
 
   document.querySelectorAll('.member-view').forEach(el=>el.classList.toggle('active',el.id===`member-section-${section}`));
   document.querySelectorAll('[data-member-section]').forEach(btn=>btn.classList.toggle('active',btn.dataset.memberSection===section));
-  scrollActiveTabIntoView('.member-tab.active');
+  state.memberSection=section;
+  document.body.dataset.section=section;
+  const sectionTitle=$('member-section-title'); if(sectionTitle) sectionTitle.textContent=MEMBER_SECTIONS[section]||'';
+  closeDrawer({silent:true});
   if(section==='challenges'){setChallengeView('live');loadSectionCached('member:challenges',loadLiveChallenges,15000);}
   if(section==='results') setResultView('live');
   if(section==='results') Promise.all([
@@ -446,6 +451,8 @@ function openMemberSection(name){
   }
   if(section==='name-change') loadSectionCached('member:name-change-status',loadMyGuildNameChangeStatus,15000);
   if(section==='hall-of-fame') loadSectionCached('member:hall-of-fame',loadHallOfFame,30000);
+  if(section==='dashboard') loadDashboard();
+  if(section==='settings') loadSettings();
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
@@ -458,9 +465,9 @@ function cacheClear(prefix=''){try{Object.keys(localStorage).filter(k=>k.startsW
 
 /* ===== Rules (three buttons, editable by the Admin) ===== */
 const RULES_DEFAULT=[
- {key:'about',title:'ABOUT 7TH UNIVERSE',body:'- 7th Universe is a community built for Free Fire Guild vs Guild (GvG) competitive matches and tournaments.\n- Daily GvG challenges are posted through this website.\n- Weekly tournaments are decided on the points earned from the daily matches.\n- Monthly tournament registration opens 3 days before the start of each month and is paid.\nNOTE: For any complaint or suggestion, please contact the Admin.\nADMIN CONTACT: +92 309 8970483'},
- {key:'community',title:'COMMUNITY INSTRUCTIONS',body:'- A guild can play a maximum of 7 matches per day.\n- Right after you win a match, submit your result screenshot from the Results section.\n- A win earns +3 points and a loss costs -1 point.\n- Submitting old results (from a previous day) against new challenges is strictly not allowed.\n- One challenge can be played against one guild only.'},
- {key:'match',title:'IN-MATCH RULES',body:'- Roofing is not allowed.\n- Reviving is not allowed.\n- Two-tap is not allowed.\n- Zone packing is not allowed.\n- More than one match per day against the same guild is not allowed.\n- IDs below level 30 are not allowed.\n- BO3 matches are not allowed.\n- An outsider player (not from the guild) is not allowed.\n- PC is not allowed unless both guilds agree.\n- Abusive language is not allowed.\n- One player cannot play for two guilds.\n- Panel users are not allowed.\n- Both guilds must follow the information given in the challenge.\n- Making accusations without proof is not allowed.\nNOTE: Raise any complaint right after the match. Complaints made one day later will not be accepted.'}
+ {key:'community',title:'COMMUNITY RULES',body:'- A guild can play a maximum of 7 matches per day.\n- Right after you win a match, submit your result screenshot from the Results section.\n- A win earns +3 points and a loss costs -1 point.\n- Submitting old results (from a previous day) against new challenges is strictly not allowed.\n- One challenge can be played against one guild only.'},
+ {key:'match',title:'IN-GAME RULES',body:'- Roofing is not allowed.\n- Reviving is not allowed.\n- Two-tap is not allowed.\n- Zone packing is not allowed.\n- More than one match per day against the same guild is not allowed.\n- IDs below level 30 are not allowed.\n- BO3 matches are not allowed.\n- An outsider player (not from the guild) is not allowed.\n- PC is not allowed unless both guilds agree.\n- Abusive language is not allowed.\n- One player cannot play for two guilds.\n- Panel users are not allowed.\n- Both guilds must follow the information given in the challenge.\n- Making accusations without proof is not allowed.\nNOTE: Raise any complaint right after the match. Complaints made one day later will not be accepted.'},
+ {key:'website',title:'WEBSITE INSTRUCTIONS',body:'- REGISTER: create your leader account with your guild name, contact number, email and password. Enter the verification code sent to your email and wait for Admin approval.\n- DASHBOARD: your guild logo, week points, rank, match record, champion titles, badges, team roster and main rival are shown here.\n- POST A CHALLENGE: open Challenges > MY CHALLENGE, choose the match time, allowed weapons, PC mode and active skills, then post it.\n- CHALLENGE TIME: new challenges can be posted from 10:00 AM until 11:59 PM Pakistan time. At 12:00 AM no new challenge is allowed.\n- DAILY CYCLE: the day resets at 10:00 AM. An old challenge stays result-eligible until 9:59 AM of the next cycle.\n- ACCEPT A CHALLENGE: open Challenges > LIVE CHALLENGES and tap the WhatsApp button on a challenge to chat privately with that guild leader and fix the match.\n- RESULT TIME: submit the result right after the match from Results > MY RESULTS. Choose the challenge, enter winner, loser and score, and upload one clear screenshot. Either guild may submit.\n- RESULT REVIEW: the Admin checks every result. An approved win earns +3 points and a loss costs -1 point.\n- LIVE RESULTS: Results > LIVE RESULTS shows the approved matches of this week. Use the SUN to SAT buttons to see each day.\n- WEEKLY RESET: the week runs from Sunday 10:00 AM to the next Sunday 10:00 AM (Pakistan time). Old result screenshots are cleared automatically every week; scores and points stay.\n- RANKING: Current Week, Week Highest Points and All Weeks rankings are available in the Ranking section.\n- SETTINGS: change your guild logo, guild name (needs Admin approval), UID, contact number, password and team list from Settings.\nNOTE: For any problem or suggestion contact the Admin on WhatsApp: +92 309 8970483'}
 ];
 function rulesBodyHtml(body){
   return String(body||'').split(/\r?\n/).map(l=>l.trim()).filter(Boolean).map(line=>{
@@ -470,9 +477,18 @@ function rulesBodyHtml(body){
     return noteMatch?`<div class="rules-note"><b>NOTE</b>${linked}</div>`:`<div class="rules-li"><span>${linked}</span></div>`;
   }).join('');
 }
+/* The old ABOUT rule moved to the new ABOUT page. Three tabs are always shown, in this order. */
+const RULE_TITLE_MAP={'COMMUNITY INSTRUCTIONS':'COMMUNITY RULES','IN-MATCH RULES':'IN-GAME RULES'};
+function rulesForDisplay(list){
+  const base=(Array.isArray(list)&&list.length?list:RULES_DEFAULT).filter(r=>r.key!=='about');
+  const out=base.map(r=>({...r,title:RULE_TITLE_MAP[String(r.title||'').trim().toUpperCase()]||r.title}));
+  if(!out.some(r=>r.key==='website')) out.push({...RULES_DEFAULT.find(r=>r.key==='website')});
+  const order={community:0,match:1,website:2};
+  return out.sort((x,y)=>(order[x.key]??9)-(order[y.key]??9));
+}
 function renderRulesTabs(){
   const tabs=$('rules-tabs'),body=$('rules-body'); if(!tabs||!body) return;
-  const list=state.rules?.length?state.rules:RULES_DEFAULT;
+  const list=rulesForDisplay(state.rules);
   if(!list.some(r=>r.key===state.rulesTab)) state.rulesTab=list[0].key;
   tabs.innerHTML=list.map(r=>`<button type="button" class="rules-tab ${r.key===state.rulesTab?'active':''}" role="tab" aria-selected="${r.key===state.rulesTab}" data-rules-tab="${escapeHtml(r.key)}">${escapeHtml(r.title)}</button>`).join('');
   const cur=list.find(r=>r.key===state.rulesTab)||list[0];
@@ -495,7 +511,7 @@ async function loadAdminRules(){
   let list=null;
   try{const {data,error}=await adminDb.rpc('get_gvg_rules');if(error)throw error;list=Array.isArray(data)?data:null;}
   catch(error){showStatus('rules-editor-status','error',`Could not load the rules: ${humanizeError(error)}`);}
-  list=list?.length?list:RULES_DEFAULT;
+  list=rulesForDisplay(list);
   box.innerHTML=list.map(r=>`<div class="rules-edit" data-rule-key="${escapeHtml(r.key)}"><label>BUTTON NAME<input type="text" maxlength="60" data-rule-title value="${escapeHtml(r.title)}" /></label><label>TEXT (one line = one bullet)<textarea data-rule-body maxlength="6000">${escapeHtml(r.body)}</textarea></label><div><button class="btn btn-primary btn-small" type="button" data-action="save-rule" data-key="${escapeHtml(r.key)}">SAVE THIS SECTION</button></div></div>`).join('');
 }
 document.addEventListener('click',async e=>{
@@ -1513,6 +1529,7 @@ function syncRegisterNav(){
   const registerButton=$('nav-register'),logoutButton=$('nav-logout');
   if(!registerButton||!logoutButton) return;
   logoutButton.textContent=state.guest?'EXIT GUEST':'LOGOUT';
+  syncMenuButton();
   if(state.guest){
     logoutButton.classList.remove('hidden');registerButton.classList.add('hidden');
   }else if(state.user){
@@ -1529,7 +1546,7 @@ function syncRegisterNav(){
 async function enterMember({skipGuildReload=false}={}){
   openView('member');
   await refreshMember({reloadGuild:!skipGuildReload});
-  if(memberDashboardAllowed()) openMemberSection('rules');
+  if(memberDashboardAllowed()) openMemberSection('dashboard');
   else setMemberAccessGate();
   window.gvgBadgeKick?.();
 }
@@ -2596,7 +2613,7 @@ document.addEventListener('click',async(e)=>{
   if(actionEl){const action=actionEl.dataset.action,id=actionEl.dataset.id;if(action==='result-from-challenge')return selectChallengeForResult(id);if(action==='close-modal')return closeModal();if(action==='guild-info'){const g=findGuild(id);if(g)adminGuildInfo(g);return;}if(action==='guild-edit'){const g=findGuild(id);if(g)adminGuildEdit(g);return;}if(action==='guild-remove')return removeGuild(id);if(action==='approve-leader')return setLeaderApproval(id,'approved');if(action==='reject-leader')return setLeaderApproval(id,'rejected');if(action==='remove-leader')return removeLeader(id,actionEl.dataset.guild||'');if(action==='reset-password')return resetLeaderPassword(actionEl.dataset.email||'');if(action==='approve-result')return approveResult(id);if(action==='reject-result')return rejectResult(id);if(action==='unban-identity')return unbanIdentity(actionEl.dataset.guild||'',actionEl.dataset.contact||'');if(action==='mod-approve-guild')return moderatorApproveGuild(actionEl.dataset.guild||'');if(action==='mod-remove-guild')return moderatorRemoveGuild(actionEl.dataset.guild||'');if(action==='mod-approve-result')return moderatorApproveResult(id);if(action==='mod-reject-result')return moderatorRejectResult(id);if(action==='open-public-guild-profile')return openPublicGuildProfile(actionEl.dataset.guild||'');if(action==='hof-select-year'){state.hofYear=Number(actionEl.dataset.year);state.hofPeriod=1;renderHofYearGrid(state.hofYears||[]);return loadHallOfFameYear();}if(action==='hof-select-period'){state.hofPeriod=Number(actionEl.dataset.period);renderHallSelectedAward();return openHallOfFamePeriodDetails();}if(action==='hof-open-details')return openHallOfFamePeriodDetails();if(action==='admin-remove-hof-award')return removeHofAward(id);if(action==='approve-guild-name-change')return reviewGuildNameChangeRequest(id,true);if(action==='reject-guild-name-change')return reviewGuildNameChangeRequest(id,false);}
   const menuBtn=e.target.closest('[data-menu-button]');if(menuBtn){const id=menuBtn.dataset.menuButton;document.querySelectorAll('.dots-menu.open').forEach(x=>{if(x.id!==`menu-${id}`)x.classList.remove('open')});document.getElementById(`menu-${id}`)?.classList.toggle('open');return;}document.querySelectorAll('.dots-menu.open').forEach(x=>x.classList.remove('open'));
 });
-document.querySelectorAll('[data-member-section]').forEach(btn=>btn.addEventListener('click',()=>openMemberSection(btn.dataset.memberSection)));
+document.addEventListener('click',e=>{const b=e.target.closest?.('[data-member-section]');if(b)openMemberSection(b.dataset.memberSection);});
 document.querySelectorAll('[data-ranking-mode]').forEach(btn=>btn.addEventListener('click',()=>setRankingMode(btn.dataset.rankingMode)));
 document.querySelectorAll('[data-admin-section]').forEach(btn=>btn.addEventListener('click',()=>openAdminSection(btn.dataset.adminSection)));
 $('nav-moderator').addEventListener('click',async()=>{openView('moderator');await restoreModerator();});
@@ -3222,6 +3239,218 @@ $('password-recovery-form').addEventListener('submit',async(e)=>{
     pump();
     return 'Preview queued.';
   };
+})();
+
+
+/* ===== v39: side menu (3 lines), Dashboard, Settings ===== */
+const MEMBER_SECTIONS={
+  'dashboard':'DASHBOARD','challenges':'CHALLENGES','results':'RESULTS','ranking':'RANKING',
+  'guild-profiles':'ALL GUILDS','hall-of-fame':'HALL OF FAME','rules':'RULES & GUIDELINES','settings':'SETTINGS','about':'ABOUT'
+};
+const GUEST_SECTIONS=['guild-profiles','hall-of-fame','about'];
+
+function syncMenuButton(){
+  const btn=$('nav-menu'); if(!btn) return;
+  const inMember=state.view==='member', show=inMember&&memberDashboardAllowed();
+  btn.classList.toggle('hidden',!show);
+  $('nav-moderator')?.classList.toggle('hidden',show);
+  document.body.dataset.guest=state.guest?'1':'';
+  const g=$('drawer-guild'); if(g) g.textContent=state.guest?`GUEST • ${state.guest.guild_name}`:(state.guild?.guild_name||'GVG MENU');
+  const lo=$('drawer-logout'); if(lo) lo.textContent=state.guest?'EXIT GUEST':'LOGOUT';
+  document.querySelectorAll('.drawer-item').forEach(el=>el.classList.toggle('hidden',Boolean(state.guest)&&!GUEST_SECTIONS.includes(el.dataset.memberSection)));
+}
+function openDrawer(){
+  const d=$('side-drawer'),bk=$('drawer-backdrop'),btn=$('nav-menu'); if(!d||!bk) return;
+  bk.hidden=false;
+  requestAnimationFrame(()=>{d.classList.add('open');bk.classList.add('open');});
+  d.setAttribute('aria-hidden','false'); btn?.setAttribute('aria-expanded','true');
+  document.body.classList.add('drawer-open');
+  setTimeout(()=>d.querySelector('.drawer-item.active:not(.hidden)')?.focus({preventScroll:true}),80);
+}
+function closeDrawer({silent=false}={}){
+  const d=$('side-drawer'),bk=$('drawer-backdrop'),btn=$('nav-menu'); if(!d||!bk||!d.classList.contains('open')) return;
+  d.classList.remove('open'); bk.classList.remove('open');
+  d.setAttribute('aria-hidden','true'); btn?.setAttribute('aria-expanded','false');
+  document.body.classList.remove('drawer-open');
+  setTimeout(()=>{if(!d.classList.contains('open')) bk.hidden=true;},260);
+  if(!silent) btn?.focus({preventScroll:true});
+}
+$('nav-menu')?.addEventListener('click',()=>($('side-drawer')?.classList.contains('open')?closeDrawer():openDrawer()));
+$('drawer-close')?.addEventListener('click',()=>closeDrawer());
+$('drawer-backdrop')?.addEventListener('click',()=>closeDrawer());
+$('drawer-logout')?.addEventListener('click',()=>{closeDrawer({silent:true});$('nav-logout')?.click();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape') closeDrawer();});
+(function(){ /* swipe left on the open menu to close it */
+  let x0=null;
+  const d=$('side-drawer'); if(!d) return;
+  d.addEventListener('touchstart',e=>{x0=e.touches[0].clientX;},{passive:true});
+  d.addEventListener('touchend',e=>{if(x0!==null&&e.changedTouches[0].clientX-x0<-60) closeDrawer(); x0=null;},{passive:true});
+})();
+
+/* ----- Dashboard ----- */
+async function loadDashboard(){
+  if(!state.user||!state.guild) return;
+  const hub=loadMyGuildHub();
+  try{ await loadSectionCached('member:guild-profiles',loadPublicGuildProfiles,30000); }catch(error){ console.warn('Dashboard profile data:',error); }
+  renderDashboardExtras();
+  loadDashboardTeamAndRival();
+  await hub;
+}
+function renderDashboardExtras(){
+  const rec=$('dash-record'),tit=$('dash-titles'),bad=$('dash-badges');
+  if(!rec||!tit||!bad) return;
+  const p=myGuildProfileRow();
+  if(!p||p.profile_incomplete){
+    const msg='<div class="empty">Your public profile data will appear here after your first approved match.</div>';
+    rec.innerHTML=msg; tit.innerHTML=msg; bad.innerHTML=msg; return;
+  }
+  const info=guildBadgeInfo(p), unlocked=info?.score||0;
+  rec.innerHTML=`<div class="guild-profile-kpis"><div class="guild-profile-kpi"><span>Played</span><strong>${numberMetric(p,'total_played')}</strong></div><div class="guild-profile-kpi"><span>Wins</span><strong>${numberMetric(p,'wins')}</strong></div><div class="guild-profile-kpi"><span>Losses</span><strong>${numberMetric(p,'losses')}</strong></div><div class="guild-profile-kpi"><span>Win Rate</span><strong>${Number(p.win_rate||0).toFixed(1)}%</strong></div></div>
+    <div class="guild-profile-kpis"><div class="guild-profile-kpi"><span>Top 10 weeks</span><strong>${numberMetric(p,'top10_weeks')}</strong></div><div class="guild-profile-kpi"><span>Longest streak</span><strong>${numberMetric(p,'max_win_streak')}</strong></div><div class="guild-profile-kpi"><span>UID</span><strong class="kpi-small">${escapeHtml(p.guild_uid||'—')}</strong></div><div class="guild-profile-kpi"><span>Badges</span><strong>${unlocked}/100</strong></div></div>`;
+  const wk=numberMetric(p,'weekly_trophies'),mo=numberMetric(p,'monthly_trophies');
+  tit.innerHTML=`<div class="trophy-tiles"><div class="trophy-tile"><i>&#127942;</i><b>${wk}</b><small>WEEKLY CHAMPION${wk===1?'':'S'}</small></div><div class="trophy-tile"><i>&#128081;</i><b>${mo}</b><small>MONTHLY CHAMPION${mo===1?'':'S'}</small></div></div>
+    <div class="title-line"><span>DISPLAY TITLE</span>${titleChipMarkup(info?.title)||'<em>No rank title earned yet</em>'}</div>`;
+  bad.innerHTML=renderAchievements(p);
+}
+async function loadDashboardTeamAndRival(){
+  const roster=$('dash-roster'),rivalBox=$('dash-rival'),count=$('dash-roster-count');
+  const norm=normalizeGuild(state.guild?.guild_name_normalized||state.guild?.guild_name||'');
+  const safe=x=>Promise.resolve(x).catch(error=>({data:null,error}));
+  const [rosterRes,rivalRes]=await Promise.all([safe(db.rpc('get_my_gvg_roster')),safe(readRpc('get_gvg_guild_rival',{p_norm:norm}))]);
+  if(roster){
+    const r=(Array.isArray(rosterRes.data)?rosterRes.data[0]:rosterRes.data)||{};
+    const members=Array.isArray(r.members)?r.members.filter(Boolean):[];
+    if(count) count.textContent=String(members.length);
+    roster.innerHTML=members.length
+      ?`<ol class="pp-roster dash-roster-list">${members.map((n,i)=>`<li><span class="n">${i+1}</span><b>${escapeHtml(n)}</b></li>`).join('')}</ol>`
+      :'<div class="empty">No team list yet. Add your players in <button type="button" class="link-btn" data-member-section="settings">SETTINGS</button>.</div>';
+  }
+  if(rivalBox){
+    const rv=Array.isArray(rivalRes.data)?rivalRes.data[0]:rivalRes.data;
+    rivalBox.innerHTML=(rv&&Number(rv.matches)>=2)
+      ?`<div class="pp-rival">${guildAvatarMarkup(rv,true)}<div class="pp-rival-main"><div class="pp-rival-name">${escapeHtml(rv.guild_name||'')}</div><div class="pp-rival-meta">${Number(rv.matches)} matches played &bull; ${Number(rv.wins)} won &bull; ${Number(rv.losses)} lost</div></div></div>`
+      :'<div class="empty">A rival appears after your guild plays the same opponent at least 2 times.</div>';
+  }
+}
+
+/* ----- Settings ----- */
+function loadSettings(){
+  if(!state.user||!state.guild) return;
+  refreshMyProfileForm();
+  loadMyTitleOptions();
+  loadMyRoster();
+}
+async function handlePasswordChange(e){
+  e.preventDefault();
+  clearStatus('pw-status');
+  const current=$('pw-current')?.value||'',next=$('pw-new')?.value||'',confirm=$('pw-confirm')?.value||'';
+  if(!current||!next||!confirm){showStatus('pw-status','error','Fill in all three password fields.');return;}
+  if(next.length<8){showStatus('pw-status','error','The new password must be at least 8 characters.');return;}
+  if(next!==confirm){showStatus('pw-status','error','The new password and its confirmation do not match.');return;}
+  if(next===current){showStatus('pw-status','error','Choose a new password that is different from the current one.');return;}
+  const email=state.user?.email; if(!email){showStatus('pw-status','error','Please login again.');return;}
+  try{
+    setBusy('pw-save',true,'UPDATE PASSWORD');
+    const check=await db.auth.signInWithPassword({email,password:current,options:{captchaToken:await getCaptchaToken('password')}});
+    if(check.error) throw new Error('Your current password is not correct.');
+    const {error}=await db.auth.updateUser({password:next});
+    if(error) throw error;
+    ['pw-current','pw-new','pw-confirm'].forEach(id=>{const el=$(id); if(el) el.value='';});
+    showStatus('pw-status','ok','Password updated successfully.');
+  }catch(error){
+    showStatus('pw-status','error',humanizeError(error));
+  }finally{
+    setBusy('pw-save',false,'UPDATE PASSWORD');
+  }
+}
+$('password-form')?.addEventListener('submit',handlePasswordChange);
+
+
+/* ===== v39: touch feel - ripple circle, click sound and button shine =====
+   Everything is generated in the browser (no audio files, no downloads). Motion uses the Web Animations API because
+   style.css disables CSS animations site-wide. Sound can be switched off from the menu (remembered on this device). */
+(function(){
+  'use strict';
+  const CLICKABLE='.btn,.gs-btn,.day-tab,.drawer-item,.menu-btn,.ff-tile,.rules-tab,.ranking-mode-button,.hof-type-tab,.hof-year-tile,.hof-period-tile,.ach-tab,.ach-cell,.guest-toggle,.close-btn,.dots-btn,.dots-menu button,.time-picker-trigger,.time-picker-ampm button,.link-btn,.wa-btn,.social-btn,.app-dialog-btn,.app-dialog-close,.title-opt,.autocomplete-item,.ban-appeal,.moderator-action-btn,.admin-tab,.moderator-section-tab';
+  const KEY='gvg-sound-v1';
+  let soundOn=true; try{soundOn=localStorage.getItem(KEY)!=='off';}catch{}
+  const reduced=()=>{try{return matchMedia('(prefers-reduced-motion: reduce)').matches;}catch{return false;}};
+  let ctx=null;
+  function audio(){
+    if(!ctx){const AC=window.AudioContext||window.webkitAudioContext; if(!AC) return null; try{ctx=new AC();}catch{return null;}}
+    if(ctx.state==='suspended') ctx.resume().catch(()=>{});
+    return ctx;
+  }
+  /* A short, soft "game UI" click: a quick pitch drop plus a tiny high tick. */
+  function click(strong){
+    if(!soundOn) return;
+    const c=audio(); if(!c) return;
+    const t=c.currentTime,out=c.createGain();
+    out.gain.setValueAtTime(0.0001,t);
+    out.gain.exponentialRampToValueAtTime(strong?0.16:0.11,t+0.006);
+    out.gain.exponentialRampToValueAtTime(0.0001,t+0.11);
+    out.connect(c.destination);
+    const o=c.createOscillator(); o.type='triangle';
+    o.frequency.setValueAtTime(strong?980:820,t); o.frequency.exponentialRampToValueAtTime(strong?420:360,t+0.075);
+    o.connect(out); o.start(t); o.stop(t+0.12);
+    const o2=c.createOscillator(),g2=c.createGain(); o2.type='sine';
+    o2.frequency.setValueAtTime(2400,t); g2.gain.setValueAtTime(0.05,t); g2.gain.exponentialRampToValueAtTime(0.0001,t+0.03);
+    o2.connect(g2); g2.connect(c.destination); o2.start(t); o2.stop(t+0.04);
+  }
+  function ripple(el,e){
+    if(reduced()||typeof el.animate!=='function') return;
+    if(getComputedStyle(el).position==='static') el.style.position='relative';
+    let layer=el.querySelector(':scope > .fx-layer');
+    if(!layer){layer=document.createElement('span'); layer.className='fx-layer'; layer.setAttribute('aria-hidden','true'); el.appendChild(layer);}
+    const r=el.getBoundingClientRect();
+    const x=(e.clientX||r.left+r.width/2)-r.left,y=(e.clientY||r.top+r.height/2)-r.top;
+    const size=Math.max(r.width,r.height)*2.2;
+    const dot=document.createElement('span'); dot.className='fx-ripple';
+    dot.style.cssText=`left:${x-size/2}px;top:${y-size/2}px;width:${size}px;height:${size}px`;
+    layer.appendChild(dot);
+    const a=dot.animate([{transform:'scale(.05)',opacity:.55},{transform:'scale(1)',opacity:0}],{duration:560,easing:'cubic-bezier(.2,.7,.25,1)'});
+    a.onfinish=()=>dot.remove(); a.oncancel=()=>dot.remove();
+  }
+  document.addEventListener('pointerdown',e=>{
+    if(e.button>0) return;
+    const el=e.target.closest?.(CLICKABLE);
+    if(!el||el.disabled||el.getAttribute('aria-disabled')==='true') return;
+    ripple(el,e);
+    click(el.matches('.btn-primary,.btn-gold,.gs-btn.active,.wa-btn,.social-btn'));
+    if(soundOn&&navigator.vibrate&&e.pointerType==='touch'){try{navigator.vibrate(8);}catch{}}
+  },{passive:true});
+
+  /* sound switch (menu footer) */
+  function paintSwitch(){
+    const b=document.getElementById('sound-toggle'); if(!b) return;
+    b.textContent=soundOn?'\u{1F50A} SOUND ON':'\u{1F507} SOUND OFF';
+    b.setAttribute('aria-pressed',soundOn?'true':'false');
+  }
+  document.getElementById('sound-toggle')?.addEventListener('click',()=>{
+    soundOn=!soundOn; try{localStorage.setItem(KEY,soundOn?'on':'off');}catch{}
+    paintSwitch(); if(soundOn) setTimeout(()=>click(true),30);
+  });
+  paintSwitch();
+
+  /* a soft light sweep across the main buttons that are on screen (only a few at a time, never in the background) */
+  function sheenTick(){
+    if(document.hidden||reduced()) return;
+    const vh=innerHeight;
+    let n=0;
+    document.querySelectorAll('.btn-primary:not(:disabled),.btn-gold:not(:disabled)').forEach(btn=>{
+      if(n>=4) return;
+      const r=btn.getBoundingClientRect(); if(r.bottom<0||r.top>vh||r.width<40) return;
+      n+=1;
+      let sh=btn.querySelector(':scope > .fx-sheen');
+      if(!sh){sh=document.createElement('i'); sh.className='fx-sheen'; sh.setAttribute('aria-hidden','true'); btn.appendChild(sh);}
+      if(sh._busy) return;
+      sh._busy=true;
+      const a=sh.animate([{transform:'translateX(-140%) skewX(-22deg)'},{transform:'translateX(360%) skewX(-22deg)'}],{duration:900,delay:Math.random()*900,easing:'ease-in-out'});
+      a.onfinish=()=>{sh._busy=false;}; a.oncancel=()=>{sh._busy=false;};
+    });
+  }
+  setInterval(sheenTick,3800);
+  setTimeout(sheenTick,1200);
 })();
 
 (async function boot(){
