@@ -24,7 +24,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800;900&family=Cinzel:wght@600;700;800&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./style.css?v=39.0-arena" />
+  <link rel="stylesheet" href="./style.css?v=40.0-pro" />
 </head>
 <body>
   <div class="topline"></div>
@@ -134,7 +134,7 @@
               <div class="hub-stat"><span>WINS</span><b id="my-hub-wins">0</b></div>
               <div class="hub-stat"><span>LOSSES</span><b id="my-hub-losses">0</b></div>
             </div>
-            <div class="hub-today"><div class="hub-today-row"><span>TODAY&rsquo;S MATCHES</span><b id="my-hub-today">0 / 5</b></div><div class="hub-bar"><i id="my-hub-today-bar"></i></div></div>
+            <div class="hub-today"><div class="hub-today-row"><span>TODAY&rsquo;S MATCHES</span><b id="my-hub-today">0 / 7</b></div><div class="hub-bar"><i id="my-hub-today-bar"></i></div></div>
             <div id="my-hub-error" class="status"></div>
           </div>
           <div class="dash-grid">
@@ -313,7 +313,9 @@
         </div>
 
         <div id="member-section-settings" class="member-view">
-          <div class="settings-stack">
+          <div class="set-intro"><h3>SETTINGS</h3><p>Manage your guild profile, security, team and access.</p></div>
+        <div class="settings-stack">
+          <div class="set-group">ACCOUNT</div>
           <div class="card" id="my-profile-card">
             <div class="panel-head"><div><div class="kicker">Guild Identity</div><h3>PROFILE DETAILS</h3><div class="subtle">Fill in only what you want to change. Empty fields stay as they are, and locked fields are skipped.</div></div></div>
             <form id="my-profile-form" novalidate>
@@ -346,6 +348,7 @@
               <div id="my-profile-status" class="status"></div>
             </form>
           </div>
+          <div class="set-group">SECURITY</div>
           <div class="card" id="password-card">
             <div class="panel-head"><div><div class="kicker">Security</div><h3>CHANGE PASSWORD</h3><div class="subtle">Use at least 8 characters. You stay logged in on this device after the change.</div></div></div>
             <form id="password-form" novalidate>
@@ -358,6 +361,7 @@
               <div id="pw-status" class="status"></div>
             </form>
           </div>
+          <div class="set-group">TEAM &amp; TITLE</div>
           <div class="card" id="roster-card">
             <div class="panel-head"><div><div class="kicker">Team</div><h3>TEAM ROSTER</h3><div class="subtle">Add up to 10 team member names. After you save, the list can be changed again only after 7 days.</div></div><span id="roster-count" class="badge badge-gold">0 / 10</span></div>
             <form id="guild-roster-form" novalidate>
@@ -375,6 +379,7 @@
               <div id="guild-title-status" class="status"></div>
             </form>
           </div>
+          <div class="set-group">GUEST ACCESS</div>
           <div class="card" id="guild-code-card">
             <div class="panel-head"><div><div class="kicker">Guest Access</div><h3>GUILD CODE</h3><div class="subtle">A 4-digit code. Anyone who knows your guild name and this code can view guild profiles and the Hall of Fame (read only, no editing). You can change it any time.</div></div></div>
             <form id="guild-code-form" novalidate>
@@ -384,6 +389,7 @@
               <div id="guild-code-status" class="status"></div>
             </form>
           </div>
+          <div class="set-group">DANGER ZONE</div>
           <div class="card danger-zone">
             <div class="panel-head"><div><div class="kicker">Danger zone</div><h3>DELETE MY ACCOUNT</h3><div class="subtle">Your login and phone number are erased and your access ends immediately. Points, results and Hall of Fame records stay. To come back you must register again and get Admin approval.</div></div></div>
             <form id="guild-delete-form" novalidate>
@@ -683,7 +689,7 @@
   });
 })();
 </script>
-<script src="./script.js?v=39.0-arena"></script>
+<script src="./script.js?v=40.0-pro"></script>
   <div id="app-dialog-backdrop" class="app-dialog-backdrop" aria-hidden="true"><div id="app-dialog" class="app-dialog" role="dialog" aria-modal="true" aria-labelledby="app-dialog-title"></div></div>
 
 </body>

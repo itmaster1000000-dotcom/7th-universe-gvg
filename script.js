@@ -1485,11 +1485,13 @@ function renderRankingTable(mode,rows){
     target.innerHTML=`<tr><td colspan="${targetInfo.cols}">${emptyText}</td></tr>`;
     return;
   }
-  target.innerHTML=rows.slice(0,10).map((r,i)=>{
+  const topRows=rows.slice(0,10),maxPts=Math.max(1,...topRows.map(r=>Number(r.points)||0));
+  target.innerHTML=topRows.map((r,i)=>{
     const rank=Number.isFinite(Number(r.rank_no))?Number(r.rank_no):(i+1);
     const points=Number(r.points)||0;
     const pointClass=points<0?'pos-red':'pos-green';
-    return `<tr><td class="pos">${escapeHtml(rank)}</td><td><strong>${escapeHtml(r.guild_name)}</strong></td><td class="pts ${pointClass}">${escapeHtml(points)}</td></tr>`;
+    const w=points>0?Math.max(6,Math.round(points/maxPts*100)):0;
+    return `<tr class="rk rk-${rank<=3?rank:'n'}"><td class="pos"><span class="rk-badge">${escapeHtml(rank)}</span></td><td><div class="rk-name">${rank===1?'<span class="rk-crown" aria-hidden="true">&#128081;</span>':''}<strong>${escapeHtml(r.guild_name)}</strong></div><i class="rk-bar"><b style="width:${w}%"></b></i></td><td class="pts ${pointClass}">${escapeHtml(points)}<small>PTS</small></td></tr>`;
   }).join('');
 }
 
@@ -1757,7 +1759,7 @@ function preferredResultProofUrls(imageUrls){
 }
 
 async function loadAdminResults(){
-  try{const {data,error}=await adminDb.rpc('admin_get_results');if(error)throw error;const rows=data||[];state.results=rows;const target=$('admin-result-table');target.innerHTML=rows.length?rows.map(r=>{const imgs=preferredResultProofUrls(r.image_urls);const gallery=imgs.length?`<details class="proof-details"><summary>OPEN RESULT PROOF</summary><div class="proof-gallery">${imgs.map((u,i)=>`<a href="${escapeHtml(u)}" target="_blank" rel="noopener"><span class="proof-tag">RESULT PROOF</span><img data-proof-src="${escapeHtml(u)}" loading="lazy" decoding="async" alt="${escapeHtml(r.winner_guild)} vs ${escapeHtml(r.loser_guild)} result proof" /></a>`).join('')}</div></details>`:'<span class="muted">No proof</span>';return `<tr><td><strong>${escapeHtml(r.winner_guild)}</strong><div class="muted" style="margin-top:3px">DEFEAT</div><strong>${escapeHtml(r.loser_guild)}</strong></td><td>${escapeHtml(r.score)}</td><td><strong class="cell-time">${escapeHtml(formatDateTime(r.created_at))}</strong><div class="muted cell-note">PAKISTAN TIME</div></td><td>${gallery}<div style="margin-top:6px"><span class="status-pill ${r.status==='approved'?'status-approved':r.status==='pending'?'status-pending':'status-rejected'}">${escapeHtml(r.status)}</span></div></td><td>${r.status==='pending'?`<div style="display:flex;gap:5px;flex-wrap:wrap"><button class="btn btn-green btn-small" type="button" data-action="approve-result" data-id="${escapeHtml(r.id)}">APPROVE</button><button class="btn btn-red btn-small" type="button" data-action="reject-result" data-id="${escapeHtml(r.id)}">REJECT</button></div>`:'—'}</td></tr>`;}).join(''):'<tr><td colspan="4">No result submissions.</td></tr>';}catch(error){showStatus('admin-status','error',humanizeError(error));}
+  try{const {data,error}=await adminDb.rpc('admin_get_results');if(error)throw error;const rows=data||[];state.results=rows;const target=$('admin-result-table');target.innerHTML=rows.length?rows.map(r=>{const imgs=preferredResultProofUrls(r.image_urls);const gallery=imgs.length?`<details class="proof-details"><summary>OPEN RESULT PROOF</summary><div class="proof-gallery">${imgs.map((u,i)=>`<a href="${escapeHtml(u)}" target="_blank" rel="noopener"><span class="proof-tag">RESULT PROOF</span><img data-proof-src="${escapeHtml(u)}" loading="lazy" decoding="async" alt="${escapeHtml(r.winner_guild)} vs ${escapeHtml(r.loser_guild)} result proof" /></a>`).join('')}</div></details>`:'<span class="muted">No proof</span>';return `<tr><td class="mr-match"><div class="mr-team win"><span class="mr-tag">WIN</span><strong>${escapeHtml(r.winner_guild)}</strong></div><div class="mr-team loss"><span class="mr-tag">DEFEAT</span><strong>${escapeHtml(r.loser_guild)}</strong></div></td><td>${escapeHtml(r.score)}</td><td><strong class="cell-time">${escapeHtml(formatDateTime(r.created_at))}</strong><div class="muted cell-note">PAKISTAN TIME</div></td><td>${gallery}<div style="margin-top:6px"><span class="status-pill ${r.status==='approved'?'status-approved':r.status==='pending'?'status-pending':'status-rejected'}">${escapeHtml(r.status)}</span></div></td><td>${r.status==='pending'?`<div style="display:flex;gap:5px;flex-wrap:wrap"><button class="btn btn-green btn-small" type="button" data-action="approve-result" data-id="${escapeHtml(r.id)}">APPROVE</button><button class="btn btn-red btn-small" type="button" data-action="reject-result" data-id="${escapeHtml(r.id)}">REJECT</button></div>`:'—'}</td></tr>`;}).join(''):'<tr><td colspan="5">No result submissions.</td></tr>';}catch(error){showStatus('admin-status','error',humanizeError(error));}
 }
 async function approveResult(id){try{const {error}=await adminDb.rpc('admin_approve_result',{p_result_id:id});if(error)throw error;invalidateResultViewCaches();showStatus('admin-status','ok','Result approved. The database point-award function completed; rankings will reload on the next member view. WhatsApp delivery is handled by the webhook bridge.');clearSectionCache('admin:');await Promise.all([loadAdminResults(),loadAdminGuilds()]);markSectionLoaded('admin:results');markSectionLoaded('admin:guilds');}catch(error){showStatus('admin-status','error',humanizeError(error));}}
 async function rejectResult(id){
@@ -1900,7 +1902,7 @@ async function loadModeratorResults(){
       const gallery=imgs.length?`<details class="proof-details"><summary>OPEN RESULT PROOF</summary><div class="proof-gallery">${imgs.map((u,i)=>`<a href="${escapeHtml(u)}" target="_blank" rel="noopener"><span class="proof-tag">RESULT PROOF</span><img data-proof-src="${escapeHtml(u)}" loading="lazy" decoding="async" alt="${escapeHtml(r.winner_guild)} vs ${escapeHtml(r.loser_guild)} result proof" /></a>`).join('')}</div></details>`:'<span class="muted">No proof</span>';
       const status=String(r.status||'unknown').toLowerCase();
       const actions=status==='pending'?`<div class="moderator-actions"><button class="btn btn-green btn-small moderator-action-btn" type="button" data-action="mod-approve-result" data-id="${escapeHtml(r.id)}">APPROVE</button><button class="btn btn-red btn-small moderator-action-btn" type="button" data-action="mod-reject-result" data-id="${escapeHtml(r.id)}">REJECT</button></div>`:'—';
-      return `<tr><td><strong>${escapeHtml(r.winner_guild)}</strong><div class="muted" style="margin:3px 0">DEFEAT</div><strong>${escapeHtml(r.loser_guild)}</strong></td><td>${escapeHtml(r.score)}</td><td><strong class="cell-time">${escapeHtml(formatDateTime(r.created_at))}</strong><div class="muted cell-note">PAKISTAN TIME</div></td><td>${gallery}<div style="margin-top:6px"><span class="status-pill ${status==='approved'?'status-approved':status==='pending'?'status-pending':'status-rejected'}">${escapeHtml(status)}</span></div>${r.rejection_reason?`<div class="muted" style="margin-top:5px">${escapeHtml(r.rejection_reason)}</div>`:''}</td><td>${actions}</td></tr>`;
+      return `<tr><td class="mr-match"><div class="mr-team win"><span class="mr-tag">WIN</span><strong>${escapeHtml(r.winner_guild)}</strong></div><div class="mr-team loss"><span class="mr-tag">DEFEAT</span><strong>${escapeHtml(r.loser_guild)}</strong></div></td><td>${escapeHtml(r.score)}</td><td><strong class="cell-time">${escapeHtml(formatDateTime(r.created_at))}</strong><div class="muted cell-note">PAKISTAN TIME</div></td><td>${gallery}<div style="margin-top:6px"><span class="status-pill ${status==='approved'?'status-approved':status==='pending'?'status-pending':'status-rejected'}">${escapeHtml(status)}</span></div>${r.rejection_reason?`<div class="muted" style="margin-top:5px">${escapeHtml(r.rejection_reason)}</div>`:''}</td><td>${actions}</td></tr>`;
     }).join(''):'<tr><td colspan="5">No result submissions.</td></tr>';
   }catch(error){console.error(error);target.innerHTML=`<tr><td colspan="5">${escapeHtml(humanizeError(error))}</td></tr>`;showStatus('moderator-results-status','error',humanizeError(error));}
 }
@@ -2144,8 +2146,8 @@ function openPublicGuildProfile(norm){
   const unlocked=info?.score||0;
   const statsMarkup=p.profile_incomplete
     ? '<div class="hint" style="margin-top:10px">This approved guild is listed, but its public profile data has not been created yet. UID, logo, match statistics and achievements will appear after profile data is available.</div>'
-    : `<div class="guild-profile-kpis"><div class="guild-profile-kpi"><span>Played</span><strong>${numberMetric(p,'total_played')}</strong></div><div class="guild-profile-kpi"><span>Wins</span><strong>${numberMetric(p,'wins')}</strong></div><div class="guild-profile-kpi"><span>Losses</span><strong>${numberMetric(p,'losses')}</strong></div><div class="guild-profile-kpi"><span>Win Rate</span><strong>${Number(p.win_rate||0).toFixed(1)}%</strong></div></div>
-    <div class="guild-profile-kpis"><div class="guild-profile-kpi"><span>Weekly trophies</span><strong>🏆 ${numberMetric(p,'weekly_trophies')}</strong></div><div class="guild-profile-kpi"><span>Monthly trophies</span><strong>👑 ${numberMetric(p,'monthly_trophies')}</strong></div><div class="guild-profile-kpi"><span>Top 10 weeks</span><strong>${numberMetric(p,'top10_weeks')}</strong></div><div class="guild-profile-kpi"><span>Longest streak</span><strong>${numberMetric(p,'max_win_streak')}</strong></div></div>${renderAchievements(p)}<div class="hint" style="margin-top:12px">Statistics use approved results only. Trophies are official awards added by the GVG Admin.</div>`;
+    : `<div class="guild-badge-section-title">MATCH RECORD</div><div class="guild-profile-kpis"><div class="guild-profile-kpi"><span>Played</span><strong>${numberMetric(p,'total_played')}</strong></div><div class="guild-profile-kpi"><span>Wins</span><strong>${numberMetric(p,'wins')}</strong></div><div class="guild-profile-kpi"><span>Losses</span><strong>${numberMetric(p,'losses')}</strong></div><div class="guild-profile-kpi"><span>Win Rate</span><strong>${Number(p.win_rate||0).toFixed(1)}%</strong></div></div>
+    <div class="guild-badge-section-title">HONOURS &amp; STREAKS</div><div class="guild-profile-kpis"><div class="guild-profile-kpi"><span>Weekly trophies</span><strong>🏆 ${numberMetric(p,'weekly_trophies')}</strong></div><div class="guild-profile-kpi"><span>Monthly trophies</span><strong>👑 ${numberMetric(p,'monthly_trophies')}</strong></div><div class="guild-profile-kpi"><span>Top 10 weeks</span><strong>${numberMetric(p,'top10_weeks')}</strong></div><div class="guild-profile-kpi"><span>Longest streak</span><strong>${numberMetric(p,'max_win_streak')}</strong></div></div>${renderAchievements(p)}<div class="hint" style="margin-top:12px">Statistics use approved results only. Trophies are official awards added by the GVG Admin.</div>`;
   const html=`<div class="modal-head"><div><div class="kicker">Public Guild Profile</div><h3>${escapeHtml(p.guild_name)}</h3></div><button class="close-btn" type="button" data-action="close-modal">×</button></div>
     <div style="display:flex;align-items:center;gap:12px;margin:12px 0">${guildAvatarMarkup(p,true)}<div><div style="font-weight:900">GUILD UID</div><div class="guild-profile-uid">${escapeHtml(p.guild_uid||'Not added yet')}</div>${p.profile_incomplete?'':`<div class="guild-profile-meta">${unlocked}/100 badges earned</div>`}${titleChipMarkup(info?.title)}</div></div>${statsMarkup}`;
   openModal(html);
@@ -3008,6 +3010,7 @@ $('password-recovery-form').addEventListener('submit',async(e)=>{
   if(typeof IntersectionObserver==='undefined'||typeof Element==='undefined'||!Element.prototype.animate) return;
   const still=()=>{try{return window.matchMedia('(prefers-reduced-motion: reduce)').matches;}catch{return false;}};
   const rnd=(a,b)=>a+Math.random()*(b-a);
+  let moving=false,idleT=null;
   function start(el){
     if(el._fx||still()) return;
     const fx=[], dia=el.classList.contains('t5');
@@ -3019,6 +3022,7 @@ $('password-recovery-form').addEventListener('submit',async(e)=>{
       fx.push(s.animate([{opacity:0,transform:'scale(.2) rotate(0deg)'},{opacity:1,transform:'scale(1) rotate(45deg)',offset:.35},{opacity:0,transform:'scale(.2) rotate(90deg)'}],{duration:1500,delay:rnd(0,3200)+i*900,endDelay:rnd(1800,3200),iterations:Infinity,easing:'ease-in-out'}));
     });
     el._fx=fx;
+    if(moving) fx.forEach(a=>{try{a.pause();}catch{}});
   }
   function stop(el){ if(el._fx){el._fx.forEach(a=>{try{a.cancel();}catch{}});el._fx=null;} }
   const io=new IntersectionObserver(entries=>{
@@ -3031,6 +3035,10 @@ $('password-recovery-form').addEventListener('submit',async(e)=>{
   const watch=root=>{ if(root.nodeType!==1) return; if(root.matches?.('.bfx')) io.observe(root); root.querySelectorAll?.('.bfx').forEach(x=>io.observe(x)); };
   new MutationObserver(list=>list.forEach(m=>m.addedNodes.forEach(watch))).observe(document.documentElement,{childList:true,subtree:true});
   watch(document.documentElement);
+  const setPaused=p=>document.querySelectorAll('.bfx').forEach(el=>{if(el._fx) el._fx.forEach(a=>{try{p?a.pause():a.play();}catch{}});});
+  const onMove=()=>{if(!moving){moving=true;setPaused(true);} clearTimeout(idleT); idleT=setTimeout(()=>{moving=false;setPaused(false);},200);};
+  document.addEventListener('scroll',onMove,{passive:true,capture:true});
+  document.addEventListener('touchmove',onMove,{passive:true,capture:true});
   document.addEventListener('visibilitychange',()=>{ if(!document.hidden) document.querySelectorAll('.bfx').forEach(el=>{ if(!el._fx&&!still()){const r=el.getBoundingClientRect(); if(r.bottom>0&&r.top<innerHeight)start(el);} }); });
 })();
 
@@ -3411,12 +3419,24 @@ $('password-form')?.addEventListener('submit',handlePasswordChange);
     const a=dot.animate([{transform:'scale(.05)',opacity:.55},{transform:'scale(1)',opacity:0}],{duration:560,easing:'cubic-bezier(.2,.7,.25,1)'});
     a.onfinish=()=>dot.remove(); a.oncancel=()=>dot.remove();
   }
+  /* v40: sound + ripple + vibration only for a real TAP. Press-and-drag, scroll and swipe stay silent. */
+  let tap=null,lastFx=0;
   document.addEventListener('pointerdown',e=>{
-    if(e.button>0) return;
+    tap=null; if(e.button>0) return;
     const el=e.target.closest?.(CLICKABLE);
     if(!el||el.disabled||el.getAttribute('aria-disabled')==='true') return;
-    ripple(el,e);
-    click(el.matches('.btn-primary,.btn-gold,.gs-btn.active,.wa-btn,.social-btn'));
+    tap={el,x:e.clientX,y:e.clientY,t:performance.now(),id:e.pointerId};
+    if(soundOn&&!ctx){try{audio();}catch{}}
+  },{passive:true});
+  document.addEventListener('pointermove',e=>{if(tap&&e.pointerId===tap.id&&Math.hypot(e.clientX-tap.x,e.clientY-tap.y)>9) tap=null;},{passive:true});
+  ['pointercancel','scroll','touchmove','dragstart','contextmenu'].forEach(n=>document.addEventListener(n,()=>{tap=null;},{passive:true,capture:true}));
+  document.addEventListener('pointerup',e=>{
+    const t0=tap; tap=null;
+    if(!t0||e.pointerId!==t0.id||!t0.el.isConnected) return;
+    const now=performance.now(); if(now-t0.t>650||now-lastFx<70) return;
+    if(t0.el.disabled||t0.el.getAttribute('aria-disabled')==='true') return;
+    lastFx=now; ripple(t0.el,e);
+    click(t0.el.matches('.btn-primary,.btn-gold,.gs-btn.active,.wa-btn,.social-btn'));
     if(soundOn&&navigator.vibrate&&e.pointerType==='touch'){try{navigator.vibrate(8);}catch{}}
   },{passive:true});
 
