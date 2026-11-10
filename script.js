@@ -2666,6 +2666,16 @@ function renderHubLogo(g){
   if(url){ box.innerHTML=''; const img=document.createElement('img'); img.alt=''; img.loading='lazy'; img.src=url; box.appendChild(img); }
   else box.innerHTML='<span>&#9876;</span>';
 }
+/* v43: dashboard shows the guild's UID + logo even when they were saved on another leader's row (same source as the public Guild Profile) */
+function syncHubIdentity(){
+  const g=state.guild; if(!g||!$('my-hub-meta')) return;
+  let p=null; try{p=myGuildProfileRow();}catch{}
+  const uid=g.guild_uid||p?.guild_uid||'', logo=g.guild_logo_url||p?.guild_logo_url||'';
+  const parts=[uid?`UID ${uid}`:'UID not added yet'];
+  if(g.contact) parts.push(formatContact(g.contact));
+  $('my-hub-meta').textContent=parts.join(' • ');
+  renderHubLogo({guild_logo_url:logo});
+}
 async function loadMyGuildHub(){
   const card=$('my-guild-hub'); if(!card) return;
   const g=state.guild;
@@ -2678,11 +2688,7 @@ async function loadMyGuildHub(){
     return;
   }
   $('my-hub-name').textContent=g.guild_name||'GUILD';
-  const metaParts=[];
-  metaParts.push(g.guild_uid?`UID ${g.guild_uid}`:'UID not added yet');
-  if(g.contact) metaParts.push(formatContact(g.contact));
-  $('my-hub-meta').textContent=metaParts.join(' • ');
-  renderHubLogo(g);
+  syncHubIdentity();
   const current=$('guild-contact-current'); if(current) current.textContent=`Current number: ${g.contact?formatContact(g.contact):'—'}`;
   const banned=g.is_banned&&(!g.ban_until||new Date(g.ban_until)>new Date());
   if(banned){badge.className='badge badge-red';badge.textContent='BANNED';}
@@ -3323,6 +3329,7 @@ async function loadDashboard(){
   await hub;
 }
 function renderDashboardExtras(){
+  try{syncHubIdentity();}catch{}
   const rec=$('dash-record'),tit=$('dash-titles'),bad=$('dash-badges');
   if(!rec||!tit||!bad) return;
   const p=myGuildProfileRow();
