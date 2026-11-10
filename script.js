@@ -419,6 +419,7 @@ function scrollActiveTabIntoView(selector){
   try{document.querySelector(selector)?.scrollIntoView({inline:'center',block:'nearest',behavior:'smooth'});}catch{}
 }
 function openMemberSection(name){
+  closeModal();
   const allowed=Object.keys(MEMBER_SECTIONS);
   const section=state.guest?(GUEST_SECTIONS.includes(name)?name:'guild-profiles'):(allowed.includes(name)?name:'dashboard');
 
@@ -1628,8 +1629,21 @@ async function loadAdminGuilds(){
 }
 function leaderArray(g){ try{return Array.isArray(g.leaders)?g.leaders:(typeof g.leaders==='string'?JSON.parse(g.leaders):[]);}catch{return [];} }
 function findGuild(id){return state.guilds.find(g=>g.id===id)||null;}
-function openModal(html, extraClass=''){const modal=$('modal');modal.classList.remove('hof-detail-modal');if(extraClass)modal.classList.add(extraClass);modal.innerHTML=html;$('modal-backdrop').classList.add('open');}
-function closeModal(){$('modal-backdrop').classList.remove('open');$('modal').innerHTML='';$('modal').classList.remove('hof-detail-modal');}
+/* v41: overlays (modal, side menu) take one history entry, so the phone Back button closes them instead of leaving the page */
+var overlayDepth=0,ignorePops=0;
+function pushOverlay(){try{history.pushState({gvgOverlay:1},'');overlayDepth++;}catch{}}
+function popOverlay(){if(overlayDepth>0){overlayDepth--;ignorePops++;try{history.back();}catch{ignorePops--;}}}
+function hideModal(){$('modal-backdrop').classList.remove('open');$('modal').innerHTML='';$('modal').classList.remove('hof-detail-modal');}
+function openModal(html, extraClass=''){const modal=$('modal'),was=$('modal-backdrop').classList.contains('open');modal.classList.remove('hof-detail-modal');if(extraClass)modal.classList.add(extraClass);modal.innerHTML=html;modal.scrollTop=0;$('modal-backdrop').classList.add('open');if(!was)pushOverlay();}
+function closeModal(){const was=$('modal-backdrop').classList.contains('open');hideModal();if(was)popOverlay();}
+window.addEventListener('popstate',()=>{
+  if(ignorePops>0){ignorePops--;return;}
+  if(overlayDepth<=0) return;
+  overlayDepth--;
+  if($('modal-backdrop').classList.contains('open')) hideModal();
+  else if($('side-drawer')?.classList.contains('open')) closeDrawer({silent:true,fromPop:true});
+});
+try{if(history.state&&history.state.gvgOverlay) history.replaceState(null,'');}catch{}
 function adminGuildInfo(g){
   const leaders=leaderArray(g);
 
@@ -1657,7 +1671,7 @@ function adminGuildInfo(g){
       }).join('')
     : '<div class="empty">No linked leader emails.</div>';
 
-  openModal(`<div class="modal-head"><div><div class="kicker">Guild Information</div><h3>${escapeHtml(g.guild_name)}</h3></div><button class="close-btn" type="button" data-action="close-modal">×</button></div><div class="info-grid"><div class="info-box"><small>Guild Status</small><strong>${escapeHtml(guildStatusLabel(g))}</strong></div><div class="info-box"><small>Current Points</small><strong>${escapeHtml(g.points)}</strong></div><div class="info-box"><small>Leader Count</small><strong>${escapeHtml(g.leader_count)}</strong></div><div class="info-box"><small>Registered</small><strong>${escapeHtml(formatDateTime(g.created_at))}</strong></div></div><div class="kicker" style="margin-top:13px">LEADERS</div><div class="leader-list">${leaderHtml}</div><div class="divider"></div><div class="modal-actions"><button class="btn btn-red" type="button" data-action="guild-remove" data-id="${escapeHtml(g.id)}">REMOVE WHOLE GUILD</button></div>`);
+  openModal(`<div class="modal-head"><div><div class="kicker">Guild Information</div><h3>${escapeHtml(g.guild_name)}</h3></div><button class="close-btn" type="button" data-action="close-modal" aria-label="Back">&#8592; BACK</button></div><div class="info-grid"><div class="info-box"><small>Guild Status</small><strong>${escapeHtml(guildStatusLabel(g))}</strong></div><div class="info-box"><small>Current Points</small><strong>${escapeHtml(g.points)}</strong></div><div class="info-box"><small>Leader Count</small><strong>${escapeHtml(g.leader_count)}</strong></div><div class="info-box"><small>Registered</small><strong>${escapeHtml(formatDateTime(g.created_at))}</strong></div></div><div class="kicker" style="margin-top:13px">LEADERS</div><div class="leader-list">${leaderHtml}</div><div class="divider"></div><div class="modal-actions"><button class="btn btn-red" type="button" data-action="guild-remove" data-id="${escapeHtml(g.id)}">REMOVE WHOLE GUILD</button></div>`);
 }
 
 function adminGuildEdit(g){
@@ -1666,7 +1680,7 @@ function adminGuildEdit(g){
   const editableLeaders=leaders.filter(l=>l && l.id);
   const first=editableLeaders[0]||{id:g.id,contact:g.contact||'',email:''};
   const leaderOptions=editableLeaders.length?editableLeaders.map((l,i)=>`<option value="${escapeHtml(l.id)}" data-contact="${escapeHtml(l.contact||'')}" data-email="${escapeHtml(l.email||'')}">LEADER ${i+1} • ${escapeHtml(l.email||'Email unavailable')}</option>`).join(''):`<option value="${escapeHtml(g.id)}" data-contact="${escapeHtml(g.contact||'')}">REGISTERED RECORD</option>`;
-  openModal(`<div class="modal-head"><div><div class="kicker">Edit Guild</div><h3>${escapeHtml(g.guild_name)}</h3></div><button class="close-btn" type="button" data-action="close-modal">×</button></div><form id="edit-guild-form"><div class="field-grid"><label class="full">LEADER RECORD<select id="edit-leader-id">${leaderOptions}</select></label><label>CONTACT NUMBER<input id="edit-contact" type="tel" value="${escapeHtml(first.contact||g.contact||'')}" required /></label><label class="full">CURRENT WEEK POINTS (MANUAL ADJUSTMENT)<input id="edit-points" type="number" step="1" value="${escapeHtml(g.points)}" required /></label><label class="full">LEADER APPROVAL STATUS<select id="edit-status"><option value="approved" ${editableLeaders[0]?.approval_status==='approved'?'selected':''}>Approved</option><option value="pending" ${editableLeaders[0]?.approval_status==='pending'?'selected':''}>Pending</option><option value="rejected" ${editableLeaders[0]?.approval_status==='rejected'?'selected':''}>Rejected</option></select></label></div><div class="hint">Select the individual leader whose contact/status you want to edit. Weekly points are shared by the guild. Changing CURRENT WEEK POINTS manually changes the ranking total but does not create a match-result point event; only use it for an intentional penalty/correction. Contact/status-only edits should leave the displayed points unchanged.</div><div class="modal-actions"><button class="btn btn-primary" type="submit">SAVE CONTACT / STATUS / POINTS</button><button class="btn btn-gold" id="edit-reset-password" type="button">CHANGE PASSWORD VIA RESET EMAIL</button><button class="btn btn-ghost" type="button" data-action="guild-info" data-id="${escapeHtml(g.id)}">CANCEL</button></div><div id="edit-status-message" class="status"></div></form>`);
+  openModal(`<div class="modal-head"><div><div class="kicker">Edit Guild</div><h3>${escapeHtml(g.guild_name)}</h3></div><button class="close-btn" type="button" data-action="close-modal" aria-label="Back">&#8592; BACK</button></div><form id="edit-guild-form"><div class="field-grid"><label class="full">LEADER RECORD<select id="edit-leader-id">${leaderOptions}</select></label><label>CONTACT NUMBER<input id="edit-contact" type="tel" value="${escapeHtml(first.contact||g.contact||'')}" required /></label><label class="full">CURRENT WEEK POINTS (MANUAL ADJUSTMENT)<input id="edit-points" type="number" step="1" value="${escapeHtml(g.points)}" required /></label><label class="full">LEADER APPROVAL STATUS<select id="edit-status"><option value="approved" ${editableLeaders[0]?.approval_status==='approved'?'selected':''}>Approved</option><option value="pending" ${editableLeaders[0]?.approval_status==='pending'?'selected':''}>Pending</option><option value="rejected" ${editableLeaders[0]?.approval_status==='rejected'?'selected':''}>Rejected</option></select></label></div><div class="hint">Select the individual leader whose contact/status you want to edit. Weekly points are shared by the guild. Changing CURRENT WEEK POINTS manually changes the ranking total but does not create a match-result point event; only use it for an intentional penalty/correction. Contact/status-only edits should leave the displayed points unchanged.</div><div class="modal-actions"><button class="btn btn-primary" type="submit">SAVE CONTACT / STATUS / POINTS</button><button class="btn btn-gold" id="edit-reset-password" type="button">CHANGE PASSWORD VIA RESET EMAIL</button><button class="btn btn-ghost" type="button" data-action="guild-info" data-id="${escapeHtml(g.id)}">CANCEL</button></div><div id="edit-status-message" class="status"></div></form>`);
   const leaderSelect=$('edit-leader-id');
   const syncSelectedLeader=()=>{
     const o=leaderSelect.options[leaderSelect.selectedIndex];
@@ -1782,6 +1796,7 @@ function weeklyDayDefinitions(weekStart){
 }
 
 function openAdminSection(name){
+  closeModal();
   const section=['guilds','name-changes','results','ban','trophies','rules'].includes(name)?name:'guilds';
   document.querySelectorAll('.admin-panel-view').forEach(el=>{
     const active=el.id===`admin-section-${section}`;
@@ -1852,6 +1867,7 @@ async function loadModeratorData(){
   await Promise.all([loadModeratorResults(),loadModeratorGuilds()]);
 }
 function openModeratorSection(name){
+  closeModal();
   const section=['results','guilds'].includes(name)?name:'results';
   document.querySelectorAll('[data-moderator-section]').forEach(btn=>{
     const active=btn.dataset.moderatorSection===section;
@@ -2148,7 +2164,7 @@ function openPublicGuildProfile(norm){
     ? '<div class="hint" style="margin-top:10px">This approved guild is listed, but its public profile data has not been created yet. UID, logo, match statistics and achievements will appear after profile data is available.</div>'
     : `<div class="guild-badge-section-title">MATCH RECORD</div><div class="guild-profile-kpis"><div class="guild-profile-kpi"><span>Played</span><strong>${numberMetric(p,'total_played')}</strong></div><div class="guild-profile-kpi"><span>Wins</span><strong>${numberMetric(p,'wins')}</strong></div><div class="guild-profile-kpi"><span>Losses</span><strong>${numberMetric(p,'losses')}</strong></div><div class="guild-profile-kpi"><span>Win Rate</span><strong>${Number(p.win_rate||0).toFixed(1)}%</strong></div></div>
     <div class="guild-badge-section-title">HONOURS &amp; STREAKS</div><div class="guild-profile-kpis"><div class="guild-profile-kpi"><span>Weekly trophies</span><strong>🏆 ${numberMetric(p,'weekly_trophies')}</strong></div><div class="guild-profile-kpi"><span>Monthly trophies</span><strong>👑 ${numberMetric(p,'monthly_trophies')}</strong></div><div class="guild-profile-kpi"><span>Top 10 weeks</span><strong>${numberMetric(p,'top10_weeks')}</strong></div><div class="guild-profile-kpi"><span>Longest streak</span><strong>${numberMetric(p,'max_win_streak')}</strong></div></div>${renderAchievements(p)}<div class="hint" style="margin-top:12px">Statistics use approved results only. Trophies are official awards added by the GVG Admin.</div>`;
-  const html=`<div class="modal-head"><div><div class="kicker">Public Guild Profile</div><h3>${escapeHtml(p.guild_name)}</h3></div><button class="close-btn" type="button" data-action="close-modal">×</button></div>
+  const html=`<div class="modal-head"><div><div class="kicker">Public Guild Profile</div><h3>${escapeHtml(p.guild_name)}</h3></div><button class="close-btn" type="button" data-action="close-modal" aria-label="Back">&#8592; BACK</button></div>
     <div style="display:flex;align-items:center;gap:12px;margin:12px 0">${guildAvatarMarkup(p,true)}<div><div style="font-weight:900">GUILD UID</div><div class="guild-profile-uid">${escapeHtml(p.guild_uid||'Not added yet')}</div>${p.profile_incomplete?'':`<div class="guild-profile-meta">${unlocked}/100 badges earned</div>`}${titleChipMarkup(info?.title)}</div></div>${statsMarkup}`;
   openModal(html);
   fillGuildProfileExtras(p.guild_name_normalized||normalizeGuild(p.guild_name));
@@ -3273,15 +3289,17 @@ function openDrawer(){
   requestAnimationFrame(()=>{d.classList.add('open');bk.classList.add('open');});
   d.setAttribute('aria-hidden','false'); btn?.setAttribute('aria-expanded','true');
   document.body.classList.add('drawer-open');
+  pushOverlay();
   setTimeout(()=>d.querySelector('.drawer-item.active:not(.hidden)')?.focus({preventScroll:true}),80);
 }
-function closeDrawer({silent=false}={}){
+function closeDrawer({silent=false,fromPop=false}={}){
   const d=$('side-drawer'),bk=$('drawer-backdrop'),btn=$('nav-menu'); if(!d||!bk||!d.classList.contains('open')) return;
   d.classList.remove('open'); bk.classList.remove('open');
   d.setAttribute('aria-hidden','true'); btn?.setAttribute('aria-expanded','false');
   document.body.classList.remove('drawer-open');
   setTimeout(()=>{if(!d.classList.contains('open')) bk.hidden=true;},260);
   if(!silent) btn?.focus({preventScroll:true});
+  if(!fromPop) popOverlay();
 }
 $('nav-menu')?.addEventListener('click',()=>($('side-drawer')?.classList.contains('open')?closeDrawer():openDrawer()));
 $('drawer-close')?.addEventListener('click',()=>closeDrawer());
