@@ -24,7 +24,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800;900&family=Cinzel:wght@600;700;800&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./style.css?v=43.0-pro" />
+  <link rel="stylesheet" href="./style.css?v=44.0-pro" />
 </head>
 <body>
   <div class="topline"></div>
@@ -187,6 +187,13 @@
               </select>
               <div id="pc-grid" class="ff-grid ff-grid-2"></div>
               <div class="hint">Choose whether PC is allowed for this challenge. This choice also appears in the WhatsApp group notice.</div>
+              <label class="full" style="margin-top:14px">TYPE</label>
+              <select id="challenge-limit-type" required style="display:none" aria-hidden="true" tabindex="-1">
+                <option value="limited" selected>LIMITED</option>
+                <option value="unlimited">UNLIMITED</option>
+              </select>
+              <div id="limit-grid" class="ff-grid ff-grid-2"></div>
+              <div class="hint">Choose LIMITED or UNLIMITED for this challenge.</div>
               <label style="margin-top:14px">ACTIVE SKILLS</label><div id="skill-grid" class="ff-grid ff-grid-3"></div>
               <div class="split-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px"><button id="challenge-submit" class="btn btn-primary" type="submit">POST CHALLENGE</button></div>
               <div id="challenge-status" class="status"></div>
@@ -689,7 +696,7 @@
   });
 })();
 </script>
-<script src="./script.js?v=43.0-pro"></script>
+<script src="./script.js?v=44.0-pro"></script>
   <div id="app-dialog-backdrop" class="app-dialog-backdrop" aria-hidden="true"><div id="app-dialog" class="app-dialog" role="dialog" aria-modal="true" aria-labelledby="app-dialog-title"></div></div>
 
 </body>

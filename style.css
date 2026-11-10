@@ -1244,3 +1244,12 @@ h3,.hub-name,.ranking-view-head h4,.app-dialog-title,.moderator-guild-name{text-
   #moderator-result-table>tr>td:nth-child(5),#admin-result-table>tr>td:nth-child(5){grid-column:1/-1;grid-row:5;margin-top:12px;padding-top:14px;border-top:1px solid var(--b-1)}
   #moderator-result-table .moderator-actions,#admin-result-table .moderator-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0}
 }
+
+/* v44: weapon / skill / PC / type tiles - bigger pictures, no leftover placeholder art, spotlight behind each picture */
+.ff-pic.has-img .ff-art{display:none}
+.ff-tile .ff-pic::before{content:"";position:absolute;inset:-8%;border-radius:50%;background:radial-gradient(circle,rgba(255,90,115,.34),rgba(255,90,115,0) 66%);pointer-events:none}
+.ff-tile.selected .ff-pic::before{background:radial-gradient(circle,rgba(245,207,107,.5),rgba(245,207,107,0) 68%)}
+.ff-grid-5 .ff-pic,.ff-grid-3 .ff-pic{aspect-ratio:1;width:100%;max-width:none}
+.ff-grid-5 .ff-tile,.ff-grid-3 .ff-tile{padding:8px 6px 12px;gap:4px}
+.ff-grid-2 .ff-pic{aspect-ratio:1;width:100%;max-width:190px}
+.ff-tile .ff-name{font-size:12px;letter-spacing:.08em}

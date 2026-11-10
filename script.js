@@ -544,6 +544,8 @@ const FF_ART={
   alok:`<svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="44" fill="url(#ffGlow)"/><circle cx="50" cy="50" r="38" fill="url(#ffDark)" stroke="url(#ffGold)" stroke-width="3.5"/><circle cx="50" cy="50" r="30" fill="none" stroke="#ffcf5a" stroke-opacity=".35" stroke-width="1.4" stroke-dasharray="3 4"/><path d="M33 56v-6a17 17 0 0 1 34 0v6" fill="none" stroke="url(#ffGold)" stroke-width="4.5" stroke-linecap="round"/><rect x="28" y="54" width="9" height="15" rx="4" fill="url(#ffGold)"/><rect x="63" y="54" width="9" height="15" rx="4" fill="url(#ffGold)"/><path d="M47 66V45l14-4v21" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="44" cy="66" r="3.6" fill="#fff"/><circle cx="58" cy="62" r="3.6" fill="#fff"/></svg>`,
   tatsuya:`<svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="44" fill="url(#ffGlow)"/><circle cx="50" cy="50" r="38" fill="url(#ffDark)" stroke="#ff5d73" stroke-width="3.5"/><path d="M50 18 56 44 82 50 56 56 50 82 44 56 18 50 44 44Z" fill="url(#ffSteel)" stroke="#0b0d10" stroke-width="1.6"/><circle cx="50" cy="50" r="7" fill="#c4122f" stroke="#0b0d10" stroke-width="1.6"/><path d="M26 74 74 26" stroke="#fff" stroke-opacity=".55" stroke-width="2"/></svg>`,
   koda:`<svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="44" fill="url(#ffGlow)"/><path d="M50 10 84 29v42L50 90 16 71V29Z" fill="url(#ffDark)" stroke="url(#ffGold)" stroke-width="3.5" stroke-linejoin="round"/><path d="M50 22 74 36v28L50 78 26 64V36Z" fill="none" stroke="#ffcf5a" stroke-opacity=".35" stroke-width="1.4"/><path d="M38 32v36M38 50l24-18M44 46l20 22" stroke="url(#ffGold)" stroke-width="6" stroke-linecap="round" fill="none"/></svg>`,
+  limited:`<svg viewBox="0 0 100 80" aria-hidden="true"><circle cx="50" cy="40" r="34" fill="url(#ffGlow)"/><rect x="8" y="10" width="84" height="60" rx="12" fill="url(#ffDark)" stroke="#ff5d73" stroke-width="3"/><rect x="18" y="33" width="64" height="14" rx="7" fill="#0b0d10" stroke="url(#ffSteel)" stroke-width="1.6"/><rect x="20" y="35" width="36" height="10" rx="5" fill="url(#ffGold)"/><path d="M68 25v30" stroke="#ff5d73" stroke-width="3.5" stroke-linecap="round"/></svg>`,
+  unlimited:`<svg viewBox="0 0 100 80" aria-hidden="true"><circle cx="50" cy="40" r="34" fill="url(#ffGlow)"/><rect x="8" y="10" width="84" height="60" rx="12" fill="url(#ffDark)" stroke="url(#ffGold)" stroke-width="3"/><path d="M50 40C44 30 34 27 28 33c-6 7-1 18 9 16 6-1 10-5 13-9 3-4 7-8 13-9 10-2 15 9 9 16-6 6-16 3-22-7Z" fill="none" stroke="url(#ffGold)" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/></svg>`,
   pc:`<svg viewBox="0 0 100 80" aria-hidden="true"><ellipse cx="50" cy="74" rx="34" ry="4" fill="#000" opacity=".35"/><rect x="12" y="6" width="76" height="46" rx="5" fill="url(#ffDark)" stroke="#0b0d10" stroke-width="2"/><rect x="17" y="11" width="66" height="36" rx="2" fill="#0e1a26"/><path d="M17 11h66v14L17 36Z" fill="#9ccfff" opacity=".16"/><path d="M40 52h20l3 10H37Z" fill="url(#ffSteel)" stroke="#0b0d10" stroke-width="1.4"/><rect x="26" y="62" width="48" height="6" rx="3" fill="url(#ffSteel)" stroke="#0b0d10" stroke-width="1.4"/></svg>`
 };
 function ffPic(key){
@@ -564,17 +566,26 @@ function renderWeaponSkillChoices(){
   if(wg) wg.innerHTML=ALLOWED_WEAPONS.map(x=>ffTileInput('checkbox','weapons',x)).join('');
   if(sg) sg.innerHTML=ALLOWED_SKILLS.map(x=>ffTileInput('checkbox','skills',x)).join('');
   if(pg) pg.innerHTML=[['false','PC NOT ALLOW'],['true','PC ALLOW']].map(([v,l])=>`<button type="button" class="ff-tile ff-pc" data-pc="${v}">${ffPic(v==='true'?'pc_allow':'pc_not_allow')}<span class="ff-name">${l}</span><span class="ff-check" aria-hidden="true">✓</span></button>`).join('');
+  const lg=$('limit-grid');
+  if(lg) lg.innerHTML=[['limited','LIMITED'],['unlimited','UNLIMITED']].map(([v,l])=>`<button type="button" class="ff-tile ff-pc" data-limit="${v}">${ffPic(v)}<span class="ff-name">${l}</span><span class="ff-check" aria-hidden="true">✓</span></button>`).join('');
   syncFfTiles();
 }
 function syncFfTiles(){
   document.querySelectorAll('#challenge-form .ff-tile input').forEach(i=>i.closest('.ff-tile')?.classList.toggle('selected',i.checked));
   const sel=$('challenge-pc-allowed');
   document.querySelectorAll('#pc-grid .ff-tile').forEach(t=>{const on=sel&&sel.value===t.dataset.pc;t.classList.toggle('selected',on);t.setAttribute('aria-pressed',on?'true':'false');});
+  const lsel=$('challenge-limit-type');
+  document.querySelectorAll('#limit-grid .ff-tile').forEach(t=>{const on=lsel&&lsel.value===t.dataset.limit;t.classList.toggle('selected',on);t.setAttribute('aria-pressed',on?'true':'false');});
 }
 document.addEventListener('change',e=>{if(e.target.closest?.('#challenge-form')) syncFfTiles();});
 document.addEventListener('click',e=>{
   const t=e.target.closest?.('#pc-grid .ff-tile'); if(!t) return;
   const sel=$('challenge-pc-allowed'); if(sel){sel.value=t.dataset.pc;sel.dispatchEvent(new Event('change',{bubbles:true}));}
+  syncFfTiles();
+});
+document.addEventListener('click',e=>{
+  const t=e.target.closest?.('#limit-grid .ff-tile'); if(!t) return;
+  const sel=$('challenge-limit-type'); if(sel){sel.value=t.dataset.limit;sel.dispatchEvent(new Event('change',{bubbles:true}));}
   syncFfTiles();
 });
 $('challenge-form')?.addEventListener('reset',()=>setTimeout(syncFfTiles,0));
@@ -1142,6 +1153,7 @@ function challengeCardHtml(c){
     <dl class="ch-rules">
       <div class="ch-rule"><dt>MATCH TIME</dt><dd class="ch-time">${escapeHtml(formatTime(c.match_time))}</dd></div>
       ${hasPc?`<div class="ch-rule"><dt>PC MODE</dt><dd><span class="pc-chip ${c.pc_allowed?'is-allowed':'is-blocked'}">${c.pc_allowed?'PC ALLOWED':'PC NOT ALLOWED'}</span></dd></div>`:''}
+      ${c.limit_type?`<div class="ch-rule"><dt>TYPE</dt><dd><span class="pc-chip ${c.limit_type==='unlimited'?'is-allowed':'is-blocked'}">${c.limit_type==='unlimited'?'UNLIMITED':'LIMITED'}</span></dd></div>`:''}
       <div class="ch-rule ch-rule-wide"><dt>WEAPONS ALLOWED</dt><dd class="pill-wrap">${weapons.length?weapons.map(x=>`<span class="pill">${escapeHtml(x)}</span>`).join(''):'<span class="pill pill-muted">ANY</span>'}</dd></div>
       <div class="ch-rule ch-rule-wide"><dt>ACTIVE SKILLS</dt><dd class="pill-wrap">${skills.length?skills.map(x=>`<span class="pill pill-skill">${escapeHtml(x)}</span>`).join(''):'<span class="pill pill-muted">NO ACTIVE SKILLS</span>'}</dd></div>
     </dl>
@@ -1346,9 +1358,9 @@ async function uploadResultImages(files){
 
 async function handleChallengeSubmit(e){
   e.preventDefault();clearStatus('challenge-status');if(!guildApproved())return showStatus('challenge-status','error','Your guild is not approved or is currently banned.');if(!challengePostingOpen())return showStatus('challenge-status','error','New challenges are allowed from 10:00 AM until 11:59 PM Pakistan time. At 12:00 AM, challenges close.');
-  const time=$('challenge-time').value; const weapons=[...document.querySelectorAll('input[name="weapons"]:checked')].map(x=>x.value); const skills=[...document.querySelectorAll('input[name="skills"]:checked')].map(x=>x.value); const pcAllowed=$('challenge-pc-allowed')?.value==='true';
+  const time=$('challenge-time').value; const weapons=[...document.querySelectorAll('input[name="weapons"]:checked')].map(x=>x.value); const skills=[...document.querySelectorAll('input[name="skills"]:checked')].map(x=>x.value); const pcAllowed=$('challenge-pc-allowed')?.value==='true'; const limitType=$('challenge-limit-type')?.value==='unlimited'?'unlimited':'limited';
   if(!time||!weapons.length){showStatus('challenge-status','error','Match time and at least one weapon are required.');return;}
-  try{setBusy('challenge-submit',true);const {data,error}=await db.rpc('submit_gvg_challenge',{p_challenge_time:time,p_weapons:weapons,p_active_skills:skills,p_pc_allowed:pcAllowed});if(error)throw error;showStatus('challenge-status','ok',`Challenge ${data?.challenge_code||''} posted successfully. PC: ${pcAllowed?'ALLOW':'NOT ALLOW'}.`);$('challenge-form').reset();clearTimePicker();clearSectionCache('member:challenges');await loadLiveChallenges();markSectionLoaded('member:challenges');}catch(error){showStatus('challenge-status','error',humanizeError(error));}finally{setBusy('challenge-submit',false,'POST CHALLENGE');}
+  try{setBusy('challenge-submit',true);const base={p_challenge_time:time,p_weapons:weapons,p_active_skills:skills,p_pc_allowed:pcAllowed};let res=await db.rpc('submit_gvg_challenge',{...base,p_limit_type:limitType}),typeSaved=true;if(res.error&&/PGRST202|Could not find the function|schema cache/i.test(`${res.error.code||''} ${res.error.message||''}`)){res=await db.rpc('submit_gvg_challenge',base);typeSaved=false;}const {data,error}=res;if(error)throw error;showStatus('challenge-status','ok',`Challenge ${data?.challenge_code||''} posted successfully. PC: ${pcAllowed?'ALLOW':'NOT ALLOW'}. Type: ${limitType.toUpperCase()}${typeSaved?'':' (type not saved yet - database update pending)'}.`);$('challenge-form').reset();clearTimePicker();clearSectionCache('member:challenges');await loadLiveChallenges();markSectionLoaded('member:challenges');}catch(error){showStatus('challenge-status','error',humanizeError(error));}finally{setBusy('challenge-submit',false,'POST CHALLENGE');}
 }
 
 async function handleResultSubmit(e){
