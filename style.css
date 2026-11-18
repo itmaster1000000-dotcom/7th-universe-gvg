@@ -6,7 +6,7 @@
    11 Hall of Fame  12 Admin  13 Modals/dialogs  14 Responsive
    NOTE: the performance guard below is intentional (no continuous CSS motion).
    ========================================================================== */
-:root{--gvg-css-version:'39.0'}
+:root{--gvg-css-version:'45.0'}
 
 /* 0. Performance guard: no continuous CSS animation / filters / blur anywhere.
       Short motion is driven from script.js (Web Animations API). */
@@ -1253,3 +1253,46 @@ h3,.hub-name,.ranking-view-head h4,.app-dialog-title,.moderator-guild-name{text-
 .ff-grid-5 .ff-tile,.ff-grid-3 .ff-tile{padding:8px 6px 12px;gap:4px}
 .ff-grid-2 .ff-pic{aspect-ratio:1;width:100%;max-width:190px}
 .ff-tile .ff-name{font-size:12px;letter-spacing:.08em}
+
+/* ===== v45 ===== */
+/* Result names: wrap on word boundaries (not letter by letter) */
+.mr-team strong{overflow-wrap:break-word;word-break:normal}
+@media(max-width:760px){
+  /* Root cause of the squeezed APPROVE / REJECT buttons: ".admin-table td:last-child{width:1%}" also hit the card layout. */
+  #moderator-result-table>tr>td:last-child,#admin-result-table>tr>td:last-child{width:auto;white-space:normal}
+  /* The long date used to widen the score column and squeeze the guild names. Status and date now share the top row. */
+  .cell-time{white-space:normal}
+  #moderator-result-table .mr-statuscell .mr-status,#admin-result-table .mr-statuscell .mr-status{grid-column:1/-1;justify-self:start}
+  #moderator-result-table>tr>td:nth-child(3),#admin-result-table>tr>td:nth-child(3){grid-column:1/-1;justify-self:end;max-width:62%}
+  .mr-tag{flex-basis:54px}
+  /* Guild lists (admin): clean cards, the three-dot menu is no longer cut off */
+  .admin-table-shell:has(#pending-guild-table),.admin-table-shell:has(#all-guild-table){overflow:visible;border:0;background:none;box-shadow:none}
+  .admin-table:has(>#pending-guild-table),.admin-table:has(>#all-guild-table){display:block;width:100%}
+  .admin-table:has(>#pending-guild-table) thead,.admin-table:has(>#all-guild-table) thead{display:none}
+  #pending-guild-table,#all-guild-table{display:grid;gap:10px}
+  #pending-guild-table>tr,#all-guild-table>tr{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;padding:14px;border:1px solid rgba(255,120,140,.26);border-radius:14px;background:linear-gradient(180deg,#2a1219,#170b10);box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 3px 0 #070203}
+  #pending-guild-table>tr>td,#all-guild-table>tr>td{display:block;min-width:0;width:auto;padding:0;border:0;white-space:normal}
+  #pending-guild-table .guild-main strong,#all-guild-table .guild-main strong{display:block;overflow-wrap:break-word}
+  #pending-guild-table .guild-main span,#all-guild-table .guild-main span{display:block;margin-top:3px;color:var(--text-3);font-size:12px}
+}
+/* Red notification dots (menu button + menu items) */
+.gvg-dot{position:absolute;z-index:3;width:13px;height:13px;border-radius:50%;background:#ff1f3d;border:2px solid #fff;box-shadow:0 0 0 1px rgba(120,0,20,.55),0 0 10px rgba(255,31,61,.85);pointer-events:none}
+.gvg-dot[hidden]{display:none}
+.menu-btn .gvg-dot{top:5px;right:5px}
+.drawer-item .gvg-dot{top:50%;right:36px;margin-top:-6.5px}
+/* Champion announcement (re-uses the badge card) */
+.bu-champ .bu-medal{font-size:30px;background:radial-gradient(circle at 50% 35%,#5a3b0a,#1d1104)}
+.bu-champ .bu-medal img{width:52px;height:52px;border-radius:50%;object-fit:cover}
+.bu-champ .bu-eyebrow{color:#ffd76a}
+.bu-champ .bu-mission{color:#fff0b8}
+/* Security check box: when Cloudflare needs a tap, show it in the middle with a label */
+.gvg-captcha-interactive{top:50%!important;bottom:auto!important;transform:translate(-50%,-50%)!important;padding:14px 14px 10px;border:1px solid rgba(255,120,140,.5);border-radius:16px;background:#170b10;box-shadow:0 0 0 100vmax rgba(0,0,0,.72),0 14px 40px rgba(0,0,0,.7);text-align:center}
+.gvg-captcha-interactive::before{content:"TAP THE BOX TO FINISH THE SECURITY CHECK";display:block;margin-bottom:10px;color:#ffe9a8;font:800 11px/1.4 var(--f-body,system-ui);letter-spacing:.12em}
+#admin-result-table .moderator-actions{margin-top:0}
+
+/* ===== v46: phone alerts switches (menu footer) ===== */
+.drawer-foot{flex-wrap:wrap}
+.push-box{flex:1 1 100%;display:grid;gap:8px;order:-1}
+.push-box[hidden]{display:none}
+.push-box .btn{width:100%}
+.push-note{color:var(--text-3);font-size:11px;line-height:1.45;letter-spacing:.02em}

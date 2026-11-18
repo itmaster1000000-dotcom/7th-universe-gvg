@@ -1,4 +1,4 @@
-window.__GVG_SCRIPT_VERSION='39.0';
+window.__GVG_SCRIPT_VERSION='45.0';
 /*
   7TH UNIVERSE GVG — FINAL FRONTEND
   Uses two isolated Supabase Auth clients so the Admin browser session
@@ -69,31 +69,45 @@ function ensureCaptchaBox(key) {
   return box;
 }
 
+let lastCaptchaError='';
+const CAPTCHA_CONFIG_ERRORS=/^110[0-9]{3}$/; // wrong site key / website address not allowed: waiting cannot fix these
 async function getCaptchaToken(key) {
+  lastCaptchaError='';
   try {
     const ts = await waitForTurnstile();
-    if (!ts) return undefined;
+    if (!ts) { lastCaptchaError='script-blocked'; return undefined; }
     const box = ensureCaptchaBox(key);
     return await new Promise(resolve => {
-      let done = false;
+      let done = false, errTimer = null;
       const finish = value => {
         if (done) return;
         done = true;
-        clearTimeout(timer);
+        clearTimeout(timer); clearTimeout(errTimer);
+        box.classList.remove('gvg-captcha-interactive');
         delete captchaPending[key];
         resolve(value);
       };
-      const timer = setTimeout(() => finish(undefined), 45000);
-      captchaPending[key] = finish;
+      const timer = setTimeout(() => { lastCaptchaError = lastCaptchaError || 'timeout'; finish(undefined); }, 40000);
+      /* Turnstile retries by itself after most errors; a token that arrives within 12 seconds still wins. */
+      const fail = code => {
+        lastCaptchaError = String(code || 'error');
+        if (CAPTCHA_CONFIG_ERRORS.test(lastCaptchaError)) return finish(undefined);
+        if (!errTimer) errTimer = setTimeout(() => finish(undefined), 12000);
+      };
+      captchaPending[key] = { finish, fail };
       if (captchaWidgets[key] === undefined) {
         captchaWidgets[key] = ts.render(box, {
           sitekey: TURNSTILE_SITE_KEY,
           execution: 'execute',
           appearance: 'interaction-only',
           theme: 'dark',
-          callback: token => captchaPending[key] && captchaPending[key](token),
-          'error-callback': () => { captchaPending[key] && captchaPending[key](undefined); },
-          'timeout-callback': () => { captchaPending[key] && captchaPending[key](undefined); }
+          retry: 'auto',
+          'retry-interval': 4000,
+          callback: token => captchaPending[key] && captchaPending[key].finish(token),
+          'error-callback': code => { captchaPending[key] && captchaPending[key].fail(code); return true; },
+          'timeout-callback': () => { lastCaptchaError = 'expired'; captchaPending[key] && captchaPending[key].finish(undefined); },
+          'before-interactive-callback': () => box.classList.add('gvg-captcha-interactive'),
+          'after-interactive-callback': () => box.classList.remove('gvg-captcha-interactive')
         });
       } else {
         ts.reset(captchaWidgets[key]);
@@ -102,6 +116,7 @@ async function getCaptchaToken(key) {
     });
   } catch (error) {
     console.warn('CAPTCHA could not run:', error);
+    lastCaptchaError = 'exception';
     return undefined;
   }
 }
@@ -258,7 +273,13 @@ function setBusy(buttonId,busy,label){ let btn=$(buttonId); if(btn?.tagName==='F
 function humanizeError(error){
   let msg=String(error?.message || error?.error_description || error || 'Unknown error').trim().replace(/^(Error:\s*)/i,'');
   msg=msg.replace(/^[A-Z][A-Z0-9_]{2,}:\s*/,'');
-  if(/captcha/i.test(msg)) return 'Security check failed. Wait a few seconds and try again. If it keeps failing, refresh the page and turn off any ad-blocker for this site.';
+  if(/captcha/i.test(msg)){
+    const code=lastCaptchaError;
+    if(/^110200/.test(code)) return 'Security check is not enabled for this website address. Please tell the Admin (code 110200).';
+    if(/^1101/.test(code)) return `Security check key is wrong. Please tell the Admin (code ${code}).`;
+    if(code==='script-blocked') return 'The security check could not load. Turn off ad-blocker, data saver or private DNS, then refresh the page and try again.';
+    return 'Security check failed'+(code?` (code ${code})`:'')+'. Wait a few seconds and try again. If it keeps failing, refresh the page and turn off any ad-blocker for this site.';
+  }
   if(/email not confirmed/i.test(msg)) return 'Your email is not verified yet. Enter the code we emailed you.';
   if(/EMAIL_NOT_VERIFIED/i.test(String(error?.message||error||''))) return 'Verify your email with the code first, then register your guild.';
   if(/rate limit|too many requests|only request this after|over_.*rate_limit/i.test(msg)) return 'Too many attempts. Please wait a minute and try again.';
@@ -431,6 +452,7 @@ function openMemberSection(name){
   document.querySelectorAll('.member-view').forEach(el=>el.classList.toggle('active',el.id===`member-section-${section}`));
   document.querySelectorAll('[data-member-section]').forEach(btn=>btn.classList.toggle('active',btn.dataset.memberSection===section));
   state.memberSection=section;
+  if(window.gvgDotSeen)window.gvgDotSeen(section);
   document.body.dataset.section=section;
   const sectionTitle=$('member-section-title'); if(sectionTitle) sectionTitle.textContent=MEMBER_SECTIONS[section]||'';
   closeDrawer({silent:true});
@@ -1785,7 +1807,7 @@ function preferredResultProofUrls(imageUrls){
 }
 
 async function loadAdminResults(){
-  try{const {data,error}=await adminDb.rpc('admin_get_results');if(error)throw error;const rows=data||[];state.results=rows;const target=$('admin-result-table');target.innerHTML=rows.length?rows.map(r=>{const imgs=preferredResultProofUrls(r.image_urls);const gallery=imgs.length?`<details class="proof-details"><summary>OPEN RESULT PROOF</summary><div class="proof-gallery">${imgs.map((u,i)=>`<a href="${escapeHtml(u)}" target="_blank" rel="noopener"><span class="proof-tag">RESULT PROOF</span><img data-proof-src="${escapeHtml(u)}" loading="lazy" decoding="async" alt="${escapeHtml(r.winner_guild)} vs ${escapeHtml(r.loser_guild)} result proof" /></a>`).join('')}</div></details>`:'<span class="muted">No proof</span>';return `<tr><td class="mr-match"><div class="mr-team win"><span class="mr-tag">WIN</span><strong>${escapeHtml(r.winner_guild)}</strong></div><div class="mr-team loss"><span class="mr-tag">DEFEAT</span><strong>${escapeHtml(r.loser_guild)}</strong></div></td><td>${escapeHtml(r.score)}</td><td><strong class="cell-time">${escapeHtml(formatDateTime(r.created_at))}</strong><div class="muted cell-note">PAKISTAN TIME</div></td><td class="mr-statuscell"><div class="mr-proof">${gallery}</div><div class="mr-status"><span class="status-pill ${r.status==='approved'?'status-approved':r.status==='pending'?'status-pending':'status-rejected'}">${escapeHtml(r.status)}</span></div></td><td>${r.status==='pending'?`<div style="display:flex;gap:5px;flex-wrap:wrap"><button class="btn btn-green btn-small" type="button" data-action="approve-result" data-id="${escapeHtml(r.id)}">&#10003; APPROVE</button><button class="btn btn-red btn-small" type="button" data-action="reject-result" data-id="${escapeHtml(r.id)}">&#10005; REJECT</button></div>`:'—'}</td></tr>`;}).join(''):'<tr><td colspan="5">No result submissions.</td></tr>';}catch(error){showStatus('admin-status','error',humanizeError(error));}
+  try{const {data,error}=await adminDb.rpc('admin_get_results');if(error)throw error;const rows=data||[];state.results=rows;const target=$('admin-result-table');target.innerHTML=rows.length?rows.map(r=>{const imgs=preferredResultProofUrls(r.image_urls);const gallery=imgs.length?`<details class="proof-details"><summary>OPEN RESULT PROOF</summary><div class="proof-gallery">${imgs.map((u,i)=>`<a href="${escapeHtml(u)}" target="_blank" rel="noopener"><span class="proof-tag">RESULT PROOF</span><img data-proof-src="${escapeHtml(u)}" loading="lazy" decoding="async" alt="${escapeHtml(r.winner_guild)} vs ${escapeHtml(r.loser_guild)} result proof" /></a>`).join('')}</div></details>`:'<span class="muted">No proof</span>';return `<tr><td class="mr-match"><div class="mr-team win"><span class="mr-tag">WIN</span><strong>${escapeHtml(r.winner_guild)}</strong></div><div class="mr-team loss"><span class="mr-tag">DEFEAT</span><strong>${escapeHtml(r.loser_guild)}</strong></div></td><td>${escapeHtml(r.score)}</td><td><strong class="cell-time">${escapeHtml(formatDateTime(r.created_at))}</strong><div class="muted cell-note">PAKISTAN TIME</div></td><td class="mr-statuscell"><div class="mr-proof">${gallery}</div><div class="mr-status"><span class="status-pill ${r.status==='approved'?'status-approved':r.status==='pending'?'status-pending':'status-rejected'}">${escapeHtml(r.status)}</span></div></td><td>${r.status==='pending'?`<div class="moderator-actions"><button class="btn btn-green btn-small" type="button" data-action="approve-result" data-id="${escapeHtml(r.id)}">&#10003; APPROVE</button><button class="btn btn-red btn-small" type="button" data-action="reject-result" data-id="${escapeHtml(r.id)}">&#10005; REJECT</button></div>`:'—'}</td></tr>`;}).join(''):'<tr><td colspan="5">No result submissions.</td></tr>';}catch(error){showStatus('admin-status','error',humanizeError(error));}
 }
 async function approveResult(id){try{const {error}=await adminDb.rpc('admin_approve_result',{p_result_id:id});if(error)throw error;invalidateResultViewCaches();showStatus('admin-status','ok','Result approved. The database point-award function completed; rankings will reload on the next member view. WhatsApp delivery is handled by the webhook bridge.');clearSectionCache('admin:');await Promise.all([loadAdminResults(),loadAdminGuilds()]);markSectionLoaded('admin:results');markSectionLoaded('admin:guilds');}catch(error){showStatus('admin-status','error',humanizeError(error));}}
 async function rejectResult(id){
@@ -3130,7 +3152,7 @@ $('password-recovery-form').addEventListener('submit',async(e)=>{
       ||(state.registeredGuilds||[]).find(p=>normalizeGuild(p.guild_name_normalized||p.guild_name)===norm);
     return hit?.guild_name||String(fallback||norm).toUpperCase();
   }
-  const sortEvents=()=>queue.sort((a,b)=>(b.mine-a.mine)||(b.tier-a.tier)||(a.mission-b.mission)||String(a.name).localeCompare(String(b.name)));
+  const sortEvents=()=>queue.sort((a,b)=>((b.champion?1:0)-(a.champion?1:0))||(a.champion&&b.champion?(a.order-b.order):0)||(b.mine-a.mine)||(b.tier-a.tier)||(a.mission-b.mission)||String(a.name).localeCompare(String(b.name)));
 
   /* ---- 1. find new unlocks ---- */
   async function check(){
@@ -3183,11 +3205,17 @@ $('password-recovery-form').addEventListener('submit',async(e)=>{
     const b=h?h.getBoundingClientRect().bottom:0;
     return Math.max(0,Math.round(b))+4;
   }
+  function championCardHtml(e){
+    const weekly=e.type==='weekly';
+    const label=weekly?`WEEK ${e.period} CHAMPION`:`SEASON ${e.period} CHAMPION`;
+    return `<div class="bu-card bu-champ" role="status"><i class="bu-shine" aria-hidden="true"></i><div class="bu-medal" aria-hidden="true">🏆</div><div class="bu-body"><div class="bu-eyebrow">NEW ${weekly?'WEEKLY':'MONTHLY'} CHAMPION${e.mine?'<span class="bu-you">YOUR GUILD</span>':''}</div><div class="bu-title"><b class="bu-guild">${escapeHtml(e.name)}</b> is the <b class="bu-tier t3">${label}</b></div>${e.trophy?`<div class="bu-mission">${escapeHtml(e.trophy)}</div>`:''}<div class="bu-meta">${escapeHtml(String(e.year))} · Added to the Hall of Fame</div></div><button type="button" class="bu-x" aria-label="Dismiss announcement">×</button></div>`;
+  }
   function cardHtml(card){
     if(card.kind==='summary'){
       const n=card.events.length;
       return `<div class="bu-card bu-summary" role="status"><i class="bu-shine" aria-hidden="true"></i><div class="bu-medal bu-medal-sum" aria-hidden="true">🏆</div><div class="bu-body"><div class="bu-eyebrow">UNIVERSE UPDATE</div><div class="bu-title"><b class="bu-guild">${n} more badge${n>1?'s were':' was'}</b> unlocked across the Universe</div><div class="bu-meta">Open Guild Profiles to review every guild's achievements.</div></div><button type="button" class="bu-x" aria-label="Dismiss announcement">×</button></div>`;
     }
+    if(card.ev&&card.ev.champion)return championCardHtml(card.ev);
     const e=card.ev,m=GVG_MISSIONS[e.mission-1],tn=GVG_TIER_NAMES[e.tier-1];
     const req=e.th?m.req(e.th,e.min):'';
     return `<div class="bu-card" role="status"><i class="bu-shine" aria-hidden="true"></i><div class="bu-medal">${badgeImgMarkup(e.mission,e.tier,{alt:`${escapeHtml(m.name)} ${tn}`,loading:'',attrs:'width="52" height="52" decoding="async"'})}</div><div class="bu-body"><div class="bu-eyebrow">BADGE UNLOCKED${e.mine?'<span class="bu-you">YOUR GUILD</span>':''}</div><div class="bu-title"><b class="bu-guild">${escapeHtml(e.name)}</b> has unlocked the <b class="bu-tier t${e.tier}">${tn}</b> badge</div><div class="bu-mission">${escapeHtml(m.name)}${req?`<span> · ${escapeHtml(req)}</span>`:''}</div><div class="bu-meta">${e.missions}/20 missions completed · ${e.score}/100 badges</div></div><button type="button" class="bu-x" aria-label="Dismiss announcement">×</button></div>`;
@@ -3209,8 +3237,9 @@ $('password-recovery-form').addEventListener('submit',async(e)=>{
     if(!queue.length){burst=0;return;}
     if(document.hidden)return; // resumes on visibilitychange, so a card is never missed in a background tab
     let card;
-    if(burst>=MAX_CARDS&&queue.length>1&&!queue[0].preview){
-      const rest=queue.splice(0);
+    if(burst>=MAX_CARDS&&!queue[0].preview&&!queue[0].champion&&queue.filter(x=>!x.champion).length>1){
+      const rest=queue.filter(x=>!x.champion);
+      rest.forEach(x=>queue.splice(queue.indexOf(x),1));
       card={kind:'summary',v:rest[0].v,events:rest};
     }else{
       card={kind:'unlock',ev:queue.shift()};card.v=card.ev.v;
@@ -3218,7 +3247,8 @@ $('password-recovery-form').addEventListener('submit',async(e)=>{
     burst+=1;
     const list=card.kind==='summary'?card.events:[card.ev];
     list.forEach(x=>queued.delete(`${x.v}|${x.norm}|${x.mission}`));
-    if(!list[0].preview)commit(card.v,list); // mark as seen the moment it is shown: never repeats
+    if(list[0].champion){try{if(list[0].onShow)list[0].onShow();}catch{}} // champion cards keep their own 'seen' list
+    else if(!list[0].preview)commit(card.v,list); // mark as seen the moment it is shown: never repeats
     present(card);
   }
   function present(card){
@@ -3267,6 +3297,7 @@ $('password-recovery-form').addEventListener('submit',async(e)=>{
     check();
   }
   window.gvgBadgeKick=()=>kick(true);
+  window.gvgAnnounce=function(ev){queue.push(ev);sortEvents();pump();}; // used by the champion announcements
   setInterval(()=>{if(!document.hidden)kick(false);},POLL_MS);
   document.addEventListener('visibilitychange',()=>{
     applyPause();
@@ -3281,6 +3312,309 @@ $('password-recovery-form').addEventListener('submit',async(e)=>{
     pump();
     return 'Preview queued.';
   };
+})();
+
+
+/* ===== v45: RED NOTIFICATION DOTS + CHAMPION ANNOUNCEMENTS =====
+   Red dot on the 3-line menu button and on the matching menu item:
+   - CHALLENGES    : another guild posted a new challenge
+   - RESULTS       : a new result was approved
+   - HALL OF FAME  : a new weekly / monthly champion was added
+   A dot disappears when that section is opened. The first visit on a device only records the current state, so nobody gets
+   old dots. A new champion also gets a golden announcement card (same style as the badge announcements).
+   Light on data: Challenges / Results use ONE tiny RPC (get_gvg_activity_pulse, ~100 bytes) every 60 seconds while the tab is
+   visible. The Hall of Fame re-uses the cached Hall of Fame data (re-checked at most every 10 minutes).
+   The pulse RPC comes from gvg_v45_activity_pulse.sql; if it was not run yet, only the Hall of Fame dot works. */
+(function(){
+  'use strict';
+  const POLL_MS=60*1000, HOF_POLL_MS=3*60*1000, MAX_CHAMP_CARDS=3;
+  const DOT_STORE='gvg-dots-v1:', CHAMP_STORE='gvg-champ-v1:';
+  const mem={};
+  const dots={'challenges':false,'results':false,'hall-of-fame':false};
+  const latest={ch:'',rs:''};
+  const pendingKeys=new Set();
+  let hofKeys=[], lastPulse=0, lastHof=0, busyP=false, busyH=false, pulseMissing=false, lastViewer='';
+
+  const vnorm=()=>{
+    if(state.guest) return normalizeGuild(state.guest.guild_name_normalized||state.guest.guild_name);
+    if(state.user&&state.guild&&state.guild.approval_status==='approved') return normalizeGuild(state.guild.guild_name_normalized||state.guild.guild_name);
+    return '';
+  };
+  const vkey=()=>{const n=vnorm();return n?(state.guest?'g:':'m:')+n:'';};
+  const load=k=>{try{const r=localStorage.getItem(k);if(r){const o=JSON.parse(r);if(o&&typeof o==='object')return o;}}catch{}return mem[k]||null;};
+  const save=(k,o)=>{mem[k]=o;try{localStorage.setItem(k,JSON.stringify(o));}catch{}};
+  const isNewer=(a,b)=>Boolean(a)&&(!b||Date.parse(a)>Date.parse(b));
+  const onSection=name=>state.view==='member'&&state.memberSection===name;
+
+  function setDot(host,on){
+    if(!host)return;
+    let d=host.querySelector(':scope>.gvg-dot');
+    if(on&&!d){d=document.createElement('i');d.className='gvg-dot';d.setAttribute('aria-hidden','true');host.appendChild(d);}
+    if(d)d.hidden=!on;
+  }
+  function paint(){
+    const any=Object.values(dots).some(Boolean);
+    const menu=document.getElementById('nav-menu');
+    setDot(menu,any);
+    if(menu)menu.setAttribute('aria-label',any?'Open menu (new updates)':'Open menu');
+    Object.keys(dots).forEach(k=>setDot(document.querySelector(`.drawer-item[data-member-section="${k}"]`),dots[k]));
+  }
+  function clearAll(){
+    Object.keys(dots).forEach(k=>{dots[k]=false;});
+    latest.ch='';latest.rs='';hofKeys=[];pendingKeys.clear();lastPulse=0;lastHof=0;paint();
+  }
+
+  /* ---- Challenges + Results (tiny RPC) ---- */
+  async function pulse(){
+    const vk=vkey();
+    if(!vk||state.guest||pulseMissing||busyP)return;
+    busyP=true;
+    try{
+      const res=await db.rpc('get_gvg_activity_pulse');
+      if(res.error){
+        if(/could not find the function|does not exist|PGRST202|42883/i.test(String(res.error.message||res.error.code||res.error))){
+          pulseMissing=true;
+          console.info('Challenge / Result red dots need gvg_v45_activity_pulse.sql to be run once in the Supabase SQL Editor.');
+        }
+        return;
+      }
+      if(vkey()!==vk)return;
+      const d=Array.isArray(res.data)?res.data[0]:res.data;
+      if(!d||typeof d!=='object')return;
+      latest.ch=d.ch||'';latest.rs=d.rs||'';
+      const seen=load(DOT_STORE+vk)||{};
+      let changed=false;
+      if(seen.ch===undefined){seen.ch=latest.ch;changed=true;}   // first visit: silent baseline
+      if(seen.rs===undefined){seen.rs=latest.rs;changed=true;}
+      const chNew=isNewer(latest.ch,seen.ch), rsNew=isNewer(latest.rs,seen.rs);
+      if(chNew&&onSection('challenges')){
+        seen.ch=latest.ch;changed=true;dots.challenges=false;
+        loadSectionCached('member:challenges',loadLiveChallenges,0); // the person is looking at the list: show the new one
+      }else dots.challenges=chNew;
+      if(rsNew&&onSection('results')){
+        seen.rs=latest.rs;changed=true;dots.results=false;
+        loadSectionCached('member:approved-results',loadApprovedResults,0);
+      }else dots.results=rsNew;
+      if(changed)save(DOT_STORE+vk,seen);
+      paint();
+    }catch(error){console.warn('Activity dots could not check for updates:',error);}
+    finally{busyP=false;lastPulse=Date.now();}
+  }
+
+  /* ---- Hall of Fame (new champion) ---- */
+  const awardKey=a=>`${a.award_type}|${a.award_year}|${a.period_key||a.period_number}|${normalizeGuild(a.guild_name_normalized||a.guild_name)}`;
+  async function hofCheck(){
+    const vk=vkey();
+    if(!vk||busyH)return;
+    busyH=true;
+    try{
+      const sres=await readRpc('get_gvg_hof_settings');
+      const s=sres&&!sres.error?(Array.isArray(sres.data)?sres.data[0]:sres.data):null;
+      const year=Number(s?.season_year)||new Date().getFullYear();
+      const [w,m]=await Promise.all([
+        readRpc('get_gvg_hall_of_fame',{p_award_type:'weekly',p_award_year:year}),
+        readRpc('get_gvg_hall_of_fame',{p_award_type:'monthly',p_award_year:year})
+      ]);
+      if(!w||!m||w.error||m.error||vkey()!==vk)return;
+      const rows=[...(Array.isArray(w.data)?w.data:[]),...(Array.isArray(m.data)?m.data:[])].filter(a=>a&&a.guild_name);
+      const keys=rows.map(awardKey);
+      hofKeys=keys;
+      const store=CHAMP_STORE+vk;
+      let rec=load(store);
+      if(!rec){rec={k:keys.slice(),s:keys.slice()};save(store,rec);dots['hall-of-fame']=false;paint();return;} // first visit: silent baseline
+      const announced=new Set(rec.k||[]), opened=new Set(rec.s||[]);
+      const fresh=rows.filter(a=>!announced.has(awardKey(a))&&!pendingKeys.has(awardKey(a)));
+      if(fresh.length){
+        fresh.sort((a,b)=>(Number(b.award_year)-Number(a.award_year))||((b.award_type==='monthly')-(a.award_type==='monthly'))||(Number(b.period_number)-Number(a.period_number)));
+        const show=fresh.slice(0,MAX_CHAMP_CARDS), skip=fresh.slice(MAX_CHAMP_CARDS);
+        skip.forEach(a=>announced.add(awardKey(a)));
+        show.forEach((a,i)=>{
+          const key=awardKey(a), norm=normalizeGuild(a.guild_name_normalized||a.guild_name);
+          pendingKeys.add(key);
+          window.gvgAnnounce&&window.gvgAnnounce({
+            champion:true,order:i,v:vnorm(),norm:'champion',mission:'c:'+key,key,
+            type:a.award_type,period:Number(a.period_number)||String(a.period_key||'').replace(/\D/g,''),year:a.award_year,
+            name:a.guild_name,trophy:a.trophy_label||'',mine:norm===vnorm()?1:0,
+            onShow:()=>{pendingKeys.delete(key);const r=load(store)||{k:[],s:[]};if(!(r.k||[]).includes(key))(r.k=r.k||[]).push(key);save(store,r);}
+          });
+        });
+        rec.k=[...announced];save(store,rec); // the cards queued now are added to this list only when they are really shown (onShow)
+      }
+      if(onSection('hall-of-fame')){rec.s=keys.slice();save(store,rec);dots['hall-of-fame']=false;}
+      else dots['hall-of-fame']=keys.some(k=>!opened.has(k));
+      paint();
+    }catch(error){console.warn('Hall of Fame dot could not check for new champions:',error);}
+    finally{busyH=false;lastHof=Date.now();}
+  }
+
+  /* ---- called when a section is opened ---- */
+  window.gvgDotSeen=function(section){
+    const vk=vkey();
+    if(!vk||!(section in dots))return;
+    if(section==='hall-of-fame'){
+      const rec=load(CHAMP_STORE+vk);
+      if(rec){rec.s=hofKeys.length?hofKeys.slice():(rec.s||[]);save(CHAMP_STORE+vk,rec);}
+    }else{
+      const seen=load(DOT_STORE+vk);
+      if(seen){if(section==='challenges'&&latest.ch)seen.ch=latest.ch;if(section==='results'&&latest.rs)seen.rs=latest.rs;save(DOT_STORE+vk,seen);}
+      setTimeout(()=>{lastPulse=0;pulse();},400); // refresh the pulse so a challenge posted a moment ago is not left as a dot
+    }
+    dots[section]=false;paint();
+  };
+
+  function tick(){
+    if(document.hidden)return;
+    const vk=vkey();
+    if(vk!==lastViewer){clearAll();lastViewer=vk;}
+    if(!vk)return;
+    const now=Date.now();
+    if(now-lastPulse>=POLL_MS-1000)pulse();
+    if(now-lastHof>=HOF_POLL_MS-1000)hofCheck();
+  }
+  window.gvgDotsKick=()=>setTimeout(tick,1200);
+  setInterval(tick,POLL_MS);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)tick();});
+})();
+
+
+/* ===== v46: PHONE ALERTS (OneSignal web push) =====
+   Menu footer: ENABLE PHONE ALERTS (one tap, the phone asks "Allow"), then two switches like the SOUND switch:
+   - CHALLENGE ALERTS ON/OFF : a new challenge from another guild (tap = chat with the challenger on WhatsApp)
+   - RESULT ALERTS ON/OFF    : an approved result where your guild is the winner or the loser (tap = Results section)
+   Weekly / Monthly champion alerts have no switch (tap = Hall of Fame).
+   The OneSignal script is loaded only for people who turned alerts on, so everybody else downloads nothing extra.
+   This phone is described to OneSignal with 4 small tags: m=1 (a leader is logged in), g=guild, ch=1/0, rs=1/0.
+   The database trigger (gvg_v46_push.sql) sends each alert to the matching tags. */
+(function(){
+  'use strict';
+  const APP_ID='7fe96a3a-ed06-4e09-bf69-9ca540b3c111';
+  const SDK_URL='https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js';
+  const K_CH='gvg-push-ch-v1', K_RS='gvg-push-rs-v1', K_TAG='gvg-push-tagged-v1';
+  const DEEP=['challenges','results','hall-of-fame'];
+  const supported=('Notification' in window)&&('serviceWorker' in navigator)&&('PushManager' in window);
+  const el=id=>document.getElementById(id);
+  const readOn=k=>{try{return localStorage.getItem(k)!=='off';}catch{return true;}};
+  const writeKey=(k,v)=>{try{if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v);}catch{}};
+  const wasTagged=()=>{try{return localStorage.getItem(K_TAG)==='1';}catch{return false;}};
+  let chOn=readOn(K_CH), rsOn=readOn(K_RS), sdkPromise=null, lastLeader='';
+
+  const leader=()=>{
+    if(state.guest||!state.user||!state.guild||state.guild.approval_status!=='approved') return '';
+    return normalizeGuild(state.guild.guild_name_normalized||state.guild.guild_name);
+  };
+
+  function loadSdk(){
+    if(sdkPromise) return sdkPromise;
+    sdkPromise=new Promise((resolve,reject)=>{
+      window.OneSignalDeferred=window.OneSignalDeferred||[];
+      window.OneSignalDeferred.push(async OneSignal=>{
+        try{
+          await OneSignal.init({appId:APP_ID,serviceWorkerPath:'OneSignalSDKWorker.js',notifyButton:{enable:false},welcomeNotification:{disable:true}});
+          resolve(OneSignal);
+        }catch(error){reject(error);}
+      });
+      const s=document.createElement('script');
+      s.src=SDK_URL;s.defer=true;s.onerror=()=>reject(new Error('OneSignal script blocked'));
+      document.head.appendChild(s);
+    }).catch(error=>{sdkPromise=null;throw error;});
+    return sdkPromise;
+  }
+
+  function setTags(OneSignal,on){
+    const g=leader();
+    if(on&&g){
+      OneSignal.User.addTags({m:'1',g,ch:chOn?'1':'0',rs:rsOn?'1':'0'});
+      writeKey(K_TAG,'1');
+    }else{
+      OneSignal.User.addTags({m:'0'});
+      writeKey(K_TAG,null);
+    }
+  }
+
+  async function activate(){
+    const OneSignal=await loadSdk();
+    try{if(Notification.permission==='granted'&&!OneSignal.User.PushSubscription.optedIn)await OneSignal.User.PushSubscription.optIn();}catch{}
+    setTags(OneSignal,true);
+  }
+
+  function paint(){
+    const box=el('push-box'); if(!box) return;
+    const g=leader();
+    box.hidden=!g;
+    if(!g) return;
+    const perm=supported?Notification.permission:'unsupported';
+    const enable=el('push-enable'),ch=el('push-ch'),rs=el('push-rs'),note=el('push-note');
+    enable.hidden=perm!=='default';
+    ch.hidden=rs.hidden=perm!=='granted';
+    ch.textContent=chOn?'\u{1F514} CHALLENGE ALERTS ON':'\u{1F515} CHALLENGE ALERTS OFF';
+    ch.setAttribute('aria-pressed',chOn?'true':'false');
+    rs.textContent=rsOn?'\u{1F514} RESULT ALERTS ON':'\u{1F515} RESULT ALERTS OFF';
+    rs.setAttribute('aria-pressed',rsOn?'true':'false');
+    let msg='';
+    if(perm==='unsupported') msg='Phone alerts need Chrome on Android. On iPhone, first add this site to the Home Screen.';
+    else if(perm==='denied') msg='Alerts are blocked for this site. Allow Notifications in your browser site settings, then open this menu again.';
+    else if(perm==='granted') msg='Weekly and monthly champion alerts are always on.';
+    note.textContent=msg; note.hidden=!msg;
+  }
+
+  async function sync(){
+    const g=leader();
+    paint();
+    if(!supported) return;
+    if(g&&Notification.permission==='granted'){
+      if(g!==lastLeader){
+        lastLeader=g;
+        try{await activate();}catch(error){console.warn('Phone alerts could not start:',error);}
+      }
+    }else if(!g&&lastLeader){
+      lastLeader='';
+      stopAlerts();
+    }
+  }
+  function stopAlerts(){
+    if(!supported||Notification.permission!=='granted'||!wasTagged()) return;
+    loadSdk().then(OneSignal=>setTags(OneSignal,false)).catch(()=>{});
+  }
+
+  el('push-enable')?.addEventListener('click',async()=>{
+    const btn=el('push-enable'); btn.disabled=true;
+    try{
+      const result=await Notification.requestPermission(); // must run inside the tap
+      if(result==='granted'){lastLeader=leader();await activate();}
+    }catch(error){console.warn('Phone alerts permission failed:',error);}
+    finally{btn.disabled=false;paint();}
+  });
+  function flip(which){
+    if(which==='ch'){chOn=!chOn;writeKey(K_CH,chOn?'on':'off');}
+    else{rsOn=!rsOn;writeKey(K_RS,rsOn?'on':'off');}
+    paint();
+    loadSdk().then(OneSignal=>setTags(OneSignal,true)).catch(error=>console.warn('Alert switch could not be saved:',error));
+  }
+  el('push-ch')?.addEventListener('click',()=>flip('ch'));
+  el('push-rs')?.addEventListener('click',()=>flip('rs'));
+  // logging out: this phone stops receiving alerts for that leader
+  ['nav-logout','drawer-logout'].forEach(id=>el(id)?.addEventListener('click',stopAlerts,true));
+  el('nav-menu')?.addEventListener('click',paint);
+
+  /* tapping a notification opens  <site>/#go=results  or  #go=hall-of-fame  : jump straight to that section */
+  let tries=0;
+  function clearHash(){try{history.replaceState(null,'',location.pathname+location.search);}catch{}}
+  function goFromHash(){
+    const m=/^#go=([a-z-]+)$/.exec(location.hash||'');
+    if(!m) return true;
+    if(!DEEP.includes(m[1])){clearHash();return true;}
+    if(state.view!=='member'||!leader()) return false; // not logged in yet: try again shortly
+    openMemberSection(m[1]);clearHash();return true;
+  }
+  function watchHash(){
+    tries=0;
+    const timer=setInterval(()=>{ if(goFromHash()||++tries>40)clearInterval(timer); },1000);
+  }
+  window.addEventListener('hashchange',watchHash);
+  watchHash();
+
+  window.gvgPushKick=()=>setTimeout(sync,800);
+  setInterval(()=>{if(!document.hidden)sync();},60000);
 })();
 
 
@@ -3300,6 +3634,8 @@ function syncMenuButton(){
   const g=$('drawer-guild'); if(g) g.textContent=state.guest?`GUEST • ${state.guest.guild_name}`:(state.guild?.guild_name||'GVG MENU');
   const lo=$('drawer-logout'); if(lo) lo.textContent=state.guest?'EXIT GUEST':'LOGOUT';
   document.querySelectorAll('.drawer-item').forEach(el=>el.classList.toggle('hidden',Boolean(state.guest)&&!GUEST_SECTIONS.includes(el.dataset.memberSection)));
+  if(window.gvgDotsKick)window.gvgDotsKick();
+  if(window.gvgPushKick)window.gvgPushKick();
 }
 function openDrawer(){
   const d=$('side-drawer'),bk=$('drawer-backdrop'),btn=$('nav-menu'); if(!d||!bk) return;
