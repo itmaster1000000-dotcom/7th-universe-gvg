@@ -1296,3 +1296,5 @@ h3,.hub-name,.ranking-view-head h4,.app-dialog-title,.moderator-guild-name{text-
 .push-box[hidden]{display:none}
 .push-box .btn{width:100%}
 .push-note{color:var(--text-3);font-size:11px;line-height:1.45;letter-spacing:.02em}
+/* v46.1: .btn sets display, which hid-ing via the [hidden] attribute could not beat. Make hidden really hidden. */
+.push-box .btn[hidden],.push-box .push-note[hidden]{display:none!important}
