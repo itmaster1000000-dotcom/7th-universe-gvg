@@ -3593,6 +3593,13 @@ $('password-recovery-form').addEventListener('submit',async(e)=>{
   const wasTagged=()=>{try{return localStorage.getItem(K_TAG)==='1';}catch{return false;}};
   let chOn=readOn(K_CH), rsOn=readOn(K_RS), sdkPromise=null, lastLeader='', conn='idle', connMsg='';
   window.gvgAlertOn=k=>k==='ch'?chOn:(k==='rs'?rsOn:true); // used by the in-page alert sounds
+  const cspHits=[];
+  document.addEventListener('securitypolicyviolation',e=>{
+    const m=/\/\/([^\/]+)/.exec(String(e.blockedURI||''));
+    if(!m||!/onesignal/i.test(m[1]))return;
+    const k=`${m[1]} (${e.violatedDirective})`;
+    if(!cspHits.includes(k)&&cspHits.length<3){cspHits.push(k);try{paint();}catch{}}
+  });
 
   const leader=()=>{
     if(state.guest||!state.user||!state.guild||state.guild.approval_status!=='approved') return '';
@@ -3660,8 +3667,8 @@ $('password-recovery-form').addEventListener('submit',async(e)=>{
       const base='Weekly and monthly champion alerts are always on.';
       msg=conn==='ok'?'\u2705 Connected. Alerts will reach this phone. '+base
         :conn==='connecting'?'Connecting to the alert service...'
-        :conn==='wait'?'Allowed, but this phone is not registered yet. Close the site, open it again and wait a minute. If this stays, tell the Admin.'
-        :conn==='fail'?`Could not connect (${connMsg}). `+(/security policy/.test(connMsg)?'The site headers must allow cdn.onesignal.com.':/this phone/.test(connMsg)?'Turn off the ad-blocker, Private DNS or data saver for this site, or open the site in Chrome.':'Check that OneSignalSDKWorker.js is in the main folder of the site.')
+        :conn==='wait'?'Allowed, but this phone is not registered yet. Close the site, open it again and wait a minute. If this stays, tell the Admin.'+(cspHits.length?' Blocked: '+cspHits.join(', ')+'.':'')
+        :conn==='fail'?`Could not connect (${connMsg}). `+(/security policy/.test(connMsg)?'The site headers must allow cdn.onesignal.com.':/this phone/.test(connMsg)?'Turn off the ad-blocker, Private DNS or data saver for this site, or open the site in Chrome.':'Check that OneSignalSDKWorker.js is in the main folder of the site.')+(cspHits.length?' Blocked: '+cspHits.join(', ')+'.':'')
         :base;
     }
     SETS.forEach(S=>{
