@@ -6,7 +6,7 @@
    11 Hall of Fame  12 Admin  13 Modals/dialogs  14 Responsive
    NOTE: the performance guard below is intentional (no continuous CSS motion).
    ========================================================================== */
-:root{--gvg-css-version:'45.0'}
+:root{--gvg-css-version:'47.0'}
 
 /* 0. Performance guard: no continuous CSS animation / filters / blur anywhere.
       Short motion is driven from script.js (Web Animations API). */
@@ -1298,3 +1298,35 @@ h3,.hub-name,.ranking-view-head h4,.app-dialog-title,.moderator-guild-name{text-
 .push-note{color:var(--text-3);font-size:11px;line-height:1.45;letter-spacing:.02em}
 /* v46.1: .btn sets display, which hid-ing via the [hidden] attribute could not beat. Make hidden really hidden. */
 .push-box .btn[hidden],.push-box .push-note[hidden]{display:none!important}
+
+/* ===== v47 ===== */
+/* 1) Weapon / skill / PC tiles: equal columns so every picture has the same size */
+.ff-grid-5,.ff-grid-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.ff-grid-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.ff-tile{min-width:0}
+.ff-grid-5 .ff-tile .ff-name,.ff-grid-3 .ff-tile .ff-name{font-size:11px;letter-spacing:.04em;overflow-wrap:anywhere}
+/* 2) Green notification dots (big, glowing; the pulse is drawn by JavaScript) */
+.gvg-dot{width:17px;height:17px;background:radial-gradient(circle at 35% 30%,#b9ffd2,#22e06b 45%,#0a9b43);border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,70,30,.65),0 0 14px rgba(34,224,107,.95)}
+.menu-btn .gvg-dot{top:3px;right:3px}
+.drawer-item .gvg-dot{right:34px;margin-top:-8.5px}
+.hof-type-tab{position:relative}
+.hof-type-tab .gvg-dot{top:4px;right:5px}
+#admin-menu-btn{position:relative}
+#admin-menu-btn .gvg-dot{top:3px;right:3px}
+/* 3) Settings: every card is a collapsed button, tap to open (one at a time) */
+.set-acc>.panel-head{position:relative;cursor:pointer;padding-right:46px;margin-bottom:0;-webkit-tap-highlight-color:transparent}
+.set-acc>.panel-head::after{content:"";position:absolute;right:8px;top:50%;width:11px;height:11px;margin-top:-9px;border-right:3px solid #f5cf6b;border-bottom:3px solid #f5cf6b;transform:rotate(45deg)}
+.set-acc.open>.panel-head::after{transform:rotate(-135deg);margin-top:-3px}
+.set-acc>.panel-head .subtle{display:none}
+.set-acc.open>.panel-head .subtle{display:block}
+.set-acc.open>.panel-head{margin-bottom:14px}
+.set-acc>:not(.panel-head){display:none}
+.set-acc.open>:not(.panel-head){display:block}
+.alerts-switches{display:grid;gap:8px}
+.alerts-switches .btn{width:100%}
+.alerts-switches .btn[hidden],.alerts-switches .push-note[hidden]{display:none!important}
+/* 4) Admin: the section buttons live in a left menu (3 lines) like the leaders' menu */
+.admin-tabs{display:none!important}
+.admin-head-main{display:flex;align-items:center;gap:12px;min-width:0}
+/* 5) the three-dot menu is placed by JavaScript so no card can cut it off */
+.dots-menu.open{position:fixed;z-index:1000;max-height:70vh;overflow:auto}
