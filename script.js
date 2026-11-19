@@ -3591,7 +3591,7 @@ $('password-recovery-form').addEventListener('submit',async(e)=>{
   const readOn=k=>{try{return localStorage.getItem(k)!=='off';}catch{return true;}};
   const writeKey=(k,v)=>{try{if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v);}catch{}};
   const wasTagged=()=>{try{return localStorage.getItem(K_TAG)==='1';}catch{return false;}};
-  let chOn=readOn(K_CH), rsOn=readOn(K_RS), sdkPromise=null, lastLeader='';
+  let chOn=readOn(K_CH), rsOn=readOn(K_RS), sdkPromise=null, lastLeader='', conn='idle', connMsg='';
   window.gvgAlertOn=k=>k==='ch'?chOn:(k==='rs'?rsOn:true); // used by the in-page alert sounds
 
   const leader=()=>{
@@ -3602,15 +3602,16 @@ $('password-recovery-form').addEventListener('submit',async(e)=>{
   function loadSdk(){
     if(sdkPromise) return sdkPromise;
     sdkPromise=new Promise((resolve,reject)=>{
+      const timer=setTimeout(()=>reject(new Error('OneSignal did not start in time')),20000);
       window.OneSignalDeferred=window.OneSignalDeferred||[];
       window.OneSignalDeferred.push(async OneSignal=>{
         try{
           await OneSignal.init({appId:APP_ID,serviceWorkerPath:'OneSignalSDKWorker.js',notifyButton:{enable:false},welcomeNotification:{disable:true}});
-          resolve(OneSignal);
-        }catch(error){reject(error);}
+          clearTimeout(timer);resolve(OneSignal);
+        }catch(error){clearTimeout(timer);reject(error);}
       });
       const s=document.createElement('script');
-      s.src=SDK_URL;s.defer=true;s.onerror=()=>reject(new Error('OneSignal script blocked'));
+      s.src=SDK_URL;s.defer=true;s.onerror=()=>{clearTimeout(timer);reject(new Error('OneSignal script blocked'));};
       document.head.appendChild(s);
     }).catch(error=>{sdkPromise=null;throw error;});
     return sdkPromise;
@@ -3628,9 +3629,18 @@ $('password-recovery-form').addEventListener('submit',async(e)=>{
   }
 
   async function activate(){
-    const OneSignal=await loadSdk();
-    try{if(Notification.permission==='granted'&&!OneSignal.User.PushSubscription.optedIn)await OneSignal.User.PushSubscription.optIn();}catch{}
-    setTags(OneSignal,true);
+    conn='connecting';paint();
+    try{
+      const OneSignal=await loadSdk();
+      try{if(Notification.permission==='granted'&&!OneSignal.User.PushSubscription.optedIn)await OneSignal.User.PushSubscription.optIn();}catch{}
+      setTags(OneSignal,true);
+      setTimeout(()=>checkConn(OneSignal),4000);
+      setTimeout(()=>checkConn(OneSignal),12000);
+    }catch(error){conn='fail';connMsg=String((error&&error.message)||error||'unknown').slice(0,90);paint();throw error;}
+  }
+  function checkConn(OneSignal){
+    try{const sub=OneSignal.User.PushSubscription;conn=(sub.id&&sub.optedIn)?'ok':'wait';}catch{conn='wait';}
+    paint();
   }
 
   function paint(){
@@ -3639,7 +3649,14 @@ $('password-recovery-form').addEventListener('submit',async(e)=>{
     let msg='';
     if(perm==='unsupported') msg='Phone alerts need Chrome on Android. On iPhone, first add this site to the Home Screen.';
     else if(perm==='denied') msg='Alerts are blocked for this site. Allow Notifications in your browser site settings, then open this menu again.';
-    else if(perm==='granted') msg='Weekly and monthly champion alerts are always on.';
+    else if(perm==='granted'){
+      const base='Weekly and monthly champion alerts are always on.';
+      msg=conn==='ok'?'\u2705 Connected. Alerts will reach this phone. '+base
+        :conn==='connecting'?'Connecting to the alert service...'
+        :conn==='wait'?'Allowed, but this phone is not registered yet. Close the site, open it again and wait a minute. If this stays, tell the Admin.'
+        :conn==='fail'?`Could not connect (${connMsg}). Check that OneSignalSDKWorker.js is in the main folder of the site.`
+        :base;
+    }
     SETS.forEach(S=>{
       const box=el(S.box),enable=el(S.enable),ch=el(S.ch),rs=el(S.rs),note=el(S.note);
       if(!box) return;
