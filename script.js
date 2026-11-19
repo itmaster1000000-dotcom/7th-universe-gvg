@@ -3610,8 +3610,15 @@ $('password-recovery-form').addEventListener('submit',async(e)=>{
           clearTimeout(timer);resolve(OneSignal);
         }catch(error){clearTimeout(timer);reject(error);}
       });
+      let cspHit='';
+      const onCsp=e=>{if(/onesignal/i.test(e.blockedURI||''))cspHit=e.violatedDirective||'csp';};
+      document.addEventListener('securitypolicyviolation',onCsp);
       const s=document.createElement('script');
-      s.src=SDK_URL;s.defer=true;s.onerror=()=>{clearTimeout(timer);reject(new Error('OneSignal script blocked'));};
+      s.src=SDK_URL;s.defer=true;
+      s.onerror=()=>{
+        clearTimeout(timer);document.removeEventListener('securitypolicyviolation',onCsp);
+        reject(new Error(cspHit?`blocked by the site security policy: ${cspHit}`:'blocked on this phone: ad-blocker, Private DNS or data saver'));
+      };
       document.head.appendChild(s);
     }).catch(error=>{sdkPromise=null;throw error;});
     return sdkPromise;
@@ -3636,7 +3643,7 @@ $('password-recovery-form').addEventListener('submit',async(e)=>{
       setTags(OneSignal,true);
       setTimeout(()=>checkConn(OneSignal),4000);
       setTimeout(()=>checkConn(OneSignal),12000);
-    }catch(error){conn='fail';connMsg=String((error&&error.message)||error||'unknown').slice(0,90);paint();throw error;}
+    }catch(error){conn='fail';connMsg=String((error&&error.message)||error||'unknown').slice(0,110);paint();throw error;}
   }
   function checkConn(OneSignal){
     try{const sub=OneSignal.User.PushSubscription;conn=(sub.id&&sub.optedIn)?'ok':'wait';}catch{conn='wait';}
@@ -3654,7 +3661,7 @@ $('password-recovery-form').addEventListener('submit',async(e)=>{
       msg=conn==='ok'?'\u2705 Connected. Alerts will reach this phone. '+base
         :conn==='connecting'?'Connecting to the alert service...'
         :conn==='wait'?'Allowed, but this phone is not registered yet. Close the site, open it again and wait a minute. If this stays, tell the Admin.'
-        :conn==='fail'?`Could not connect (${connMsg}). Check that OneSignalSDKWorker.js is in the main folder of the site.`
+        :conn==='fail'?`Could not connect (${connMsg}). `+(/security policy/.test(connMsg)?'The site headers must allow cdn.onesignal.com.':/this phone/.test(connMsg)?'Turn off the ad-blocker, Private DNS or data saver for this site, or open the site in Chrome.':'Check that OneSignalSDKWorker.js is in the main folder of the site.')
         :base;
     }
     SETS.forEach(S=>{
