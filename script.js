@@ -1,4 +1,4 @@
-window.__GVG_SCRIPT_VERSION='48.0';
+window.__GVG_SCRIPT_VERSION='48.1';
 /*
   7TH UNIVERSE GVG — FINAL FRONTEND
   Uses two isolated Supabase Auth clients so the Admin browser session
@@ -1126,6 +1126,7 @@ async function loadLiveChallenges(){
     state.challenges=res.data||[];
     renderChallenges();
     fillResultChallenges();
+    loadChallengeTitles();
   }catch(error){
     console.error(error);
     const msg='<div class="empty">Could not load live challenges.</div>';
@@ -1133,6 +1134,22 @@ async function loadLiveChallenges(){
     if(a) a.innerHTML=msg;
     if(b) b.innerHTML=msg;
   }
+}
+
+/* v48.1: the challenger's title shows inside the challenge card. The titles come from get_gvg_badges_v2, the same cached
+   call (15 minutes) that Guild Profiles and the badge announcements already use, so this adds no extra load. */
+let challengeTitlesBusy=false;
+async function loadChallengeTitles(){
+  if(challengeTitlesBusy||state.guest) return;
+  challengeTitlesBusy=true;
+  try{
+    const had=Boolean(state.badgeByGuild&&state.badgeByGuild.size);
+    const res=await readRpc('get_gvg_badges_v2');
+    if(!res||res.error||!res.data) return;
+    applyBadgeData(res.data);
+    if(!had) renderChallenges(); // first time: draw the cards again, now with titles
+  }catch(error){console.warn('Challenge titles could not load:',error);}
+  finally{challengeTitlesBusy=false;}
 }
 
 function challengeStatusLabel(status){
@@ -1158,6 +1175,7 @@ function challengeCardHtml(c){
   const hasPc=typeof c.pc_allowed==='boolean';
   const wa=(!mine&&open)?waLink(c.contact_number,challengeWhatsAppText(c)):'';
   const opponent=c.opponent_guild_name?escapeHtml(c.opponent_guild_name):'OPEN SLOT';
+  const chInfo=guildBadgeInfo({guild_name:c.guild_name}),chTitle=chInfo&&chInfo.title?titleChipMarkup(chInfo.title):''; // v48.1: the challenger's title (champion / rank)
   const badgeCls=status==='open'?'badge-blue':status==='result_pending'?'badge-gold':'badge-green';
   let actions='';
   if(wa) actions+=`<a class="wa-btn" href="${wa}" target="_blank" rel="noopener noreferrer" aria-label="Chat with ${escapeHtml(c.guild_name)} on WhatsApp">${WA_ICON}<span class="wa-txt"><b>CHAT ON WHATSAPP</b><small>${escapeHtml(formatContact(c.contact_number))}</small></span></a>`;
@@ -1168,7 +1186,7 @@ function challengeCardHtml(c){
   return `<article class="challenge-card" data-state="${escapeHtml(status)}"${mine?' data-mine="1"':''}>
     <header class="ch-top"><span class="ch-code">${escapeHtml(c.challenge_code||'CHALLENGE')}</span><span class="badge ${badgeCls}">${escapeHtml(challengeStatusLabel(status))}</span></header>
     <div class="ch-versus">
-      <div class="ch-side"><small>CHALLENGER</small><strong>${escapeHtml(c.guild_name)}</strong></div>
+      <div class="ch-side"><small>CHALLENGER</small><strong>${escapeHtml(c.guild_name)}</strong>${chTitle?`<div class="ch-title">${chTitle}</div>`:''}</div>
       <div class="ch-vs">VS</div>
       <div class="ch-side ch-side-b${c.opponent_guild_name?'':' is-open'}"><small>OPPONENT</small><strong>${opponent}</strong></div>
     </div>

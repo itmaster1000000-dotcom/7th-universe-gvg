@@ -6,7 +6,7 @@
    11 Hall of Fame  12 Admin  13 Modals/dialogs  14 Responsive
    NOTE: the performance guard below is intentional (no continuous CSS motion).
    ========================================================================== */
-:root{--gvg-css-version:'48.0'}
+:root{--gvg-css-version:'48.1'}
 
 /* 0. Performance guard: no continuous CSS animation / filters / blur anywhere.
       Short motion is driven from script.js (Web Animations API). */
@@ -1373,3 +1373,9 @@ h3,.hub-name,.ranking-view-head h4,.app-dialog-title,.moderator-guild-name{text-
 .gate-alerts[hidden]{display:none}
 .gate-alerts .btn[hidden],.gate-alerts .push-note[hidden]{display:none!important}
 .gate-alerts .push-note{max-width:420px;text-align:center}
+
+/* ===== v48.1: golden challenge cards + the challenger's title inside the card ===== */
+.challenge-card,.challenge-card[data-mine="1"]{border:1px solid rgba(233,196,106,.8);box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 10px 22px rgba(0,0,0,.55),0 0 0 1px rgba(233,196,106,.16),0 0 18px rgba(233,196,106,.2)}
+.challenge-card:hover{border-color:var(--gold-200)}
+.ch-title{display:flex;justify-content:center;margin-top:6px}
+.ch-title .rank-chip{margin:0;font-size:10px;padding:4px 9px;text-align:center}
