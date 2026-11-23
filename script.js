@@ -1,4 +1,4 @@
-window.__GVG_SCRIPT_VERSION='47.0';
+window.__GVG_SCRIPT_VERSION='48.0';
 /*
   7TH UNIVERSE GVG — FINAL FRONTEND
   Uses two isolated Supabase Auth clients so the Admin browser session
@@ -267,7 +267,7 @@ function formatWeekRange(startValue){
     return `${df.format(start)} 10:00 AM → ${df.format(end)} 10:00 AM PKT`;
   }catch{return String(startValue||'');}
 }
-function showStatus(id,type,message){ const el=$(id); if(!el) return; el.className=`status show ${type}`; el.textContent=message; }
+function showStatus(id,type,message){ const el=$(id); if(!el) return; el.className=`status show ${type}`; el.textContent=message; if(type==='error'&&(id==='challenge-status'||id==='result-status')&&window.gvgPlayTone) window.gvgPlayTone('error'); }
 function clearStatus(id){ const el=$(id); if(!el) return; el.className='status'; el.textContent=''; }
 function setBusy(buttonId,busy,label){ let btn=$(buttonId); if(btn?.tagName==='FORM') btn=btn.querySelector('button[type=submit]'); if(!btn) return; btn.disabled=busy; if(busy) btn.dataset.oldText=btn.textContent; btn.textContent=busy?'PLEASE WAIT…':(label||btn.dataset.oldText||'SUBMIT'); }
 function humanizeError(error){
@@ -1382,7 +1382,7 @@ async function handleChallengeSubmit(e){
   e.preventDefault();clearStatus('challenge-status');if(!guildApproved())return showStatus('challenge-status','error','Your guild is not approved or is currently banned.');if(!challengePostingOpen())return showStatus('challenge-status','error','New challenges are allowed from 10:00 AM until 11:59 PM Pakistan time. At 12:00 AM, challenges close.');
   const time=$('challenge-time').value; const weapons=[...document.querySelectorAll('input[name="weapons"]:checked')].map(x=>x.value); const skills=[...document.querySelectorAll('input[name="skills"]:checked')].map(x=>x.value); const pcAllowed=$('challenge-pc-allowed')?.value==='true'; const limitType=$('challenge-limit-type')?.value==='unlimited'?'unlimited':'limited';
   if(!time||!weapons.length){showStatus('challenge-status','error','Match time and at least one weapon are required.');return;}
-  try{setBusy('challenge-submit',true);const base={p_challenge_time:time,p_weapons:weapons,p_active_skills:skills,p_pc_allowed:pcAllowed};let res=await db.rpc('submit_gvg_challenge',{...base,p_limit_type:limitType}),typeSaved=true;if(res.error&&/PGRST202|Could not find the function|schema cache/i.test(`${res.error.code||''} ${res.error.message||''}`)){res=await db.rpc('submit_gvg_challenge',base);typeSaved=false;}const {data,error}=res;if(error)throw error;showStatus('challenge-status','ok',`Challenge ${data?.challenge_code||''} posted successfully. PC: ${pcAllowed?'ALLOW':'NOT ALLOW'}. Type: ${limitType.toUpperCase()}${typeSaved?'':' (type not saved yet - database update pending)'}.`);if(window.gvgPlayTone)window.gvgPlayTone('challenge');$('challenge-form').reset();clearTimePicker();clearSectionCache('member:challenges');await loadLiveChallenges();markSectionLoaded('member:challenges');}catch(error){showStatus('challenge-status','error',humanizeError(error));}finally{setBusy('challenge-submit',false,'POST CHALLENGE');}
+  try{setBusy('challenge-submit',true);const base={p_challenge_time:time,p_weapons:weapons,p_active_skills:skills,p_pc_allowed:pcAllowed};let res=await db.rpc('submit_gvg_challenge',{...base,p_limit_type:limitType}),typeSaved=true;if(res.error&&/PGRST202|Could not find the function|schema cache/i.test(`${res.error.code||''} ${res.error.message||''}`)){res=await db.rpc('submit_gvg_challenge',base);typeSaved=false;}const {data,error}=res;if(error)throw error;showStatus('challenge-status','ok',`Challenge ${data?.challenge_code||''} posted successfully. PC: ${pcAllowed?'ALLOW':'NOT ALLOW'}. Type: ${limitType.toUpperCase()}${typeSaved?'':' (type not saved yet - database update pending)'}.`);if(window.gvgPlayTone)window.gvgPlayTone('sentChallenge');$('challenge-form').reset();clearTimePicker();clearSectionCache('member:challenges');await loadLiveChallenges();markSectionLoaded('member:challenges');}catch(error){showStatus('challenge-status','error',humanizeError(error));}finally{setBusy('challenge-submit',false,'POST CHALLENGE');}
 }
 
 async function handleResultSubmit(e){
@@ -1393,7 +1393,7 @@ async function handleResultSubmit(e){
   try{setBusy('result-submit',true);const urls=await uploadResultImages(files);
     // Upload exactly one proof file. The existing production RPC may enforce its legacy 2-slot array; repeat the same URL as a compatibility pointer, never upload a second image.
     const proofUrls=urls.length===1?[urls[0],urls[0]]:urls;
-    const {error}=await db.rpc('submit_gvg_result',{p_challenge_id:challengeId,p_winner_guild:winner,p_loser_guild:loser,p_score:score,p_image_urls:proofUrls});if(error)throw error;showStatus('result-status','ok','Result submitted for admin approval.');if(window.gvgPlayTone)window.gvgPlayTone('result');$('result-form').reset();clearSectionCache('member:');await Promise.all([loadLiveChallenges(),loadApprovedResults(),loadMyResultSubmissions()]);markSectionLoaded('member:challenges');markSectionLoaded('member:approved-results');markSectionLoaded('member:my-results');}catch(error){showStatus('result-status','error',humanizeError(error));}finally{setBusy('result-submit',false,'SUBMIT RESULT');}
+    const {error}=await db.rpc('submit_gvg_result',{p_challenge_id:challengeId,p_winner_guild:winner,p_loser_guild:loser,p_score:score,p_image_urls:proofUrls});if(error)throw error;showStatus('result-status','ok','Result submitted for admin approval.');if(window.gvgPlayTone)window.gvgPlayTone('sentResult');$('result-form').reset();clearSectionCache('member:');await Promise.all([loadLiveChallenges(),loadApprovedResults(),loadMyResultSubmissions()]);markSectionLoaded('member:challenges');markSectionLoaded('member:approved-results');markSectionLoaded('member:my-results');}catch(error){showStatus('result-status','error',humanizeError(error));}finally{setBusy('result-submit',false,'SUBMIT RESULT');}
 }
 
 async function loadMyResultSubmissions(){
@@ -3580,7 +3580,7 @@ $('password-recovery-form').addEventListener('submit',async(e)=>{
   'use strict';
   const APP_ID='7fe96a3a-ed06-4e09-bf69-9ca540b3c111';
   const SDK_URL='https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js';
-  const K_CH='gvg-push-ch-v1', K_RS='gvg-push-rs-v1', K_TAG='gvg-push-tagged-v1';
+  const K_CH='gvg-push-ch-v1', K_RS='gvg-push-rs-v1', K_SB='gvg-push-sb-v1', K_TAG='gvg-push-tagged-v1';
   const DEEP=['challenges','results','hall-of-fame'];
   const SETS=[
     {box:'push-box',enable:'push-enable',ch:'push-ch',rs:'push-rs',note:'push-note'},
@@ -3591,8 +3591,9 @@ $('password-recovery-form').addEventListener('submit',async(e)=>{
   const readOn=k=>{try{return localStorage.getItem(k)!=='off';}catch{return true;}};
   const writeKey=(k,v)=>{try{if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v);}catch{}};
   const wasTagged=()=>{try{return localStorage.getItem(K_TAG)==='1';}catch{return false;}};
-  let chOn=readOn(K_CH), rsOn=readOn(K_RS), sdkPromise=null, lastLeader='', conn='idle', connMsg='';
-  window.gvgAlertOn=k=>k==='ch'?chOn:(k==='rs'?rsOn:true); // used by the in-page alert sounds
+  let chOn=readOn(K_CH), rsOn=readOn(K_RS), sbOn=readOn(K_SB), sdkPromise=null, lastLeader='', lastPending='', conn='idle', connMsg='';
+  const pendingId=()=>(!state.guest&&state.user&&state.guild&&state.guild.approval_status==='pending')?String(state.user.id||''):''; // a guild waiting for approval
+  window.gvgAlertOn=k=>k==='ch'?chOn:(k==='rs'?rsOn:(k==='sb'?sbOn:true)); // used by the in-page alert sounds
   const cspHits=[];
   document.addEventListener('securitypolicyviolation',e=>{
     const m=/\/\/([^\/]+)/.exec(String(e.blockedURI||''));
@@ -3614,6 +3615,8 @@ $('password-recovery-form').addEventListener('submit',async(e)=>{
       window.OneSignalDeferred.push(async OneSignal=>{
         try{
           await OneSignal.init({appId:APP_ID,serviceWorkerPath:'OneSignalSDKWorker.js',notifyButton:{enable:false},welcomeNotification:{disable:true}});
+          // v48: while the site is open, an alert that carries a kind (sb = result posted against you, reg = guild approved) also plays its own sound
+          try{OneSignal.Notifications.addEventListener('foregroundWillDisplay',ev=>{try{const d=ev&&ev.notification&&ev.notification.additionalData,k=d&&d.k;if(k==='sb'&&window.gvgPlayTone)window.gvgPlayTone('against','sb');else if(k==='reg'&&window.gvgPlayTone)window.gvgPlayTone('approved');}catch{}});}catch{}
           clearTimeout(timer);resolve(OneSignal);
         }catch(error){clearTimeout(timer);reject(error);}
       });
@@ -3634,7 +3637,7 @@ $('password-recovery-form').addEventListener('submit',async(e)=>{
   function setTags(OneSignal,on){
     const g=leader();
     if(on&&g){
-      OneSignal.User.addTags({m:'1',g,ch:chOn?'1':'0',rs:rsOn?'1':'0'});
+      OneSignal.User.addTags({m:'1',g,ch:chOn?'1':'0',rs:rsOn?'1':'0',sb:sbOn?'1':'0'});
       writeKey(K_TAG,'1');
     }else{
       OneSignal.User.addTags({m:'0'});
@@ -3647,7 +3650,9 @@ $('password-recovery-form').addEventListener('submit',async(e)=>{
     try{
       const OneSignal=await loadSdk();
       try{if(Notification.permission==='granted'&&!OneSignal.User.PushSubscription.optedIn)await OneSignal.User.PushSubscription.optIn();}catch{}
+      try{const uid=state.user&&state.user.id;if(uid)await OneSignal.login(String(uid));}catch(error){console.warn('Alert service could not link this phone to the account:',error);} // lets the Admin approval alert find this phone
       setTags(OneSignal,true);
+      if(!leader())writeKey(K_TAG,'1'); // a guild waiting for approval: remember to unlink this phone on logout
       setTimeout(()=>checkConn(OneSignal),4000);
       setTimeout(()=>checkConn(OneSignal),12000);
     }catch(error){conn='fail';connMsg=String((error&&error.message)||error||'unknown').slice(0,110);paint();throw error;}
@@ -3687,26 +3692,35 @@ $('password-recovery-form').addEventListener('submit',async(e)=>{
     const g=leader();
     paint();
     if(!supported) return;
+    const pend=pendingId();
     if(g&&Notification.permission==='granted'){
       if(g!==lastLeader){
-        lastLeader=g;
+        lastLeader=g;lastPending='';
+        try{await activate();}catch(error){console.warn('Phone alerts could not start:',error);}
+      }
+    }else if(pend&&Notification.permission==='granted'){
+      if(pend!==lastPending){
+        lastPending=pend;
         try{await activate();}catch(error){console.warn('Phone alerts could not start:',error);}
       }
     }else if(!g&&lastLeader){
       lastLeader='';
       stopAlerts();
+    }else if(!g&&!pend&&lastPending){
+      lastPending='';
+      stopAlerts();
     }
   }
   function stopAlerts(){
     if(!supported||Notification.permission!=='granted'||!wasTagged()) return;
-    loadSdk().then(OneSignal=>setTags(OneSignal,false)).catch(()=>{});
+    loadSdk().then(OneSignal=>{setTags(OneSignal,false);try{OneSignal.logout();}catch{}}).catch(()=>{}); // v48: also unlink this phone from the account
   }
 
   async function enableAlerts(btn){
     if(btn) btn.disabled=true;
     try{
       const result=await Notification.requestPermission(); // must run inside the tap
-      if(result==='granted'){lastLeader=leader();await activate();}
+      if(result==='granted'){lastLeader=leader();lastPending=pendingId();await activate();}
     }catch(error){console.warn('Phone alerts permission failed:',error);}
     finally{if(btn)btn.disabled=false;paint();}
   }
@@ -3744,6 +3758,19 @@ $('password-recovery-form').addEventListener('submit',async(e)=>{
   watchHash();
 
   window.gvgPushKick=()=>setTimeout(sync,800);
+  /* v48: small hand-over to the Alert & Sound menu and the waiting-for-approval screen */
+  window.gvgPushApi={
+    get:k=>k==='ch'?chOn:(k==='rs'?rsOn:(k==='sb'?sbOn:true)),
+    set(o){
+      if('ch' in o){chOn=!!o.ch;writeKey(K_CH,chOn?'on':'off');}
+      if('rs' in o){rsOn=!!o.rs;writeKey(K_RS,rsOn?'on':'off');}
+      if('sb' in o){sbOn=!!o.sb;writeKey(K_SB,sbOn?'on':'off');}
+      paint();
+      loadSdk().then(OneSignal=>setTags(OneSignal,true)).catch(error=>console.warn('Alert switch could not be saved:',error));
+    },
+    perm:()=>supported?Notification.permission:'unsupported',
+    enable:()=>enableAlerts(null)
+  };
   setInterval(()=>{if(!document.hidden)sync();},60000);
 })();
 
@@ -3964,26 +3991,37 @@ $('password-form')?.addEventListener('submit',handlePasswordChange);
   const NOTES={
     challenge:[[784,0,.16],[1047,.14,.24]],
     result:[[523,0,.13],[659,.11,.13],[784,.22,.13],[1047,.33,.3]],
-    champion:[[523,0,.15],[659,.15,.15],[784,.3,.15],[1047,.45,.2],[784,.66,.12],[1319,.78,.6]]
+    champion:[[523,0,.15],[659,.15,.15],[784,.3,.15],[1047,.45,.2],[784,.66,.12],[1319,.78,.6]],
+    /* v48: every action and every new alert has its own sound.
+       sentChallenge = "da-da-DAA" (your challenge is posted)   sentResult = stamp chime (your result is sent)
+       error = low buzzer (something went wrong)               against = alarm beeps (a result was posted against you)
+       approved = bright three-note chime (your guild was approved) */
+    sentChallenge:[[659,0,.07],[659,.09,.07],[988,.2,.22]],
+    sentResult:[[1047,0,.08],[784,.09,.08],[1047,.18,.08],[1568,.27,.3]],
+    error:[[196,0,.14],[147,.17,.32]],
+    against:[[880,0,.1],[698,.12,.1],[880,.24,.1],[698,.36,.2]],
+    approved:[[659,0,.1],[880,.1,.1],[1319,.2,.35]]
   };
+  const WAVE={error:['sawtooth','square',0.09,0.12]}; // [wave 1, wave 2, loudness, overtone mix] - the error buzzer sounds rougher than the chimes
   function tone(kind){
     if(!soundOn) return;
     const seq=NOTES[kind]; if(!seq) return;
     const c=audio(); if(!c) return;
+    const w=WAVE[kind]||['sine','sine',0.2,0.3];
     const t0=c.currentTime+0.03;
     seq.forEach(([f,at,len])=>{
       const g=c.createGain(),h=c.createGain(),o=c.createOscillator(),o2=c.createOscillator();
-      o.type='sine';o2.type='sine';
+      o.type=w[0];o2.type=w[1];
       o.frequency.setValueAtTime(f,t0+at);o2.frequency.setValueAtTime(f*2.01,t0+at);
       g.gain.setValueAtTime(0.0001,t0+at);
-      g.gain.exponentialRampToValueAtTime(0.2,t0+at+0.012);
+      g.gain.exponentialRampToValueAtTime(w[2],t0+at+0.012);
       g.gain.exponentialRampToValueAtTime(0.0001,t0+at+len+0.2);
-      h.gain.value=0.3;
+      h.gain.value=w[3];
       o.connect(g);o2.connect(h);h.connect(g);g.connect(c.destination);
       o.start(t0+at);o2.start(t0+at);o.stop(t0+at+len+0.25);o2.stop(t0+at+len+0.25);
     });
   }
-  window.gvgPlayTone=(kind,alertKey)=>{try{if(alertKey&&window.gvgAlertOn&&!window.gvgAlertOn(alertKey))return;tone(kind);}catch{}};
+  window.gvgPlayTone=(kind,alertKey)=>{try{if(alertKey&&window.gvgAlertOn&&!window.gvgAlertOn(alertKey))return;if(window.gvgSoundKindOn&&!window.gvgSoundKindOn(kind))return;tone(kind);}catch{}};
 
   /* a soft light sweep across the main buttons that are on screen (only a few at a time, never in the background) */
   function sheenTick(){
@@ -4073,4 +4111,193 @@ function placeDotsMenu(menu,button){
 }
 window.addEventListener('scroll',()=>{document.querySelectorAll('.dots-menu.open').forEach(x=>x.classList.remove('open'));},{passive:true,capture:true});
 
+/* ===== v48: ALERT & SOUND MENU, CHAMPION FULL SCREEN, "GUILD APPROVED" ALERT BUTTON =====
+   1) SETTINGS > SOUND & ALERTS > ALERT & SOUND MENU: one switch for every phone alert and every sound, plus ALL ON / ALL OFF.
+      (The weekly / monthly champion phone alert has no switch: it stays on for every guild.)
+   2) A new weekly or monthly champion covers the WHOLE screen for 5 seconds (gold card, confetti, fanfare) and is shown only
+      ONCE per guild on this device. The timer counts only while the tab is visible, so nobody can miss it.
+   3) A guild that is still waiting for approval gets an ENABLE ALERTS button on the waiting screen, so its phone is told the
+      moment the Admin approves it.
+   No images, no audio files, no extra network calls: everything is drawn / generated in the browser. */
+(function(){
+  'use strict';
+  const el=id=>document.getElementById(id);
+  const SK='gvg-snd-v2';
+  const PUSH_ROWS=[
+    ['ch','Challenge alerts','A new challenge from another guild. Tap opens the challenger on WhatsApp.'],
+    ['rs','Approved result alerts','A result of your guild was approved by the Admin.'],
+    ['sb','Result posted against you','Another guild posted a result for a match with your guild.']
+  ];
+  const SOUND_ROWS=[
+    ['challenge','New challenge','Two quick dings'],
+    ['result','New approved result','Happy four-note climb'],
+    ['against','Result posted against you','Alarm beeps'],
+    ['sentChallenge','Your challenge is posted','Da-da-DAA'],
+    ['sentResult','Your result is sent','Stamp chime'],
+    ['error','Error while posting','Low buzzer'],
+    ['champion','New champion','Fanfare']
+  ];
+  const readSnd=()=>{try{const o=JSON.parse(localStorage.getItem(SK)||'{}');return o&&typeof o==='object'?o:{};}catch{return {};}};
+  const writeSnd=o=>{try{localStorage.setItem(SK,JSON.stringify(o));}catch{}};
+  window.gvgSoundKindOn=kind=>readSnd()[kind]!==0;           // used by gvgPlayTone
+  const masterOn=()=>el('set-sound')?.getAttribute('aria-pressed')!=='false';
+  const reduced=()=>{try{return matchMedia('(prefers-reduced-motion: reduce)').matches;}catch{return false;}};
 
+  /* ---------- 1) ALERT & SOUND MENU ---------- */
+  function rowHtml(key,title,hint,on,locked){
+    return `<button type="button" class="am-row${locked?' am-locked':''}" role="switch" aria-checked="${on?'true':'false'}" data-am-key="${key}"${locked?' disabled':''}><span class="am-txt"><b>${title}</b><small>${hint}</small></span><i class="am-sw" aria-hidden="true"></i></button>`;
+  }
+  function bodyHtml(){
+    const api=window.gvgPushApi, perm=api?api.perm():'unsupported', snd=readSnd();
+    let h='<div class="am-quick"><button class="btn btn-gold btn-small" type="button" data-am="all-on">ALL ON</button><button class="btn btn-ghost btn-small" type="button" data-am="all-off">ALL OFF</button></div>';
+    h+='<div class="am-group">PHONE ALERTS</div>';
+    if(perm==='granted'&&api){
+      PUSH_ROWS.forEach(([k,t,s])=>{h+=rowHtml('push:'+k,t,s,api.get(k));});
+      h+=rowHtml('lock:champ','Weekly &amp; monthly champion','Always on for every guild.',true,true);
+    }else if(perm==='default'){
+      h+='<div class="am-note">Phone alerts are not allowed on this phone yet.</div><button class="btn btn-gold btn-small am-enable" type="button" data-am="enable">&#128276; ENABLE PHONE ALERTS</button>';
+    }else if(perm==='denied'){
+      h+='<div class="am-note">Alerts are blocked for this site. Allow Notifications in your browser site settings, then open this menu again.</div>';
+    }else{
+      h+='<div class="am-note">Phone alerts need Chrome on Android. On iPhone, first add this site to the Home Screen.</div>';
+    }
+    h+='<div class="am-group">SOUNDS</div>';
+    h+=rowHtml('snd:all','All sounds','Master switch: taps and every alert sound.',masterOn());
+    SOUND_ROWS.forEach(([k,t,s])=>{h+=rowHtml('snd:'+k,t,s,snd[k]!==0);});
+    return h;
+  }
+  function render(){const b=el('am-body');if(b)b.innerHTML=bodyHtml();}
+  function openMenu(){
+    openModal('<div class="modal-head"><div><div class="kicker">This device</div><h3>ALERT &amp; SOUND MENU</h3></div><button class="close-btn" type="button" data-action="close-modal" aria-label="Back">&#8592; BACK</button></div><div id="am-body" class="am-body"></div>');
+    render();
+  }
+  function setSound(kind,on){const o=readSnd();if(on)delete o[kind];else o[kind]=0;writeSnd(o);}
+  document.addEventListener('click',e=>{
+    const t=e.target; if(!t||!t.closest) return;
+    if(t.closest('#set-alert-menu')){openMenu();return;}
+    const api=window.gvgPushApi;
+    const row=t.closest('#modal [data-am-key]');
+    if(row&&!row.disabled){
+      const parts=String(row.dataset.amKey).split(':'), type=parts[0], k=parts[1];
+      const on=row.getAttribute('aria-checked')!=='true';
+      if(type==='push'&&api) api.set({[k]:on});
+      else if(type==='snd'&&k==='all') el('set-sound')?.click();
+      else if(type==='snd'){setSound(k,on);if(on&&window.gvgPlayTone)setTimeout(()=>window.gvgPlayTone(k),40);} // switching a sound ON plays it once as a preview
+      render();return;
+    }
+    const act=t.closest('#modal [data-am]');
+    if(!act) return;
+    const a=act.dataset.am;
+    if(a==='enable'&&api){act.disabled=true;Promise.resolve(api.enable()).catch(()=>{}).then(render);return;}
+    if(a==='all-on'||a==='all-off'){
+      const on=a==='all-on';
+      if(api&&api.perm()==='granted') api.set({ch:on,rs:on,sb:on});
+      const o={};if(!on)SOUND_ROWS.forEach(([k])=>{o[k]=0;});writeSnd(o);
+      if(masterOn()!==on) el('set-sound')?.click();
+      render();
+    }
+  });
+
+  /* ---------- 2) CHAMPION FULL SCREEN (5 seconds, once per guild) ---------- */
+  const champQueue=[];let champBusy=false,champWait=false;
+  function showChampion(ev){
+    return new Promise(resolve=>{
+      const weekly=ev.type!=='monthly';
+      const n=String(ev.period||'').replace(/\D/g,'');
+      const title=weekly?(n?`WEEK ${n} CHAMPION`:'WEEKLY CHAMPION'):(n?`SEASON ${n} CHAMPION`:'MONTHLY CHAMPION');
+      const root=document.createElement('div');
+      root.className='champ-screen'+(ev.mine?' champ-mine':'');
+      root.setAttribute('role','alertdialog');
+      root.setAttribute('aria-label',`${title}: ${ev.name||''}`);
+      root.innerHTML=`<div class="champ-rays"></div><div class="champ-conf"></div>
+        <div class="champ-body">
+          <div class="champ-medal">${weekly?'\u{1F3C6}':'\u{1F451}'}</div>
+          <div class="champ-title">${escapeHtml(title)}</div>
+          <div class="champ-name">${escapeHtml(ev.name||'')}</div>
+          ${ev.trophy?`<div class="champ-trophy">${escapeHtml(ev.trophy)}</div>`:''}
+          <div class="champ-cheer">${ev.mine?'Congratulations! Your guild is the champion.':'Congratulations to the new champion!'}</div>
+        </div>
+        <div class="champ-bar"><i></i></div>
+        <div class="champ-hint">TAP TO CLOSE</div>`;
+      document.body.appendChild(root);
+      const fx=!reduced()&&typeof root.animate==='function';
+      if(fx){
+        root.animate([{opacity:0},{opacity:1}],{duration:320,easing:'ease-out'});
+        root.querySelector('.champ-medal').animate([{transform:'scale(.2) rotate(-14deg)',opacity:0},{transform:'scale(1.18) rotate(4deg)',opacity:1,offset:.6},{transform:'scale(1) rotate(0deg)',opacity:1}],{duration:760,easing:'cubic-bezier(.2,.9,.3,1)',fill:'backwards'});
+        root.querySelectorAll('.champ-title,.champ-name,.champ-trophy,.champ-cheer').forEach((x,i)=>x.animate([{opacity:0,transform:'translateY(18px)'},{opacity:1,transform:'none'}],{duration:480,delay:260+i*140,easing:'ease-out',fill:'backwards'}));
+        const conf=root.querySelector('.champ-conf'),cols=['#f6dc8f','#e9c46a','#fff1c2','#e3193c','#ff8aa0'],H=innerHeight||700;
+        for(let i=0;i<26;i++){
+          const p=document.createElement('i');
+          p.style.left=(Math.random()*100)+'%';p.style.background=cols[i%cols.length];
+          conf.appendChild(p);
+          p.animate([
+            {transform:'translate3d(0,0,0) rotate(0deg)',opacity:1},
+            {transform:`translate3d(${Math.round((Math.random()-.5)*90)}px,${H+60}px,0) rotate(${(Math.random()>.5?1:-1)*Math.round(360+Math.random()*540)}deg)`,opacity:.9}
+          ],{duration:2600+Math.random()*2200,delay:Math.random()*900,easing:'cubic-bezier(.3,.1,.6,1)',fill:'both'});
+        }
+      }
+      const DURATION=5000,STEP=200,t0=Date.now(),bar=root.querySelector('.champ-bar i');
+      let elapsed=0,closed=false,timer=null;
+      const onKey=e=>{if(e.key==='Escape')finish();};
+      function finish(){
+        if(closed) return; closed=true;
+        clearInterval(timer);document.removeEventListener('keydown',onKey);
+        const done=()=>{root.remove();resolve();};
+        if(fx){const a=root.animate([{opacity:1},{opacity:0}],{duration:300,easing:'ease-in',fill:'forwards'});a.onfinish=done;a.oncancel=done;setTimeout(done,450);}
+        else done();
+      }
+      document.addEventListener('keydown',onKey);
+      root.addEventListener('click',()=>{if(Date.now()-t0>800)finish();}); // an accidental tap in the first moment does not close it
+      timer=setInterval(()=>{ // counts only while the tab is visible, so the 5 seconds are really seen
+        if(document.hidden) return;
+        elapsed+=STEP;
+        if(bar) bar.style.transform=`scaleX(${Math.max(0,1-elapsed/DURATION)})`;
+        if(elapsed>=DURATION) finish();
+      },STEP);
+      try{ev.onShow&&ev.onShow();}catch{} // marks this champion as shown (once) and plays the champion fanfare
+    });
+  }
+  function pumpChamp(){
+    if(champBusy||!champQueue.length) return;
+    if(document.hidden){
+      if(!champWait){
+        champWait=true;
+        const w=()=>{if(!document.hidden){document.removeEventListener('visibilitychange',w);champWait=false;pumpChamp();}};
+        document.addEventListener('visibilitychange',w);
+      }
+      return;
+    }
+    champBusy=true;
+    showChampion(champQueue.shift()).catch(()=>{}).then(()=>{champBusy=false;setTimeout(pumpChamp,350);});
+  }
+  const prevAnnounce=window.gvgAnnounce;
+  window.gvgAnnounce=function(ev){ // champion events take the full screen; badge unlock cards keep working as before
+    if(ev&&ev.champion){champQueue.push(ev);pumpChamp();return;}
+    return prevAnnounce?prevAnnounce.apply(this,arguments):undefined;
+  };
+
+  /* ---------- 3) waiting-for-approval screen: ENABLE ALERTS ---------- */
+  const pendingNow=()=>Boolean(!state.guest&&state.user&&state.guild&&state.guild.approval_status==='pending');
+  function paintGate(){
+    const box=el('gate-alerts'),btn=el('gate-alerts-btn'),note=el('gate-alerts-note');
+    if(!box) return;
+    const api=window.gvgPushApi, perm=api?api.perm():'unsupported', show=pendingNow();
+    box.hidden=!show;
+    if(!show) return;
+    if(btn) btn.hidden=perm!=='default';
+    if(note){
+      note.textContent=perm==='granted'?'\u2705 Alerts are on. This phone will get a notification the moment the Admin approves your guild.'
+        :perm==='denied'?'Alerts are blocked for this site. Allow Notifications in your browser site settings to be told when your guild is approved.'
+        :perm==='unsupported'?'Phone alerts need Chrome on Android. On iPhone, first add this site to the Home Screen.'
+        :'Get a phone notification the moment the Admin approves your guild.';
+      note.hidden=false;
+    }
+  }
+  el('gate-alerts-btn')?.addEventListener('click',async()=>{
+    const api=window.gvgPushApi,b=el('gate-alerts-btn'); if(!api||!b) return;
+    b.disabled=true;try{await api.enable();}catch{}b.disabled=false;paintGate();
+  });
+  const kick0=window.gvgPushKick;
+  window.gvgPushKick=()=>{if(kick0)kick0();setTimeout(paintGate,900);}; // syncMenuButton() calls this whenever the screen state changes
+  setInterval(()=>{if(!document.hidden)paintGate();},30000);
+})();

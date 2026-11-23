@@ -6,7 +6,7 @@
    11 Hall of Fame  12 Admin  13 Modals/dialogs  14 Responsive
    NOTE: the performance guard below is intentional (no continuous CSS motion).
    ========================================================================== */
-:root{--gvg-css-version:'47.0'}
+:root{--gvg-css-version:'48.0'}
 
 /* 0. Performance guard: no continuous CSS animation / filters / blur anywhere.
       Short motion is driven from script.js (Web Animations API). */
@@ -1333,3 +1333,43 @@ h3,.hub-name,.ranking-view-head h4,.app-dialog-title,.moderator-guild-name{text-
 
 /* v47.2: the menu footer (alerts, sound, logout) is gone from the side menu: Settings has them, LOGOUT stays in the top bar */
 .drawer-foot{display:none!important}
+
+/* ===== v48: alert & sound menu, champion full screen, waiting-screen alerts ===== */
+/* 1) Alert & Sound menu (opens as a normal modal) */
+.am-quick{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:2px 0 4px}
+.am-group{margin:18px 0 8px;color:var(--gold-300);font:800 11px/1.2 var(--f-body);letter-spacing:.16em}
+.am-row{width:100%;display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0 0 8px;padding:12px 14px;border:1px solid var(--line-2);border-radius:var(--r-md);background:var(--ink-3);color:var(--text-1);text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.am-row[aria-checked="true"]{border-color:var(--line-gold);background:var(--gold-grad-soft)}
+.am-txt{display:grid;gap:3px;min-width:0}
+.am-txt b{font:700 13.5px/1.25 var(--f-body)}
+.am-txt small{color:var(--text-3);font-size:11.5px;line-height:1.4}
+.am-sw{flex:0 0 auto;position:relative;width:46px;height:26px;border-radius:999px;background:#3a2a30;border:1px solid var(--line-2);transition:background .18s,border-color .18s}
+.am-sw::after{content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#cdb9be;transition:transform .18s,background .18s}
+.am-row[aria-checked="true"] .am-sw{background:#1b7d45;border-color:var(--ok-line)}
+.am-row[aria-checked="true"] .am-sw::after{transform:translateX(20px);background:#fff}
+.am-locked{cursor:default;opacity:.85}
+.am-note{margin:0 0 10px;color:var(--text-3);font-size:12px;line-height:1.5}
+.am-enable{width:100%}
+.am-enable[disabled]{opacity:.6}
+
+/* 2) Champion full screen (5 seconds; motion comes from script.js, CSS animation is switched off site-wide) */
+.champ-screen{position:fixed;inset:0;z-index:99995;display:flex;align-items:center;justify-content:center;padding:24px;overflow:hidden;text-align:center;touch-action:none;-webkit-tap-highlight-color:transparent;cursor:pointer;background:radial-gradient(ellipse at 50% 34%,rgba(233,196,106,.30),rgba(34,14,8,.95) 55%,#050204 100%),#050204}
+.champ-mine{background:radial-gradient(ellipse at 50% 34%,rgba(255,226,140,.42),rgba(58,6,16,.95) 55%,#050204 100%),#050204}
+.champ-rays{position:absolute;left:50%;top:34%;width:150vmax;height:150vmax;margin:-75vmax 0 0 -75vmax;pointer-events:none;background:repeating-conic-gradient(from 0deg,rgba(246,220,143,.11) 0 6deg,transparent 6deg 18deg);-webkit-mask-image:radial-gradient(circle,#000 0,transparent 62%);mask-image:radial-gradient(circle,#000 0,transparent 62%)}
+.champ-conf{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.champ-conf i{position:absolute;top:-24px;width:9px;height:14px;border-radius:2px}
+.champ-body{position:relative;z-index:2;display:grid;gap:12px;justify-items:center;max-width:560px;width:100%}
+.champ-medal{font-size:clamp(76px,25vw,124px);line-height:1}
+.champ-title{font:800 clamp(18px,5.8vw,28px)/1.2 var(--f-serif);letter-spacing:.12em;background:var(--gold-grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.champ-name{max-width:100%;overflow-wrap:anywhere;font:900 clamp(40px,14vw,86px)/.96 var(--f-display);text-transform:uppercase;color:#fff;text-shadow:0 0 26px rgba(233,196,106,.6),0 2px 0 rgba(0,0,0,.5)}
+.champ-trophy{color:var(--gold-200);font:600 15px/1.35 var(--f-serif);font-style:italic}
+.champ-cheer{color:var(--text-2);font:500 14px/1.5 var(--f-body)}
+.champ-bar{position:absolute;left:24px;right:24px;bottom:calc(34px + env(safe-area-inset-bottom,0px));height:4px;border-radius:3px;background:rgba(255,255,255,.14);overflow:hidden;z-index:2}
+.champ-bar i{display:block;height:100%;background:var(--gold-grad);transform-origin:left center;transition:transform .2s linear}
+.champ-hint{position:absolute;left:0;right:0;bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:2;color:var(--text-4);font:700 10px/1 var(--f-body);letter-spacing:.2em}
+
+/* 3) waiting-for-approval screen: enable alerts */
+.gate-alerts{margin-top:14px;display:grid;gap:8px;justify-items:center}
+.gate-alerts[hidden]{display:none}
+.gate-alerts .btn[hidden],.gate-alerts .push-note[hidden]{display:none!important}
+.gate-alerts .push-note{max-width:420px;text-align:center}
