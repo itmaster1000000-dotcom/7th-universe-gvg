@@ -1,4 +1,4 @@
-window.__GVG_SCRIPT_VERSION='48.1';
+window.__GVG_SCRIPT_VERSION='48.3';
 /*
   7TH UNIVERSE GVG — FINAL FRONTEND
   Uses two isolated Supabase Auth clients so the Admin browser session
@@ -1829,7 +1829,7 @@ function preferredResultProofUrls(imageUrls){
 async function loadAdminResults(){
   try{const {data,error}=await adminDb.rpc('admin_get_results');if(error)throw error;const rows=data||[];state.results=rows;const target=$('admin-result-table');target.innerHTML=rows.length?rows.map(r=>{const imgs=preferredResultProofUrls(r.image_urls);const gallery=imgs.length?`<details class="proof-details"><summary>OPEN RESULT PROOF</summary><div class="proof-gallery">${imgs.map((u,i)=>`<a href="${escapeHtml(u)}" target="_blank" rel="noopener"><span class="proof-tag">RESULT PROOF</span><img data-proof-src="${escapeHtml(u)}" loading="lazy" decoding="async" alt="${escapeHtml(r.winner_guild)} vs ${escapeHtml(r.loser_guild)} result proof" /></a>`).join('')}</div></details>`:'<span class="muted">No proof</span>';return `<tr><td class="mr-match"><div class="mr-team win"><span class="mr-tag">WIN</span><strong>${escapeHtml(r.winner_guild)}</strong></div><div class="mr-team loss"><span class="mr-tag">DEFEAT</span><strong>${escapeHtml(r.loser_guild)}</strong></div></td><td>${escapeHtml(r.score)}</td><td><strong class="cell-time">${escapeHtml(formatDateTime(r.created_at))}</strong><div class="muted cell-note">PAKISTAN TIME</div></td><td class="mr-statuscell"><div class="mr-proof">${gallery}</div><div class="mr-status"><span class="status-pill ${r.status==='approved'?'status-approved':r.status==='pending'?'status-pending':'status-rejected'}">${escapeHtml(r.status)}</span></div></td><td>${r.status==='pending'?`<div class="moderator-actions"><button class="btn btn-green btn-small" type="button" data-action="approve-result" data-id="${escapeHtml(r.id)}">&#10003; APPROVE</button><button class="btn btn-red btn-small" type="button" data-action="reject-result" data-id="${escapeHtml(r.id)}">&#10005; REJECT</button></div>`:'—'}</td></tr>`;}).join(''):'<tr><td colspan="5">No result submissions.</td></tr>';}catch(error){showStatus('admin-status','error',humanizeError(error));}
 }
-async function approveResult(id){try{const {error}=await adminDb.rpc('admin_approve_result',{p_result_id:id});if(error)throw error;invalidateResultViewCaches();showStatus('admin-status','ok','Result approved. The database point-award function completed; rankings will reload on the next member view. WhatsApp delivery is handled by the webhook bridge.');clearSectionCache('admin:');await Promise.all([loadAdminResults(),loadAdminGuilds()]);markSectionLoaded('admin:results');markSectionLoaded('admin:guilds');}catch(error){showStatus('admin-status','error',humanizeError(error));}}
+async function approveResult(id){try{const {error}=await adminDb.rpc('admin_approve_result',{p_result_id:id});if(error)throw error;invalidateResultViewCaches();showStatus('admin-status','ok','Result approved. The database point-award function completed; rankings will reload on the next member view.');clearSectionCache('admin:');await Promise.all([loadAdminResults(),loadAdminGuilds()]);markSectionLoaded('admin:results');markSectionLoaded('admin:guilds');}catch(error){showStatus('admin-status','error',humanizeError(error));}}
 async function rejectResult(id){
   const reason=await appPrompt('Add a short reason for rejecting this result.','Proof or result issue',{title:'Reject result',confirmText:'REJECT RESULT',placeholder:'Describe the issue...',required:true,danger:true});
   if(reason===null)return;
@@ -1995,7 +1995,7 @@ async function moderatorApproveResult(id){
   try{
     const {error}=await moderatorDb.rpc('moderator_approve_result',{p_result_id:id});if(error)throw error;
     invalidateResultViewCaches();
-    showStatus('moderator-results-status','ok','Result approved. The database point-award function completed; member rankings will reload after you return. WhatsApp delivery runs through the webhook bridge.');
+    showStatus('moderator-results-status','ok','Result approved. The database point-award function completed; member rankings will reload after you return.');
     await loadModeratorResults();
   }catch(error){showStatus('moderator-results-status','error',humanizeError(error));}
 }
@@ -2790,14 +2790,26 @@ async function submitGuildContact(e){
 }
 async function submitDeleteAccount(e){
   e.preventDefault(); clearStatus('guild-delete-status');
-  if(String($('guild-delete-confirm').value).trim().toUpperCase()!=='DELETE') return showStatus('guild-delete-status','error','Type DELETE in the box to confirm.');
+  const email=String($('guild-delete-email')?.value||'').trim().toLowerCase();
+  const pw=String($('guild-delete-password')?.value||'');
+  const mine=String(state.user?.email||'').trim().toLowerCase();
+  if(!mine) return showStatus('guild-delete-status','error','Please login again.');
+  if(!email||!pw) return showStatus('guild-delete-status','error','Enter your login email and your password.');
+  if(email!==mine) return showStatus('guild-delete-status','error','This email does not belong to the account you are logged in with.');
   const ok=await appConfirm('Delete your account?\n\nYour login and phone number will be erased and your access ends immediately. Points, results and Hall of Fame records stay. To come back you must register again and wait for Admin approval.',{title:'Delete my account',confirmText:'DELETE MY ACCOUNT',danger:true});
   if(!ok) return;
   try{
+    setBusy('guild-delete-submit',true,'CHECKING');
+    // the same password check the "Change password" form uses: nothing is deleted unless email + password are right
+    const check=await db.auth.signInWithPassword({email:mine,password:pw,options:{captchaToken:await getCaptchaToken('delete')}});
+    if(check.error){
+      if(/captcha/i.test(String(check.error.message||''))) throw check.error;
+      throw new Error('The password is not correct. Nothing was deleted.');
+    }
     setBusy('guild-delete-submit',true,'DELETING');
     const {error}=await db.rpc('delete_my_gvg_account',{p_confirm:'DELETE'});
     if(error) throw error;
-    $('guild-delete-confirm').value='';
+    ['guild-delete-email','guild-delete-password'].forEach(id=>{const x=$(id);if(x)x.value='';});
     await handleLogout();
     await appAlert('Your account was deleted. To return, register again and wait for Admin approval.',{title:'Account deleted',confirmText:'OK'});
   }catch(error){ showStatus('guild-delete-status','error',humanizeError(error)); }
@@ -2854,7 +2866,7 @@ async function submitGuildTitle(e){
     if(error) throw error;
     await loadMyTitleOptions();
     state.guildProfiles=null; clearSectionCache('member:guild-profiles');
-    showStatus('guild-title-status','ok','Title saved. It now shows on your profile and in new WhatsApp challenges and results.');
+    showStatus('guild-title-status','ok','Title saved. It now shows on your profile and on your challenge cards.');
   }catch(error){ showStatus('guild-title-status','error',humanizeError(error)); }
   finally{ setBusy('guild-title-save',false,'SAVE TITLE'); }
 }
@@ -3849,6 +3861,7 @@ async function loadDashboard(){
   try{ await loadSectionCached('member:guild-profiles',loadPublicGuildProfiles,30000); }catch(error){ console.warn('Dashboard profile data:',error); }
   renderDashboardExtras();
   loadDashboardTeamAndRival();
+  if(window.gvgAnnLoad) window.gvgAnnLoad();
   await hub;
 }
 function renderDashboardExtras(){
@@ -4068,6 +4081,7 @@ $('password-form')?.addEventListener('submit',handlePasswordChange);
   if(session){state.user=session.user;clearSectionCache('member:');await loadMyGuild();await completePendingRegistration();await enterMember({skipGuildReload:true});syncRegisterNav();}
   else{state.user=null;state.guild=null;syncRegisterNav();openView('public');await restoreGuest();}
   await restoreAdmin();
+  if(window.gvgSplashHide) window.gvgSplashHide();
 })();
 
 /* ===== v47: Settings as collapsed buttons, Admin left menu (3 lines) ===== */
@@ -4170,6 +4184,7 @@ window.addEventListener('scroll',()=>{document.querySelectorAll('.dots-menu.open
     let h='<div class="am-quick"><button class="btn btn-gold btn-small" type="button" data-am="all-on">ALL ON</button><button class="btn btn-ghost btn-small" type="button" data-am="all-off">ALL OFF</button></div>';
     h+='<div class="am-group">PHONE ALERTS</div>';
     if(perm==='granted'&&api){
+      const ps=el('set-push-note'); if(ps&&!ps.hidden&&ps.textContent.trim()) h+='<div class="am-note">'+escapeHtml(ps.textContent.trim())+'</div>';
       PUSH_ROWS.forEach(([k,t,s])=>{h+=rowHtml('push:'+k,t,s,api.get(k));});
       h+=rowHtml('lock:champ','Weekly &amp; monthly champion','Always on for every guild.',true,true);
     }else if(perm==='default'){
@@ -4184,12 +4199,29 @@ window.addEventListener('scroll',()=>{document.querySelectorAll('.dots-menu.open
     SOUND_ROWS.forEach(([k,t,s])=>{h+=rowHtml('snd:'+k,t,s,snd[k]!==0);});
     return h;
   }
-  function render(){const b=el('am-body');if(b)b.innerHTML=bodyHtml();}
+  function updateSummary(){ // the one-line status shown on the Settings button
+    const s=el('alerts-summary'); if(!s) return;
+    const api=window.gvgPushApi, perm=api?api.perm():'unsupported';
+    const a=perm==='granted'?'Phone alerts ON':perm==='default'?'Phone alerts OFF':perm==='denied'?'Phone alerts blocked':'Phone alerts not available';
+    const t=a+' \u00b7 Sound '+(masterOn()?'ON':'OFF');
+    if(s.textContent!==t) s.textContent=t;
+  }
+  window.gvgAlertsSummary=updateSummary;
+  setInterval(()=>{if(!document.hidden&&document.body.dataset.section==='settings')updateSummary();},3000);
+  setTimeout(updateSummary,1500);
+  function render(){const b=el('am-body');if(b)b.innerHTML=bodyHtml();updateSummary();}
   function openMenu(){
-    openModal('<div class="modal-head"><div><div class="kicker">This device</div><h3>ALERT &amp; SOUND MENU</h3></div><button class="close-btn" type="button" data-action="close-modal" aria-label="Back">&#8592; BACK</button></div><div id="am-body" class="am-body"></div>');
+    openModal('<div class="modal-head"><div><div class="kicker">This device</div><h3>ALERTS &amp; SOUNDS</h3></div><button class="close-btn" type="button" data-action="close-modal" aria-label="Back">&#8592; BACK</button></div><div id="am-body" class="am-body"></div>');
     render();
   }
   function setSound(kind,on){const o=readSnd();if(on)delete o[kind];else o[kind]=0;writeSnd(o);}
+  // the whole ALERTS & SOUNDS card in Settings is one button that opens the menu (caught before the accordion handler)
+  (function(){
+    const h=document.querySelector('#alerts-card>.panel-head');
+    if(h){h.removeAttribute('aria-expanded');h.setAttribute('aria-haspopup','dialog');}
+    document.addEventListener('click',e=>{const x=e.target.closest&&e.target.closest('#alerts-card>.panel-head');if(x){e.preventDefault();e.stopImmediatePropagation();openMenu();}},true);
+    document.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target&&e.target.matches&&e.target.matches('#alerts-card>.panel-head')){e.preventDefault();e.stopImmediatePropagation();openMenu();}},true);
+  })();
   document.addEventListener('click',e=>{
     const t=e.target; if(!t||!t.closest) return;
     if(t.closest('#set-alert-menu')){openMenu();return;}
@@ -4318,4 +4350,106 @@ window.addEventListener('scroll',()=>{document.querySelectorAll('.dots-menu.open
   const kick0=window.gvgPushKick;
   window.gvgPushKick=()=>{if(kick0)kick0();setTimeout(paintGate,900);}; // syncMenuButton() calls this whenever the screen state changes
   setInterval(()=>{if(!document.hidden)paintGate();},30000);
+})();
+
+/* ===== v50: GUILD ANNOUNCEMENTS (rank privilege) =====
+   A guild that earned a RANK TITLE can post ONE short announcement per ranking week from its Dashboard:
+   Bronze 10 letters, Silver 20, Golden 30, Platinum 40, Diamond 50. Everybody who is logged in sees this week's
+   announcements on the Dashboard. The rules are enforced in the database (gvg_v50_announcements.sql); this file only
+   draws the card and mirrors the rules so mistakes are caught before sending. */
+(function(){
+  'use strict';
+  const el=id=>document.getElementById(id);
+  const TIERS={1:{name:'BRONZE',icon:'\u{1F949}'},2:{name:'SILVER',icon:'\u{1F948}'},3:{name:'GOLDEN',icon:'\u{1F947}'},4:{name:'PLATINUM',icon:'\u{1F4A0}'},5:{name:'DIAMOND',icon:'\u{1F48E}'}};
+  const LIMITS=[[1,10],[2,20],[3,30],[4,40],[5,50]];
+  const OK_CHARS=/^[A-Za-z0-9 .,!?'-]+$/;
+  let status=null,list=[],busy=false,loadedAt=0;
+
+  const pkt=(iso,opts)=>{try{return new Date(iso).toLocaleString('en-GB',Object.assign({timeZone:'Asia/Karachi'},opts));}catch{return '';}};
+  const when=iso=>pkt(iso,{weekday:'short',hour:'2-digit',minute:'2-digit',hour12:true});
+
+  function ladderHtml(active){
+    return `<div class="ann-ladder">${LIMITS.map(([t,n])=>`<span class="${t===active?'on':''}">${TIERS[t].icon} ${TIERS[t].name}<b>${n}</b></span>`).join('')}</div>`;
+  }
+  function composeHtml(){
+    if(!status) return '<div class="empty">Loading...</div>';
+    if(!status.tier){
+      return `<div class="ann-locked"><b>&#128274; LOCKED</b><span>Finish all 20 Bronze badges to earn a rank title. Then your guild can post one announcement every week. The higher your rank, the longer your message.</span>${ladderHtml(0)}</div>`;
+    }
+    const t=TIERS[status.tier]||TIERS[1];
+    if(status.posted){
+      return `<div class="ann-done"><div class="ann-done-top"><span class="rank-chip tier-${status.tier}">${t.icon} ${t.name}</span><small>POSTED ${escapeHtml(when(status.posted_at))}</small></div><p>&ldquo;${escapeHtml(status.message||'')}&rdquo;</p><small>Your guild&rsquo;s announcement for this week is live. The next one opens on <b>${escapeHtml(pkt(status.next_at,{weekday:'long',hour:'2-digit',minute:'2-digit',hour12:true}))}</b>.</small></div>`;
+    }
+    if(!status.can_post){
+      return `<div class="ann-locked"><b>&#9940; NOT AVAILABLE</b><span>Your guild cannot announce right now.</span></div>`;
+    }
+    return `<form id="ann-form" novalidate><div class="ann-box"><div class="ann-head"><span class="rank-chip tier-${status.tier}">${t.icon} ${t.name}</span><small>UP TO ${status.max_len} LETTERS &bull; ONE PER WEEK</small></div>
+      <div class="ann-input"><input id="ann-text" type="text" maxlength="${status.max_len}" autocomplete="off" autocapitalize="sentences" spellcheck="false" placeholder="Write your announcement" aria-label="Announcement text" /><span id="ann-count">0/${status.max_len}</span></div>
+      <button id="ann-send" class="btn btn-gold" type="submit">&#128226; ANNOUNCE</button>
+      <div id="ann-status" class="status"></div>
+      <small class="ann-hint">English letters, numbers, spaces and . , ! ? - only. No links or phone numbers. It cannot be edited after posting.</small></div></form>`;
+  }
+  function listHtml(){
+    if(!list.length) return '<div class="empty">No announcements this week yet.</div>';
+    return list.map(a=>{
+      const t=TIERS[a.tier]||TIERS[1];
+      return `<div class="ann-item tier-${Number(a.tier)||1}${a.mine?' mine':''}"><div class="ann-top"><b>${escapeHtml(a.guild_name)}</b><span class="rank-chip tier-${Number(a.tier)||1}">${t.icon} ${t.name}</span></div><p>${escapeHtml(a.message)}</p><small>${escapeHtml(when(a.created_at))}</small></div>`;
+    }).join('');
+  }
+  function paint(){
+    const c=el('ann-compose'),l=el('ann-list'); if(!c||!l) return;
+    const keep=el('ann-text')?el('ann-text').value:'';
+    c.innerHTML=composeHtml();
+    l.innerHTML=listHtml();
+    const inp=el('ann-text'); if(inp&&keep){inp.value=keep;updateCount();}
+    const badge=el('ann-week-badge'); if(badge){badge.hidden=!list.length;badge.textContent=`${list.length} THIS WEEK`;}
+  }
+  function updateCount(){
+    const inp=el('ann-text'),cnt=el('ann-count'); if(!inp||!cnt) return;
+    const clean=inp.value.replace(/[^A-Za-z0-9 .,!?'-]/g,'');
+    if(clean!==inp.value) inp.value=clean;
+    cnt.textContent=`${inp.value.length}/${status?status.max_len:0}`;
+  }
+  async function load(force){
+    if(!state.user||state.guest||!state.guild||state.guild.approval_status!=='approved') return;
+    if(!force&&Date.now()-loadedAt<20000) return;
+    loadedAt=Date.now();
+    try{
+      const [st,ls]=await Promise.all([db.rpc('get_my_gvg_announce_status'),db.rpc('get_gvg_announcements')]);
+      if(st.error) throw st.error;
+      status=(Array.isArray(st.data)?st.data[0]:st.data)||{tier:0};
+      list=Array.isArray(ls.data)?ls.data:[];
+      paint();
+    }catch(error){
+      console.warn('Announcements could not load:',error);
+      const c=el('ann-compose'); if(c&&!status) c.innerHTML='<div class="empty">Announcements are not available yet.</div>';
+      const l=el('ann-list'); if(l&&!list.length) l.innerHTML='';
+    }
+  }
+  async function submit(e){
+    e.preventDefault(); if(busy||!status) return;
+    const inp=el('ann-text'); if(!inp) return;
+    const msg=inp.value.replace(/\s+/g,' ').trim();
+    clearStatus('ann-status');
+    if(msg.length<3) return showStatus('ann-status','error','Write at least 3 letters.');
+    if(msg.length>status.max_len) return showStatus('ann-status','error',`Your rank allows ${status.max_len} letters (you wrote ${msg.length}).`);
+    if(!OK_CHARS.test(msg)) return showStatus('ann-status','error','Use only English letters, numbers, spaces and . , ! ? - characters.');
+    if(/(http|www|\.(com|net|org|pk|gg|io|me|link|tk|ly|co)\b)/i.test(msg)||/[0-9]{7,}/.test(msg)) return showStatus('ann-status','error','Links and phone numbers are not allowed.');
+    const ok=await appConfirm(`Post this announcement for your guild?\n\n\u201c${msg}\u201d\n\nYou can post only one per week and it cannot be edited.`,{title:'Announce to everyone',confirmText:'POST IT'});
+    if(!ok) return;
+    busy=true;
+    try{
+      setBusy('ann-send',true,'POSTING');
+      const {error}=await db.rpc('post_my_gvg_announcement',{p_message:msg});
+      if(error) throw error;
+      if(window.gvgPlayTone) window.gvgPlayTone('sentChallenge');
+      await load(true);
+    }catch(error){
+      showStatus('ann-status','error',humanizeError(error));
+      if(window.gvgPlayTone) window.gvgPlayTone('error');
+    }finally{ busy=false; setBusy('ann-send',false,'\u{1F4E2} ANNOUNCE'); }
+  }
+  document.addEventListener('input',e=>{if(e.target&&e.target.id==='ann-text')updateCount();});
+  document.addEventListener('submit',e=>{if(e.target&&e.target.id==='ann-form')submit(e);});
+  window.gvgAnnLoad=load;
 })();

@@ -19,14 +19,61 @@
   <meta name="twitter:title" content="7TH UNIVERSE • Guild VS Guild" />
   <meta name="twitter:image" content="https://7th-universe-gvg.itmaster-1000000.workers.dev/og-image.jpg" />
   <link rel="icon" type="image/jpeg" href="7th-universe-gvg-logo.jpg" />
-  <link rel="apple-touch-icon" href="7th-universe-gvg-logo.jpg" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="7TH UNIVERSE" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+  <link rel="preload" as="image" href="7th-universe-gvg-logo.jpg" />
+  <style id="gvg-splash-css">
+    html,body{background:#0a0204}
+    #gvg-splash{position:fixed;inset:0;z-index:2147483000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:24px;text-align:center;overflow:hidden;color:#fff;background:radial-gradient(ellipse at 50% 38%,#c8142f 0%,#8a0e24 26%,#4a0814 52%,#1a0309 78%,#0a0204 100%),#0a0204}
+    #gvg-splash .sp-rays{position:absolute;left:50%;top:38%;width:150vmax;height:150vmax;margin:-75vmax 0 0 -75vmax;pointer-events:none;background:repeating-conic-gradient(from 0deg,rgba(255,255,255,.06) 0 5deg,transparent 5deg 15deg);-webkit-mask-image:radial-gradient(circle,#000 0,transparent 58%);mask-image:radial-gradient(circle,#000 0,transparent 58%)}
+    #gvg-splash .sp-logo{position:relative;width:min(36vw,150px);aspect-ratio:1/1;border-radius:50%;overflow:hidden;background:#000;box-shadow:0 0 0 3px rgba(255,255,255,.16),0 0 0 7px rgba(227,25,60,.5),0 0 34px rgba(255,60,90,.65),0 14px 38px rgba(0,0,0,.6)}
+    #gvg-splash .sp-logo img{display:block;width:100%;height:100%;object-fit:cover}
+    #gvg-splash .sp-name{position:relative;margin-top:6px;font:800 24px/1 'Barlow Condensed','Arial Narrow',Impact,sans-serif;letter-spacing:.3em;text-indent:.3em;text-transform:uppercase;text-shadow:0 2px 14px rgba(0,0,0,.55)}
+    #gvg-splash .sp-sub{position:relative;font:700 10px/1.3 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;letter-spacing:.28em;text-indent:.28em;color:#ffd7de;opacity:.85}
+    #gvg-splash .sp-bar{position:relative;width:min(46vw,170px);height:3px;margin-top:10px;border-radius:3px;background:rgba(255,255,255,.18);overflow:hidden}
+    #gvg-splash .sp-bar i{display:block;width:38%;height:100%;border-radius:3px;background:linear-gradient(90deg,#ff6b81,#fff)}
+  </style>
   <title>7TH UNIVERSE • GUILD VS GUILD</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800;900&family=Cinzel:wght@600;700;800&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./style.css?v=48.1-pro" />
+  <link rel="stylesheet" href="./style.css?v=48.3-pro" />
 </head>
 <body>
+  <div id="gvg-splash" role="presentation" aria-hidden="true">
+    <div class="sp-rays"></div>
+    <div class="sp-logo"><img src="7th-universe-gvg-logo.jpg" alt="" width="150" height="150" decoding="async" fetchpriority="high" /></div>
+    <div class="sp-name">7TH UNIVERSE</div>
+    <div class="sp-sub">GUILD VS GUILD &bull; FAIR PLAY ARENA</div>
+    <div class="sp-bar"><i></i></div>
+  </div>
+  <script>
+  (function(){
+    var s=document.getElementById('gvg-splash'); if(!s) return;
+    var t0=Date.now(), gone=false, anims=[], reduce=false;
+    try{
+      reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if(!reduce&&s.animate){
+        var logo=s.querySelector('.sp-logo'), bar=s.querySelector('.sp-bar i');
+        anims.push(logo.animate([{transform:'scale(.9)',opacity:0},{transform:'scale(1)',opacity:1}],{duration:520,easing:'cubic-bezier(.2,.9,.3,1)',fill:'both'}));
+        anims.push(logo.animate([{boxShadow:'0 0 0 3px rgba(255,255,255,.16),0 0 0 7px rgba(227,25,60,.5),0 0 28px rgba(255,60,90,.5),0 14px 38px rgba(0,0,0,.6)'},{boxShadow:'0 0 0 3px rgba(255,255,255,.22),0 0 0 10px rgba(227,25,60,.62),0 0 56px rgba(255,70,100,.95),0 14px 38px rgba(0,0,0,.6)'}],{duration:900,delay:520,direction:'alternate',iterations:Infinity,easing:'ease-in-out'}));
+        anims.push(bar.animate([{transform:'translateX(-110%)'},{transform:'translateX(270%)'}],{duration:1100,iterations:Infinity,easing:'ease-in-out'}));
+      }
+    }catch(e){}
+    function hide(){
+      if(gone) return; gone=true;
+      var done=function(){anims.forEach(function(a){try{a.cancel();}catch(e){}});if(s.parentNode)s.parentNode.removeChild(s);};
+      if(!reduce&&s.animate){var f=s.animate([{opacity:1},{opacity:0}],{duration:380,easing:'ease-in',fill:'forwards'});f.onfinish=done;f.oncancel=done;setTimeout(done,700);}
+      else done();
+    }
+    window.gvgSplashHide=function(){setTimeout(hide,Math.max(0,850-(Date.now()-t0)));}; // shown at least 0.85 s so it never just flashes
+    setTimeout(hide,6000); // safety: never keep the screen covered
+  })();
+  </script>
   <div class="topline"></div>
   <header>
     <div class="nav">
@@ -93,7 +140,7 @@
           <div class="login-brand"><img src="7th-universe-gvg-logo.jpg" alt="7TH UNIVERSE logo" /><div><strong>CREATE ACCOUNT</strong><span>7TH UNIVERSE GVG LEADER</span></div></div>
           <div class="login-head"><div class="kicker">New Leader</div><h1 class="title">REGISTER</h1><p>One account registers one leader. A guild can have a maximum of two leaders with different contact numbers.</p></div>
           <form id="register-form" novalidate style="margin-top:17px">
-            <div class="field-grid"><label>GUILD NAME<input id="register-guild" type="text" maxlength="30" placeholder="Letters and numbers only, e.g. ELITE FORCE" autocomplete="off" required /></label><label>CONTACT NUMBER<input id="register-contact" type="tel" maxlength="30" placeholder="03XXXXXXXXX" required /></label><label class="full">ACCOUNT EMAIL<input id="register-email" type="email" autocomplete="email" placeholder="leader@example.com" required /></label><label class="full">PASSWORD<input id="register-password" type="password" autocomplete="new-password" minlength="8" placeholder="Minimum 8 characters" required /></label><label class="full">CONFIRM PASSWORD<input id="register-password-confirm" type="password" autocomplete="new-password" minlength="8" placeholder="Re-enter password" required /></label></div>
+            <div class="field-grid"><label>GUILD NAME<input id="register-guild" type="text" maxlength="30" placeholder="Letters and numbers only, e.g. ELITE FORCE" autocomplete="off" required /></label><label>CONTACT NUMBER<input id="register-contact" type="tel" autocomplete="tel" maxlength="30" placeholder="03XXXXXXXXX" required /></label><label class="full">ACCOUNT EMAIL<input id="register-email" type="email" autocomplete="email" placeholder="leader@example.com" required /></label><label class="full">PASSWORD<input id="register-password" type="password" autocomplete="new-password" minlength="8" placeholder="Minimum 8 characters" required /></label><label class="full">CONFIRM PASSWORD<input id="register-password-confirm" type="password" autocomplete="new-password" minlength="8" placeholder="Re-enter password" required /></label></div>
             <div class="center-actions"><button class="btn btn-primary" type="submit">CREATE ACCOUNT</button><button id="back-login" class="btn btn-ghost" type="button">BACK TO LOGIN</button></div>
             <div id="register-status" class="status"></div>
             <div class="hint hint-center">A verification code will be emailed to you. Your guild is submitted for admin approval only after you enter the correct code.</div>
@@ -156,6 +203,11 @@
             <div class="hub-today"><div class="hub-today-row"><span>TODAY&rsquo;S MATCHES</span><b id="my-hub-today">0 / 7</b></div><div class="hub-bar"><i id="my-hub-today-bar"></i></div></div>
             <div id="my-hub-error" class="status"></div>
           </div>
+          <div class="card" id="dash-announce-card">
+            <div class="panel-head"><div><div class="kicker">Rank privilege</div><h3>GUILD ANNOUNCEMENTS</h3><div class="subtle">Guilds with a rank title can post one short message a week. Everyone sees it here until Sunday 10:00 AM.</div></div><span id="ann-week-badge" class="badge badge-gold" hidden></span></div>
+            <div id="ann-compose"><div class="empty">Loading...</div></div>
+            <div id="ann-list" class="ann-list"></div>
+          </div>
           <div class="dash-grid">
             <div class="card" id="dash-record-card"><div class="panel-head"><div><div class="kicker">Performance</div><h3>MATCH RECORD</h3></div></div><div id="dash-record"><div class="empty">Loading your record...</div></div></div>
             <div class="card" id="dash-titles-card"><div class="panel-head"><div><div class="kicker">Honours</div><h3>CHAMPION TITLES</h3></div></div><div id="dash-titles"><div class="empty">Loading your titles...</div></div></div>
@@ -205,7 +257,7 @@
                 <option value="true">PC ALLOW</option>
               </select>
               <div id="pc-grid" class="ff-grid ff-grid-2"></div>
-              <div class="hint">Choose whether PC is allowed for this challenge. This choice also appears in the WhatsApp group notice.</div>
+              <div class="hint">Choose whether PC is allowed for this challenge. This choice is shown on your challenge card.</div>
               <label class="full" style="margin-top:14px">TYPE</label>
               <select id="challenge-limit-type" required style="display:none" aria-hidden="true" tabindex="-1">
                 <option value="limited" selected>LIMITED</option>
@@ -240,7 +292,7 @@
             <div class="card">
               <div class="panel-head"><div><div class="kicker">Verified Records</div><h3>MY RESULTS</h3><div class="subtle">Either guild involved in the challenge may submit the result. Upload exactly one clear result screenshot.</div></div><span class="badge badge-gold">ADMIN REVIEW</span></div>
               <form id="result-form" novalidate>
-              <div class="field-grid"><label class="full">CHALLENGE<select id="result-challenge" required><option value="">Select an active challenge</option></select></label><label>WINNER GUILD<div class="autocomplete-wrap"><input id="result-winner" type="text" maxlength="80" placeholder="Enter winner guild name" autocomplete="off" required /><div id="result-winner-suggestions" class="autocomplete-list"></div></div></label><label>LOSER GUILD<div class="autocomplete-wrap"><input id="result-loser" type="text" maxlength="80" placeholder="Enter loser guild name" autocomplete="off" required /><div id="result-loser-suggestions" class="autocomplete-list"></div></div></label><label class="full">SCORE<input id="result-score" type="text" maxlength="80" placeholder="Example: 6 - 4" required /></label><label class="full">RESULT PROOF IMAGE<input id="result-image-1" type="file" accept="image/jpeg,image/png,image/webp" required /></label></div>
+              <div class="field-grid"><label class="full">CHALLENGE<select id="result-challenge" required><option value="">Select an active challenge</option></select></label><label>WINNER GUILD<div class="autocomplete-wrap"><input id="result-winner" type="text" maxlength="80" placeholder="Enter winner guild name" autocomplete="off" required /><div id="result-winner-suggestions" class="autocomplete-list"></div></div></label><label>LOSER GUILD<div class="autocomplete-wrap"><input id="result-loser" type="text" maxlength="80" placeholder="Enter loser guild name" autocomplete="off" required /><div id="result-loser-suggestions" class="autocomplete-list"></div></div></label><label class="full">SCORE<input id="result-score" type="text" autocomplete="off" maxlength="80" placeholder="Example: 6 - 4" required /></label><label class="full">RESULT PROOF IMAGE<input id="result-image-1" type="file" accept="image/jpeg,image/png,image/webp" required /></label></div>
               <div class="hint">Upload one clear screenshot showing the final match result. A guild can play a maximum of 7 matches per day (as winner or loser). After 10:00 AM the daily challenge expires.</div>
               <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px"><button id="result-submit" class="btn btn-primary" type="submit">SUBMIT RESULT</button></div><div id="result-status" class="status"></div>
             </form>
@@ -341,15 +393,14 @@
         <div id="member-section-settings" class="member-view">
           <div class="set-intro"><h3>SETTINGS</h3><p>Manage your guild profile, security, team and access.</p></div>
                  <div class="settings-stack">
-           <div class="set-group">SOUND &amp; ALERTS</div>
+           <div class="set-group">ALERTS &amp; SOUNDS</div>
            <div class="card" id="alerts-card">
-             <div class="panel-head"><div><div class="kicker">This device</div><h3>SOUND &amp; ALERTS</h3><div class="subtle">Sound, challenge alerts and result alerts can be switched on or off here. Weekly and monthly champion alerts are always on.</div></div></div>
-             <div id="set-push-box" class="alerts-switches">
-               <button id="set-alert-menu" class="btn btn-gold btn-small" type="button">&#127898; ALERT &amp; SOUND MENU</button>
-               <button id="set-sound" class="btn btn-ghost btn-small" type="button" aria-pressed="true">&#128266; SOUND ON</button>
-               <button id="set-push-enable" class="btn btn-gold btn-small" type="button" hidden>&#128276; ENABLE PHONE ALERTS</button>
-               <button id="set-push-ch" class="btn btn-ghost btn-small" type="button" aria-pressed="true" hidden>&#128276; CHALLENGE ALERTS ON</button>
-               <button id="set-push-rs" class="btn btn-ghost btn-small" type="button" aria-pressed="true" hidden>&#128276; RESULT ALERTS ON</button>
+             <div class="panel-head"><div><div class="kicker">This device</div><h3>ALERTS &amp; SOUNDS</h3><div class="subtle" id="alerts-summary">Tap to choose your alerts and sounds.</div></div></div>
+             <div id="set-push-box" class="alerts-switches alerts-engine" aria-hidden="true">
+               <button id="set-sound" class="btn btn-ghost btn-small" type="button" aria-pressed="true" tabindex="-1">&#128266; SOUND ON</button>
+               <button id="set-push-enable" class="btn btn-gold btn-small" type="button" hidden tabindex="-1">&#128276; ENABLE PHONE ALERTS</button>
+               <button id="set-push-ch" class="btn btn-ghost btn-small" type="button" aria-pressed="true" hidden tabindex="-1">&#128276; CHALLENGE ALERTS ON</button>
+               <button id="set-push-rs" class="btn btn-ghost btn-small" type="button" aria-pressed="true" hidden tabindex="-1">&#128276; RESULT ALERTS ON</button>
                <small id="set-push-note" class="push-note" hidden></small>
              </div>
            </div>
@@ -410,7 +461,7 @@
             </form>
           </div>
           <div class="card" id="title-card">
-            <div class="panel-head"><div><div class="kicker">Rank &amp; Titles</div><h3>DISPLAY TITLE</h3><div class="subtle">Choose which title your guild shows. On WhatsApp it appears only at the end of your challenge message, never on results. A rank is earned by finishing all 20 badges of a tier (Bronze to Diamond).</div></div></div>
+            <div class="panel-head"><div><div class="kicker">Rank &amp; Titles</div><h3>DISPLAY TITLE</h3><div class="subtle">Choose which title your guild shows. It shows on your profile and inside your challenge card. A rank is earned by finishing all 20 badges of a tier (Bronze to Diamond).</div></div></div>
             <form id="guild-title-form" novalidate>
               <div id="title-options" class="title-options"><div class="hint">Loading your titles...</div></div>
               <div class="split-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px"><button id="guild-title-save" class="btn btn-primary" type="submit">SAVE TITLE CHOICE</button></div>
@@ -431,7 +482,8 @@
           <div class="card danger-zone">
             <div class="panel-head"><div><div class="kicker">Danger zone</div><h3>DELETE MY ACCOUNT</h3><div class="subtle">Your login and phone number are erased and your access ends immediately. Points, results and Hall of Fame records stay. To come back you must register again and get Admin approval.</div></div></div>
             <form id="guild-delete-form" novalidate>
-              <div class="field-grid"><label class="full">TYPE DELETE TO CONFIRM<input id="guild-delete-confirm" type="text" maxlength="10" placeholder="DELETE" autocomplete="off" /></label></div>
+              <div class="field-grid"><label class="full">LOGIN EMAIL<input id="guild-delete-email" type="email" inputmode="email" autocomplete="username" placeholder="The email you login with" /></label><label class="full">PASSWORD<input id="guild-delete-password" type="password" autocomplete="current-password" placeholder="Your password" /></label></div>
+              <div class="hint">For your safety the account is deleted only when you enter the same email and password you login with.</div>
               <div class="split-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px"><button id="guild-delete-submit" class="btn btn-red" type="submit">DELETE MY ACCOUNT</button></div>
               <div id="guild-delete-status" class="status"></div>
             </form>
@@ -485,7 +537,7 @@
           <div class="admin-layout">
             <div id="admin-section-guilds" class="admin-panel-view active"><section class="admin-section"><div class="admin-section-head"><div><div class="kicker">Guild Management</div><h3>GUILDS</h3><div class="subtle">New registrations are reviewed first. All guilds are searchable separately below.</div></div><span class="badge badge-gold">GUILD CONTROL</span></div><div class="admin-section-body"><div class="admin-panel review-section"><div class="panel-head"><div><div class="kicker">First Priority</div><h3>GUILD REVIEW</h3><div class="subtle">Newly registered guilds appear at the top.</div></div><span class="badge badge-gold">NEW FIRST</span></div><div class="admin-table-shell"><table class="admin-table"><thead><tr><th>Guild</th><th>Status</th></tr></thead><tbody id="pending-guild-table"><tr><td colspan="3">Loading new guilds...</td></tr></tbody></table></div></div><div class="card"><div class="panel-head"><div><div class="kicker">Directory</div><h3>ALL GUILDS</h3><div class="subtle">Only Guild Name + Status are shown in the list.</div></div><span class="badge badge-blue">SEARCH</span></div><div class="search-bar"><input id="admin-guild-search" type="search" placeholder="Search guild name, contact or email..." autocomplete="off" /><span class="search-icon">⌕</span></div><div class="admin-table-shell" style="margin-top:10px"><table class="admin-table"><thead><tr><th>Guild</th><th>Status</th></tr></thead><tbody id="all-guild-table"><tr><td colspan="3">Loading guilds...</td></tr></tbody></table></div></div></div></section></div>
 
-            <div id="admin-section-name-changes" class="admin-panel-view"><section class="admin-section"><div class="admin-section-head"><div><div class="kicker">Guild Identity Review</div><h3>GUILD NAME CHANGE REQUESTS</h3><div class="subtle">Review each requested name. The public name and related records change only after approval.</div></div><span class="badge badge-gold">ADMIN ONLY</span></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"><button id="admin-name-change-refresh" class="btn btn-ghost btn-small" type="button">REFRESH REQUESTS</button><span class="hint">When the WhatsApp webhook is configured, requests and approved name changes are also posted to the configured GVG group.</span></div><div id="admin-name-change-status" class="status"></div><div id="admin-name-change-list" class="challenge-list"><div class="empty">Loading name-change requests...</div></div></section></div>
+            <div id="admin-section-name-changes" class="admin-panel-view"><section class="admin-section"><div class="admin-section-head"><div><div class="kicker">Guild Identity Review</div><h3>GUILD NAME CHANGE REQUESTS</h3><div class="subtle">Review each requested name. The public name and related records change only after approval.</div></div><span class="badge badge-gold">ADMIN ONLY</span></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"><button id="admin-name-change-refresh" class="btn btn-ghost btn-small" type="button">REFRESH REQUESTS</button><span class="hint">Approving a request renames the guild everywhere: results, points, challenges and the Hall of Fame.</span></div><div id="admin-name-change-status" class="status"></div><div id="admin-name-change-list" class="challenge-list"><div class="empty">Loading name-change requests...</div></div></section></div>
 
             <div id="admin-section-results" class="admin-panel-view"><section class="admin-section"><div class="admin-section-head"><div><div class="kicker">Admin Verification</div><h3>RESULTS REVIEW</h3><div class="subtle">Results are now a separate admin section. Normally only match names, score and status are shown; open a result to view the single proof image.</div></div><span class="badge badge-gold">PROOF REVIEW</span></div><div class="admin-table-shell"><table class="admin-table"><thead><tr><th>Match</th><th>Score</th><th>Submitted (PKT)</th><th>Status / Proof</th><th>Action</th></tr></thead><tbody id="admin-result-table"><tr><td colspan="5">Loading results...</td></tr></tbody></table></div></section></div>
 
@@ -701,7 +753,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
 (function(){
-  window.__GVG_HTML_VERSION='48.1';
+  window.__GVG_HTML_VERSION='48.3';
   function show(msg){
     try{
       var d=document.getElementById('gvg-fatal');
@@ -727,7 +779,7 @@
   });
 })();
 </script>
-<script src="./script.js?v=48.1-pro"></script>
+<script src="./script.js?v=48.3-pro"></script>
   <div id="app-dialog-backdrop" class="app-dialog-backdrop" aria-hidden="true"><div id="app-dialog" class="app-dialog" role="dialog" aria-modal="true" aria-labelledby="app-dialog-title"></div></div>
 
 </body>
