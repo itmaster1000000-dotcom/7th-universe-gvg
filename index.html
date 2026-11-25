@@ -41,7 +41,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800;900&family=Cinzel:wght@600;700;800&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./style.css?v=48.3-pro" />
+  <link rel="stylesheet" href="./style.css?v=48.4-pro" />
 </head>
 <body>
   <div id="gvg-splash" role="presentation" aria-hidden="true">
@@ -132,6 +132,7 @@
               <div id="guest-status" class="status"></div>
             </form>
           </div>
+          <div id="install-landing" class="install-row" hidden><button id="install-landing-btn" class="btn btn-ghost btn-small" type="button">&#128242; INSTALL THE APP</button></div>
         </div>
       </div>
 
@@ -403,6 +404,10 @@
                <button id="set-push-rs" class="btn btn-ghost btn-small" type="button" aria-pressed="true" hidden tabindex="-1">&#128276; RESULT ALERTS ON</button>
                <small id="set-push-note" class="push-note" hidden></small>
              </div>
+           </div>
+           <div class="set-group" id="install-group">APP</div>
+           <div class="card" id="install-card">
+             <div class="panel-head"><div><div class="kicker">This phone</div><h3>INSTALL APP</h3><div class="subtle" id="install-summary">Tap to see how to install</div></div></div>
            </div>
            <div class="set-group">ACCOUNT</div>
           <div class="card" id="my-profile-card">
@@ -753,7 +758,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
 (function(){
-  window.__GVG_HTML_VERSION='48.3';
+  window.__GVG_HTML_VERSION='48.4';
   function show(msg){
     try{
       var d=document.getElementById('gvg-fatal');
@@ -779,7 +784,7 @@
   });
 })();
 </script>
-<script src="./script.js?v=48.3-pro"></script>
+<script src="./script.js?v=48.4-pro"></script>
   <div id="app-dialog-backdrop" class="app-dialog-backdrop" aria-hidden="true"><div id="app-dialog" class="app-dialog" role="dialog" aria-modal="true" aria-labelledby="app-dialog-title"></div></div>
 
 </body>

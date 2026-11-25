@@ -6,7 +6,7 @@
    11 Hall of Fame  12 Admin  13 Modals/dialogs  14 Responsive
    NOTE: the performance guard below is intentional (no continuous CSS motion).
    ========================================================================== */
-:root{--gvg-css-version:'48.3'}
+:root{--gvg-css-version:'48.4'}
 
 /* 0. Performance guard: no continuous CSS animation / filters / blur anywhere.
       Short motion is driven from script.js (Web Animations API). */
@@ -1419,3 +1419,18 @@ h3,.hub-name,.ranking-view-head h4,.app-dialog-title,.moderator-guild-name{text-
 .ann-top b{font:800 14px/1.2 var(--f-body);color:var(--text-1);letter-spacing:.03em;overflow-wrap:anywhere}
 .ann-top .rank-chip{margin:0;font-size:10px;padding:3px 8px}
 .ann-item p{margin:0;font:600 15px/1.4 var(--f-body);color:var(--text-1);overflow-wrap:anywhere}
+
+/* ===== v51: install app ===== */
+#install-card .panel-head::before{content:"\1F4F2"}
+#install-card>.panel-head .subtle{display:block!important;margin-top:4px;color:var(--gold-200);font-weight:700;letter-spacing:.02em}
+#install-card>.panel-head::after{transform:rotate(-45deg);margin-top:-7px}
+#install-card[hidden],#install-group[hidden],.install-row[hidden]{display:none!important}
+.install-row{display:flex;justify-content:center;margin-top:14px}
+.inst-steps{margin:0 0 12px;padding:0;list-style:none;display:grid;gap:10px;counter-reset:s}
+.inst-steps li{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border:1px solid var(--line-2);border-radius:var(--r-md);background:var(--ink-3);font:600 14px/1.5 var(--f-body);color:var(--text-1);counter-increment:s}
+.inst-steps li::before{content:counter(s);flex:0 0 26px;height:26px;border-radius:50%;display:grid;place-items:center;background:var(--gold-grad);color:#1a1004;font:900 13px/1 var(--f-body)}
+.inst-perks{display:grid;gap:6px;margin:4px 0 12px;color:var(--text-2);font:600 13px/1.4 var(--f-body)}
+.inst-more{margin-top:10px;border:1px solid var(--line-2);border-radius:var(--r-md);background:rgba(255,255,255,.03);padding:10px 14px}
+.inst-more summary{cursor:pointer;color:var(--gold-200);font:800 12px/1.2 var(--f-body);letter-spacing:.1em;text-transform:uppercase}
+.inst-more .inst-steps{margin:12px 0 2px}
+.inst-steps li>span{min-width:0;flex:1}

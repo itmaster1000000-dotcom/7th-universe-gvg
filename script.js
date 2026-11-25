@@ -1,4 +1,4 @@
-window.__GVG_SCRIPT_VERSION='48.3';
+window.__GVG_SCRIPT_VERSION='48.4';
 /*
   7TH UNIVERSE GVG — FINAL FRONTEND
   Uses two isolated Supabase Auth clients so the Admin browser session
@@ -3502,12 +3502,12 @@ $('password-recovery-form').addEventListener('submit',async(e)=>{
             }
           });
         });
-        rec.k=[...announced];save(store,rec); // queued cards are added to this list only when they are really shown (onShow)
+        { const cur=load(store)||rec; cur.k=[...new Set([...(cur.k||[]),...announced])]; cur.s=cur.s||rec.s||[]; save(store,cur); rec=cur; } // v48.2 FIX: merge, never overwrite - the first champion card saves its own 'seen' mark while it opens, and the old line erased it (so the popup came back on every visit)
       }
       if(onSection('hall-of-fame')){ // the visible tab counts as seen
         const t=activeHofType();
         rows.filter(a=>a.award_type===t).forEach(a=>opened.add(awardKey(a)));
-        rec.s=[...opened];save(store,rec);
+        { const cur=load(store)||rec; cur.s=[...new Set([...(cur.s||[]),...opened])]; cur.k=cur.k||rec.k||[]; save(store,cur); rec=cur; } // v48.2 FIX: merge, keep the 'shown' list
       }
       hofNew.weekly=rows.some(a=>a.award_type==='weekly'&&!opened.has(awardKey(a)));
       hofNew.monthly=rows.some(a=>a.award_type==='monthly'&&!opened.has(awardKey(a)));
@@ -4452,4 +4452,60 @@ window.addEventListener('scroll',()=>{document.querySelectorAll('.dots-menu.open
   document.addEventListener('input',e=>{if(e.target&&e.target.id==='ann-text')updateCount();});
   document.addEventListener('submit',e=>{if(e.target&&e.target.id==='ann-form')submit(e);});
   window.gvgAnnLoad=load;
+})();
+
+/* ===== v51: INSTALL APP (turns the website into an installed app on the phone) =====
+   The manifest + icons make Chrome offer "Install app". This adds a clear button for it: one tap when the phone allows it,
+   otherwise a short how-to with the exact steps for Android, iPhone and computers. Hidden when the app is already installed. */
+(function(){
+  'use strict';
+  const el=id=>document.getElementById(id);
+  let deferred=null;
+  const ua=navigator.userAgent||'';
+  const isIOS=/iPhone|iPad|iPod/i.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  const isAndroid=/Android/i.test(ua);
+  const standalone=()=>{try{return matchMedia('(display-mode: standalone)').matches||matchMedia('(display-mode: fullscreen)').matches||window.navigator.standalone===true||String(document.referrer).startsWith('android-app://');}catch{return false;}};
+
+  function paint(){
+    const inst=standalone();
+    const land=el('install-landing'); if(land) land.hidden=inst;
+    const card=el('install-card'); if(card) card.hidden=inst;
+    const grp=el('install-group'); if(grp) grp.hidden=inst;
+    const sum=el('install-summary'); if(sum) sum.textContent=deferred?'Tap to install in one step':'Tap to see how to install';
+  }
+  window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferred=e;paint();});
+  window.addEventListener('appinstalled',()=>{deferred=null;paint();});
+  try{matchMedia('(display-mode: standalone)').addEventListener('change',paint);}catch{}
+
+  function stepsFor(kind){
+    if(kind==='ios') return ['Open this site in <b>Safari</b>.','Tap the <b>Share</b> button (the square with an arrow).','Choose <b>Add to Home Screen</b>, then tap <b>Add</b>.'];
+    if(kind==='android') return ['Tap the <b>&#8942;</b> menu at the top right of Chrome.','Tap <b>Install app</b> (or <b>Add to Home screen</b>).','Tap <b>Install</b>. The app appears on your home screen.'];
+    return ['Look for the <b>install icon</b> at the right end of the address bar, or open the browser menu.','Choose <b>Install 7TH UNIVERSE</b>.','Confirm. The app opens in its own window.'];
+  }
+  function openHowTo(){
+    if(deferred){ // the phone allows one-tap install
+      const d=deferred; deferred=null;
+      try{d.prompt();(d.userChoice||Promise.resolve()).then(()=>{},()=>{}).then(paint);}catch{paint();}
+      return;
+    }
+    const kind=isIOS?'ios':(isAndroid?'android':'desktop');
+    const li=a=>a.map(s=>`<li><span>${s}</span></li>`).join('');
+    openModal(`<div class="modal-head"><div><div class="kicker">Free &bull; no store needed</div><h3>INSTALL APP</h3></div><button class="close-btn" type="button" data-action="close-modal" aria-label="Back">&#8592; BACK</button></div>
+      <ol class="inst-steps">${li(stepsFor(kind))}</ol>
+      <div class="inst-perks"><span>&#9889; Opens full screen</span><span>&#128276; Alerts like a real app</span><span>&#128260; Always the latest version</span></div>
+      ${kind==='ios'?'<div class="am-note">iPhone alerts work only after the app is added to the Home Screen (iOS 16.4 or newer).</div>':''}
+      ${kind!=='android'?'<details class="inst-more"><summary>Android phone?</summary><ol class="inst-steps">'+li(stepsFor('android'))+'</ol></details>':''}
+      ${kind!=='ios'?'<details class="inst-more"><summary>iPhone?</summary><ol class="inst-steps">'+li(stepsFor('ios'))+'</ol></details>':''}`);
+  }
+  // the Settings card is one button (caught before the accordion handler), and so is the button on the login screen
+  document.addEventListener('click',e=>{
+    const t=e.target; if(!t||!t.closest) return;
+    if(t.closest('#install-card>.panel-head')){e.preventDefault();e.stopImmediatePropagation();openHowTo();return;}
+  },true);
+  document.addEventListener('keydown',e=>{
+    if((e.key==='Enter'||e.key===' ')&&e.target&&e.target.matches&&e.target.matches('#install-card>.panel-head')){e.preventDefault();e.stopImmediatePropagation();openHowTo();}
+  },true);
+  document.addEventListener('click',e=>{ if(e.target&&e.target.closest&&e.target.closest('#install-landing-btn')) openHowTo(); });
+  (function(){const h=document.querySelector('#install-card>.panel-head'); if(h){h.removeAttribute('aria-expanded');h.setAttribute('aria-haspopup','dialog');}})();
+  setTimeout(paint,600);
 })();
