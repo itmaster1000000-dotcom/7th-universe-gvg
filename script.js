@@ -4507,5 +4507,7 @@ window.addEventListener('scroll',()=>{document.querySelectorAll('.dots-menu.open
   },true);
   document.addEventListener('click',e=>{ if(e.target&&e.target.closest&&e.target.closest('#install-landing-btn')) openHowTo(); });
   (function(){const h=document.querySelector('#install-card>.panel-head'); if(h){h.removeAttribute('aria-expanded');h.setAttribute('aria-haspopup','dialog');}})();
+  // v52: register the site worker early (its tiny fetch handler is what lets Chrome offer one-tap install; OneSignal alerts use this same file)
+  try{if('serviceWorker' in navigator&&location.protocol==='https:'){const reg=()=>{navigator.serviceWorker.register('OneSignalSDKWorker.js').catch(()=>{});};if(document.readyState==='complete')reg();else window.addEventListener('load',reg,{once:true});}}catch{}
   setTimeout(paint,600);
 })();
